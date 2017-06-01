@@ -5,6 +5,11 @@ const URI = require('urijs')
 const moment = require("moment")
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const fs = require('fs');
+const parser = require('xml2json');
+const util = require('util');
+const xpath = require('xpath')
+const Dom = require('xmldom').DOMParser
 
 module.exports = function (timrcnf,oauthcnf) {
   const timrconfig = timrcnf
@@ -56,6 +61,7 @@ module.exports = function (timrcnf,oauthcnf) {
         var vaccineEndDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
         queryPar.forEach ((query,index) => {
           let url = URI(timrconfig.url)
+          .segment('fhir')
           .segment('Immunization')
           +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&date=ge' + vaccineStartDate + '&date=le' + vaccineEndDate + '&_format=json&_count=0'
           .toString()
@@ -78,7 +84,90 @@ module.exports = function (timrcnf,oauthcnf) {
           })
         })
       })
-    }
+    },
 
+    getStockData: function (facilityUUID,callback) {
+      /*fs.readFile('/home/ashaban/Desktop/gs1data.xml','utf8', function(err,data) {
+        callback(data)
+      })*/
+
+      fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
+        var startDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
+        var endDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
+        var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
+        let url = URI(timrconfig.url)
+        .segment('gs1')
+        .segment('inventoryReport')
+        .toString()
+        var options = {
+          url: url.toString(),
+          headers: {
+            'Content-Type': 'application/xml'
+          },
+          body: gs1RequestMessage
+        }
+        request.post(options, function (err, res, body) {
+          if (err) {
+            return callback(err)
+          }
+          winston.error(body)
+          callback(err)
+        })
+      })
+    },
+
+    extractStockData: function (data,callback) {
+      var timrStock = []
+
+      var json = parser.toJson(data);
+      json = JSON.parse(json)
+      json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.forEach ((logInvRepInvLoc,logInvRepInvLocIndex) =>{
+        var facilityUUID
+        if(logInvRepInvLoc.inventoryLocation.additionalPartyIdentification)
+        logInvRepInvLoc.inventoryLocation.additionalPartyIdentification.forEach((addPartyId) =>{
+          if(addPartyId['additionalPartyIdentificationTypeCode'] == 'HIE_FRID')
+          facilityUUID = addPartyId.$t
+        })
+
+        if(Array.isArray(logInvRepInvLoc.tradeItemInventoryStatus))
+        logInvRepInvLoc.tradeItemInventoryStatus.forEach((tradeItInvStatus,tradeItInvStatusIndex) =>{
+          if(tradeItInvStatus.gtin == undefined & Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+            tradeItInvStatus.additionalTradeItemIdentification.forEach((addTradeItId) =>{
+              if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GTIN')
+              timrStock.push({
+                              'facilityUUID': facilityUUID,
+                              'gtin': addTradeItId.$t,
+                              'code': tradeItInvStatus.inventoryDispositionCode,
+                              'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+                        })
+            })
+          }
+          else if(tradeItInvStatus.gtin == undefined & !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+            timrStock.push({
+                            'facilityUUID': facilityUUID,
+                            'gtin': tradeItInvStatus.additionalTradeItemIdentification.$t,
+                            'code': tradeItInvStatus.inventoryDispositionCode,
+                            'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+                          })
+          }
+          else if(tradeItInvStatus.gtin != undefined) {
+            timrStock.push({
+                            'facilityUUID': facilityUUID,
+                            'gtin': tradeItInvStatus.gtin,
+                            'code': tradeItInvStatus.inventoryDispositionCode,
+                            'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+                          })
+          }
+
+          if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1 & tradeItInvStatusIndex == logInvRepInvLoc.tradeItemInventoryStatus.length-1) {
+            callback(timrStock)
+          }
+        })
+
+        else if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1){
+          callback(timrStock)
+        }
+      })
+    }
   }
 }

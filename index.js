@@ -61,6 +61,7 @@ function setupApp () {
       res.end(response)
     }
 
+    //need to put this inside terminology service
     function getDosesMapping (callback) {
       var dosesMapping = []
       dosesMapping.push({'name': 'Dose 0','timrid': '0','vimsid': '0','vimsid1': '1'})
@@ -69,6 +70,13 @@ function setupApp () {
       dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
       callback(dosesMapping)
     }
+
+    timr.getStockData('urn:uuid:67882F85-DA89-3A79-A7D5-E224859863D6',(data) =>{
+      timr.extractStockData(data,(res) =>{
+        winston.error(res)
+      })
+
+    })
 
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {

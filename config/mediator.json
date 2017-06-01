@@ -127,7 +127,7 @@
       "password": "@MediatorSource123"
     },
     "timr": {
-      "url": "http://timr.marc-hi.ca:8080/fhir/"
+      "url": "http://timr.marc-hi.ca:8080/"
     },
     "vims": {
       "url": "https://vimstraining.elmis-dev.org",
