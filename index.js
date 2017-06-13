@@ -71,18 +71,29 @@ function setupApp () {
       callback(dosesMapping)
     }
 
-    timr.getStockData('urn:uuid:67882F85-DA89-3A79-A7D5-E224859863D6',(data) =>{
-      timr.extractStockData(data,(res) =>{
-        winston.error(res)
-      })
+    /*var vimsFacilityId = 19132 //need to loop through all facilities
+    var timrFacilityId = 'urn:uuid:67882F85-DA89-3A79-A7D5-E224859863D6'
+    vims.getPeriod(vimsFacilityId,(periods)=>{
+      if(periods.length > 0) {
+        timr.getStockData(timrFacilityId,(data) =>{
+          timr.extractStockData(data,(timrStockData) =>{
+            vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
+              vimsImmDataElmnts.forEach ((vimsVaccCode) => {
+                vims.saveStockData(periods,timrStockData,vimsVaccCode.code,(res) =>{
 
-    })
+                })
+              })
+            })
+          })
+        })
+      }
+    })*/
 
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {
         var access_token = JSON.parse(body).access_token
-        var facilityid = ""//need to loop through all facilities
-        vims.getPeriod(19132,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
+        var facilityid = "urn:uuid:494F187E-8CA4-39C8-B306-7C23993594BF"//need to loop through all facilities
+        vims.getPeriod(19601,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
           if(periods.length > 0) {
             vimsImmDataElmnts.forEach ((vimsVaccCode) => {
               getDosesMapping((doses) =>{

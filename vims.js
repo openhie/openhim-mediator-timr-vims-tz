@@ -120,6 +120,58 @@ module.exports = function (cnf) {
 
         })
       })
+    },
+
+    saveStockData: function(periods,data,code,callback) {
+      var gtin = data[0].gtin
+      data.forEach((dt,index) =>{
+        if(dt.gtin == gtin) {
+        winston.error(dt.gtin + " "+ dt.GIIS_ITEM_LOT + " "+ dt.code)
+        }
+        else {
+          winston.error('==========')
+          winston.error(dt.gtin + " "+ dt.GIIS_ITEM_LOT + " "+ dt.code)
+          gtin = dt.gtin
+        }
+      })
+      process.exit()
+      periods.forEach ((period) => {
+        var periodId = period.id
+        if(vimsVaccCode == '2413')
+        var doseid = dose.vimsid1
+        else
+        var doseid = dose.vimsid
+        this.getReport (periodId,(report) => {
+          report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
+            if(coverageLineItems.productId == vimsVaccCode & coverageLineItems.doseId == doseid) {
+              report.report.coverageLineItems[index].regularMale = values.regularMale
+              report.report.coverageLineItems[index].regularFemale = values.regularFemale
+              report.report.coverageLineItems[index].outreachMale = values.outreachMale
+              report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
+              var updatedReport = report.report
+              var url = URI(config.url).segment('rest-api/ivd/save')
+              var username = config.username
+              var password = config.password
+              var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+              var options = {
+                url: url.toString(),
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: auth
+                },
+                json:updatedReport
+              }
+              request.put(options, function (err, res, body) {
+                if (err) {
+                  return callback(err)
+                }
+                callback(err)
+              })
+            }
+          })
+
+        })
+      })
     }
   }
 }

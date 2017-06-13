@@ -63,7 +63,7 @@ module.exports = function (timrcnf,oauthcnf) {
           let url = URI(timrconfig.url)
           .segment('fhir')
           .segment('Immunization')
-          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&date=ge' + vaccineStartDate + '&date=le' + vaccineEndDate + '&_format=json&_count=0'
+          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineStartDate + '&date=le' + vaccineEndDate + '&_format=json&_count=0'
           .toString()
           var options = {
             url: url.toString(),
@@ -87,11 +87,11 @@ module.exports = function (timrcnf,oauthcnf) {
     },
 
     getStockData: function (facilityUUID,callback) {
-      /*fs.readFile('/home/ashaban/Desktop/gs1data.xml','utf8', function(err,data) {
+      fs.readFile('/home/ashaban/Desktop/gs1data.xml','utf8', function(err,data) {
         callback(data)
-      })*/
+      })
 
-      fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
+      /*fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
         var startDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
         var endDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
@@ -113,7 +113,7 @@ module.exports = function (timrcnf,oauthcnf) {
           winston.error(body)
           callback(err)
         })
-      })
+      })*/
     },
 
     extractStockData: function (data,callback) {
@@ -121,53 +121,50 @@ module.exports = function (timrcnf,oauthcnf) {
 
       var json = parser.toJson(data);
       json = JSON.parse(json)
-      json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.forEach ((logInvRepInvLoc,logInvRepInvLocIndex) =>{
-        var facilityUUID
-        if(logInvRepInvLoc.inventoryLocation.additionalPartyIdentification)
-        logInvRepInvLoc.inventoryLocation.additionalPartyIdentification.forEach((addPartyId) =>{
-          if(addPartyId['additionalPartyIdentificationTypeCode'] == 'HIE_FRID')
-          facilityUUID = addPartyId.$t
-        })
+      var logInvRepInvLoc = json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation
 
-        if(Array.isArray(logInvRepInvLoc.tradeItemInventoryStatus))
-        logInvRepInvLoc.tradeItemInventoryStatus.forEach((tradeItInvStatus,tradeItInvStatusIndex) =>{
-          if(tradeItInvStatus.gtin == undefined & Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
-            tradeItInvStatus.additionalTradeItemIdentification.forEach((addTradeItId) =>{
-              if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GTIN')
-              timrStock.push({
-                              'facilityUUID': facilityUUID,
-                              'gtin': addTradeItId.$t,
-                              'code': tradeItInvStatus.inventoryDispositionCode,
-                              'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+      if(Array.isArray(logInvRepInvLoc.tradeItemInventoryStatus))
+      logInvRepInvLoc.tradeItemInventoryStatus.forEach((tradeItInvStatus,tradeItInvStatusIndex) =>{
+        if(tradeItInvStatus.gtin == undefined & Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+          var gtin = ''
+          var lot = ''
+          tradeItInvStatus.additionalTradeItemIdentification.forEach((addTradeItId) =>{
+            if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GTIN')
+            gtin = addTradeItId.$t
+            else if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GIIS_ITEM_LOT')
+            lot = addTradeItId.$t
+          })
+          if(gtin | lot)
+          timrStock.push({
+                          'gtin': gtin,
+                          'GIIS_ITEM_LOT': lot,
+                          'code': tradeItInvStatus.inventoryDispositionCode,
+                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
                         })
-            })
-          }
-          else if(tradeItInvStatus.gtin == undefined & !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
-            timrStock.push({
-                            'facilityUUID': facilityUUID,
-                            'gtin': tradeItInvStatus.additionalTradeItemIdentification.$t,
-                            'code': tradeItInvStatus.inventoryDispositionCode,
-                            'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
-                          })
-          }
-          else if(tradeItInvStatus.gtin != undefined) {
-            timrStock.push({
-                            'facilityUUID': facilityUUID,
-                            'gtin': tradeItInvStatus.gtin,
-                            'code': tradeItInvStatus.inventoryDispositionCode,
-                            'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
-                          })
-          }
+        }
+        else if(tradeItInvStatus.gtin == undefined & !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+          timrStock.push({
+                          'gtin': tradeItInvStatus.additionalTradeItemIdentification.$t,
+                          'code': tradeItInvStatus.inventoryDispositionCode,
+                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+                        })
+        }
+        else if(tradeItInvStatus.gtin != undefined) {
+          timrStock.push({
+                          'gtin': tradeItInvStatus.gtin,
+                          'code': tradeItInvStatus.inventoryDispositionCode,
+                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
+                        })
+        }
 
-          if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1 & tradeItInvStatusIndex == logInvRepInvLoc.tradeItemInventoryStatus.length-1) {
-            callback(timrStock)
-          }
-        })
-
-        else if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1){
+        if(tradeItInvStatusIndex == logInvRepInvLoc.tradeItemInventoryStatus.length-1) {
           callback(timrStock)
         }
       })
+
+      else if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1){
+        callback(timrStock)
+      }
     }
   }
 }
