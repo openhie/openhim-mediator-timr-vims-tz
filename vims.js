@@ -40,7 +40,7 @@ module.exports = function (cnf) {
           body.periods.forEach ((period,index)=>{
             var systemMonth = moment(period.periodName, 'MMM YYYY','en').format('MM')
             var prevMonth = moment().subtract(1,'month').format('MM')
-            if(period.id > 0 & systemMonth == prevMonth)
+            if(period.id > 0 && systemMonth == prevMonth)
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1)
             callback(periods)
@@ -91,7 +91,7 @@ module.exports = function (cnf) {
         var doseid = dose.vimsid
         this.getReport (periodId,(report) => {
           report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
-            if(coverageLineItems.productId == vimsVaccCode & coverageLineItems.doseId == doseid) {
+            if(coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
               report.report.coverageLineItems[index].regularMale = values.regularMale
               report.report.coverageLineItems[index].regularFemale = values.regularFemale
               report.report.coverageLineItems[index].outreachMale = values.outreachMale
@@ -143,7 +143,7 @@ module.exports = function (cnf) {
         var doseid = dose.vimsid
         this.getReport (periodId,(report) => {
           report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
-            if(coverageLineItems.productId == vimsVaccCode & coverageLineItems.doseId == doseid) {
+            if(coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
               report.report.coverageLineItems[index].regularMale = values.regularMale
               report.report.coverageLineItems[index].regularFemale = values.regularFemale
               report.report.coverageLineItems[index].outreachMale = values.outreachMale

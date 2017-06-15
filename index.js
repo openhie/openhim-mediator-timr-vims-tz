@@ -92,8 +92,8 @@ function setupApp () {
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {
         var access_token = JSON.parse(body).access_token
-        var facilityid = "urn:uuid:494F187E-8CA4-39C8-B306-7C23993594BF"//need to loop through all facilities
-        vims.getPeriod(19601,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
+        var facilityid = "urn:uuid:121DF9A7-3C9E-371A-89FF-CE0C0F1B9F4F"//need to loop through all facilities
+        vims.getPeriod(16355,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
           if(periods.length > 0) {
             vimsImmDataElmnts.forEach ((vimsVaccCode) => {
               getDosesMapping((doses) =>{

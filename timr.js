@@ -125,7 +125,7 @@ module.exports = function (timrcnf,oauthcnf) {
 
       if(Array.isArray(logInvRepInvLoc.tradeItemInventoryStatus))
       logInvRepInvLoc.tradeItemInventoryStatus.forEach((tradeItInvStatus,tradeItInvStatusIndex) =>{
-        if(tradeItInvStatus.gtin == undefined & Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+        if(tradeItInvStatus.gtin == undefined && Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
           var gtin = ''
           var lot = ''
           tradeItInvStatus.additionalTradeItemIdentification.forEach((addTradeItId) =>{
@@ -134,7 +134,7 @@ module.exports = function (timrcnf,oauthcnf) {
             else if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GIIS_ITEM_LOT')
             lot = addTradeItId.$t
           })
-          if(gtin | lot)
+          if(gtin || lot)
           timrStock.push({
                           'gtin': gtin,
                           'GIIS_ITEM_LOT': lot,
@@ -142,7 +142,7 @@ module.exports = function (timrcnf,oauthcnf) {
                           'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
                         })
         }
-        else if(tradeItInvStatus.gtin == undefined & !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
+        else if(tradeItInvStatus.gtin == undefined && !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
           timrStock.push({
                           'gtin': tradeItInvStatus.additionalTradeItemIdentification.$t,
                           'code': tradeItInvStatus.inventoryDispositionCode,
