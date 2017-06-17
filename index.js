@@ -7,6 +7,7 @@ const winston = require('winston')
 const moment = require("moment")
 const TImR = require('./timr')
 const VIMS = require('./vims')
+const async = require('async')
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -17,8 +18,8 @@ const mediatorConfig = require('./config/mediator')
 const https = require('https')
 const http = require('http')
 
-https.globalAgent.maxSockets = 1
-http.globalAgent.maxSockets = 1
+https.globalAgent.maxSockets = 32
+http.globalAgent.maxSockets = 32
 
 // Logging setup
 winston.remove(winston.transports.Console)
@@ -92,19 +93,23 @@ function setupApp () {
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
       timr.getAccessToken((err, res, body) => {
         var access_token = JSON.parse(body).access_token
-        var facilityid = "urn:uuid:121DF9A7-3C9E-371A-89FF-CE0C0F1B9F4F"//need to loop through all facilities
-        vims.getPeriod(16355,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
+        var facilityid = "urn:uuid:EFC948D0-3290-35DE-AE4C-1773C93B987C"//need to loop through all facilities
+        vims.getPeriod(19246,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
           if(periods.length > 0) {
-            vimsImmDataElmnts.forEach ((vimsVaccCode) => {
+            async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
               getDosesMapping((doses) =>{
-                doses.forEach((dose) => {
+                async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
                   timr.getImmunizationData(access_token,vimsVaccCode.code,dose,facilityid,(err,values) => {
                     vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,(err) =>{
-
+                      processNextDose()
                     })
                   })
+                },function() {
+                  processNextDtElmnt()
                 })
               })
+            },function() {
+              winston.error('Done!!!')
             })
           }
         })

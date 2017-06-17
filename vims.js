@@ -42,8 +42,9 @@ module.exports = function (cnf) {
             var prevMonth = moment().subtract(1,'month').format('MM')
             if(period.id > 0 && systemMonth == prevMonth)
             periods.push({'id':period.id,'periodName':period.periodName})
-            if(index == body.periods.length-1)
-            callback(periods)
+            if(index == body.periods.length-1) {
+              callback(periods)
+            }
           })
         }
         else {
@@ -87,11 +88,19 @@ module.exports = function (cnf) {
         var periodId = period.id
         if(vimsVaccCode == '2413')
         var doseid = dose.vimsid1
+        else if(vimsVaccCode == '2412') {
+          var doseid = 1
+        }
         else
         var doseid = dose.vimsid
         this.getReport (periodId,(report) => {
+          var totalCoveLine = report.report.coverageLineItems.length;
+          var found = false
+          winston.error('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
           report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
             if(coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
+              found = true
+              totalCoveLine--
               report.report.coverageLineItems[index].regularMale = values.regularMale
               report.report.coverageLineItems[index].regularFemale = values.regularFemale
               report.report.coverageLineItems[index].outreachMale = values.outreachMale
@@ -111,11 +120,17 @@ module.exports = function (cnf) {
               }
               request.put(options, function (err, res, body) {
                 if (err) {
+                  winston.error(err)
                   return callback(err)
                 }
                 callback(err)
               })
             }
+            else {
+              totalCoveLine--
+            }
+            if(totalCoveLine == 0 && found == false)
+            callback('')
           })
 
         })
