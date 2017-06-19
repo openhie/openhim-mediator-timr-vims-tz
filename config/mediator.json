@@ -14,7 +14,7 @@
           "name": "Activate TImR and VIMS Sync",
           "secured": false,
           "host": "localhost",
-          "port": 8544,
+          "port": 8545,
           "path": "/sync",
           "primary": true,
           "status": "enabled",

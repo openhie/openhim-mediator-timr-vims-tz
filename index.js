@@ -144,7 +144,7 @@ function start (callback) {
         } else {
           winston.info('Successfully registered mediator!')
           let app = setupApp()
-          const server = app.listen(8544, () => {
+          const server = app.listen(8545, () => {
             let configEmitter = medUtils.activateHeartbeat(apiConf.api)
             configEmitter.on('config', (newConfig) => {
               winston.info('Received updated config:', newConfig)
@@ -160,12 +160,12 @@ function start (callback) {
     // default to config from mediator registration
     config = mediatorConfig.config
     let app = setupApp()
-    const server = app.listen(8544, () => callback(server))
+    const server = app.listen(8545, () => callback(server))
   }
 }
 exports.start = start
 
 if (!module.parent) {
   // if this script is run directly, start the server
-  start(() => winston.info('Listening on 8544...'))
+  start(() => winston.info('Listening on 8545...'))
 }
