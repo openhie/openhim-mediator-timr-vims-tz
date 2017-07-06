@@ -1,0 +1,66 @@
+{
+  "resourceType": "ValueSet",
+  "id": "vims-immunization-valuesets-tz",
+  "meta": {
+    "lastUpdated": "2017-05-29"
+  },
+  "url": "http://localhost/ValueSet/vims",
+  "version": "1.0.0",
+  "name": "VIMS Immunization valuesets",
+  "status": "draft",
+  "experimental": true,
+  "publisher": "TZ CAT team",
+  "date": "2017-05-29",
+  "description": "This value set defines the set of values that are used in VIMS for Immunization.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://timr.marc-hi.ca:8080/fhir/ValueSets",
+        "concept": [
+          {
+            "code": "2412"
+          },
+          {
+            "code": "2434"
+          },
+          {
+            "code": "2413"
+          },
+          {
+            "code": "2415"
+          },
+          {
+            "code":"2421"
+          },
+          {
+            "code":"2416"
+          },
+          {
+            "code":"2420"
+          },
+          {
+            "code":"2418"
+          },
+          {
+            "code":"2422"
+          },
+          {
+            "code":"2423"
+          },
+          {
+            "code":"2425"
+          },
+          {
+            "code":"2426"
+          },
+          {
+            "code":"2431"
+          },
+          {
+            "code":"2430"
+          }
+        ]
+      }
+    ]
+  }
+}

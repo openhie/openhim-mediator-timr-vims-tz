@@ -8,6 +8,8 @@ const moment = require("moment")
 const TImR = require('./timr')
 const VIMS = require('./vims')
 const async = require('async')
+const bodyParser = require('body-parser')
+var xmlparser = require('express-xml-bodyparser');
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -25,6 +27,9 @@ http.globalAgent.maxSockets = 32
 winston.remove(winston.transports.Console)
 winston.add(winston.transports.Console, {level: 'info', timestamp: true, colorize: true})
 
+//set environment variable so that the mediator can be registered
+process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
+
 /**
  * setupApp - configures the http server for this mediator
  *
@@ -34,7 +39,7 @@ function setupApp () {
   const app = express()
 
   app.get('/sync', (req, res) => {
-    const timr = TImR(config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2)
     const vims = VIMS(config.vims)
     req.timestamp = new Date()
     let orchestrations = []
@@ -72,29 +77,37 @@ function setupApp () {
       callback(dosesMapping)
     }
 
-    /*var vimsFacilityId = 19132 //need to loop through all facilities
-    var timrFacilityId = 'urn:uuid:67882F85-DA89-3A79-A7D5-E224859863D6'
+
+    var vimsFacilityId = 19101 //need to loop through all facilities
+    var timrFacilityId = 'urn:uuid:96B7E6F8-38CE-3D01-AFE3-0B572122C880'
     vims.getPeriod(vimsFacilityId,(periods)=>{
       if(periods.length > 0) {
-        timr.getStockData(timrFacilityId,(data) =>{
-          timr.extractStockData(data,(timrStockData) =>{
-            vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
-              vimsImmDataElmnts.forEach ((vimsVaccCode) => {
-                vims.saveStockData(periods,timrStockData,vimsVaccCode.code,(res) =>{
-
-                })
+        timr.getAccessToken('gs1',(err, res, body) => {
+          winston.error(body)
+          var access_token = JSON.parse(body).access_token
+          timr.getStockData(access_token,timrFacilityId,(data) =>{
+            timr.extractStockData(data,(timrStockData,stockCodes) =>{
+              vims.getItemsDataElmnts ((err,vimsItemsDataElmnts) => {
+                  async.eachSeries(vimsItemsDataElmnts,function(vimsItemsDataElmnt,processNextDtElmnt) {
+                    vims.saveStockData(periods,timrStockData,stockCodes,vimsItemsDataElmnt.code,(res) =>{
+                      processNextDtElmnt()
+                    })
+                  },function(){
+                      winston.info("Done!!!")
+                  })
               })
             })
           })
         })
       }
-    })*/
+    })
 
+    /*
     vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
-      timr.getAccessToken((err, res, body) => {
+      timr.getAccessToken('fhir',(err, res, body) => {
         var access_token = JSON.parse(body).access_token
-        var facilityid = "urn:uuid:EFC948D0-3290-35DE-AE4C-1773C93B987C"//need to loop through all facilities
-        vims.getPeriod(19246,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
+        var facilityid = "urn:uuid:96B7E6F8-38CE-3D01-AFE3-0B572122C880"//need to loop through all facilities
+        vims.getPeriod(19101,(periods)=>{//use fac 19132 (has two per ids) or 14133 (has an error) or 16452 (has one per,index null)
           if(periods.length > 0) {
             async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
               getDosesMapping((doses) =>{
@@ -114,7 +127,15 @@ function setupApp () {
           }
         })
       })
-    })
+    })*/
+  }),
+  app.use(xmlparser()),
+  app.use(bodyParser.urlencoded({
+    extended: true
+})),
+app.use(bodyParser.json()),
+app.post('/sync', (req, res) => {
+    winston.error(req.body)
   })
   return app
 }

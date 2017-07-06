@@ -3,30 +3,36 @@ const winston = require('winston')
 const request = require('request')
 const URI = require('urijs')
 const moment = require("moment")
+const XmlReader = require('xml-reader')
+const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
-const fs = require('fs');
-const parser = require('xml2json');
+const fs = require('fs')
+const parser = require('xml2json')
+const parseString = require('xml2js').parseString;
 const util = require('util');
-const xpath = require('xpath')
-const Dom = require('xmldom').DOMParser
 
 module.exports = function (timrcnf,oauthcnf) {
   const timrconfig = timrcnf
-  const timroauthconfig = oauthcnf
+  const oauthconfig = oauthcnf
   return {
-    getAccessToken: function (callback) {
-      let url = URI(timroauthconfig.url)
+    getAccessToken: function (scope,callback) {
+      if(scope == 'gs1')
+      var scope_url = oauthconfig.gs1Scope
+      else if(scope == 'fhir')
+      var scope_url = oauthconfig.fhirScope
+      let url = URI(oauthconfig.url)
       let before = new Date()
       var options = {
         url: url.toString(),
         headers: {
-          Authorization: `BASIC ${timroauthconfig.token}`
+          Authorization: `BASIC ${oauthconfig.token}`
         },
-        body: `grant_type=password&username=${timroauthconfig.username}&password=${timroauthconfig.password}&scope=${timroauthconfig.scope}`
+        body: `grant_type=password&username=${oauthconfig.username}&password=${oauthconfig.password}&scope=${scope_url}`
       }
       request.post(options, (err, res, body) => {
         if (err) {
+          winston.error(err)
           return callback(err)
         }
         callback(err, res, body)
@@ -71,9 +77,6 @@ module.exports = function (timrcnf,oauthcnf) {
           .segment('Immunization')
           +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
-          if(vimsVaccCode == '2421' && dose.timrid==1) {
-              winston.error(url)
-          }
           var options = {
             url: url.toString(),
             headers: {
@@ -96,12 +99,11 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getStockData: function (facilityUUID,callback) {
-      fs.readFile('/home/ashaban/Desktop/gs1data.xml','utf8', function(err,data) {
+    getStockData: function (access_token,facilityUUID,callback) {
+      /*fs.readFile('/home/ashaban/openhim-mediator-timr-vims-tz/gs1data.xml','utf8', function(err,data) {
         callback(data)
-      })
-
-      /*fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
+      })*/
+      fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
         var startDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
         var endDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
@@ -112,7 +114,8 @@ module.exports = function (timrcnf,oauthcnf) {
         var options = {
           url: url.toString(),
           headers: {
-            'Content-Type': 'application/xml'
+            'Content-Type': 'application/xml',
+            Authorization: `BEARER ${access_token}`
           },
           body: gs1RequestMessage
         }
@@ -120,61 +123,55 @@ module.exports = function (timrcnf,oauthcnf) {
           if (err) {
             return callback(err)
           }
-          winston.error(body)
-          callback(err)
+          callback(body)
         })
-      })*/
+      })
     },
 
     extractStockData: function (data,callback) {
-      var timrStock = []
+      const ast = XmlReader.parseSync(data);
+      const logisticsInventoryReport = xmlQuery(ast).children().find("logisticsInventoryReport")
+      const logInvRepInvLoc = logisticsInventoryReport.children().find("logisticsInventoryReportInventoryLocation").children()
+      var length = logInvRepInvLoc.size()
+      var items = []
+      var stockCodes = []
+      var ensureProcessed = length-1
+      for(var counter = 0;counter<=length-1;counter++) {
+        if(logInvRepInvLoc.eq(counter).has("tradeItemInventoryStatus")){
+          var tradeItmClassLength = logInvRepInvLoc.eq(counter).find("tradeItemClassification").children().length
+          var tradeItmClass = logInvRepInvLoc.eq(counter).find("tradeItemClassification").children()
+          //just in case there are more than one tradeItemClassification,loop through all and get the one with vimsid
+          var vimsid = 0
+          for(var classficationCounter=0;classficationCounter<tradeItmClassLength;classficationCounter++) {
+            if(tradeItmClass.eq(classficationCounter).attr("codeListVersion") == "VIMS_ITEM_ID")
+            vimsid = tradeItmClass.eq(classficationCounter).text()
+          }
+          if(vimsid != 0) {
+            //get quantity
+            var quantity = logInvRepInvLoc.eq(counter).find("transactionalItemData").children().find("tradeItemQuantity").text()
 
-      var json = parser.toJson(data);
-      json = JSON.parse(json)
-      var logInvRepInvLoc = json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation
+            //get Code
+            var code = logInvRepInvLoc.eq(counter).find("inventoryDispositionCode").text()
+            var index = vimsid+code
+            var stockAdded = stockCodes.find(stockCode=> {
+              return stockCode.code == index
+            })
+            if(stockAdded == undefined)
+            stockCodes.push({"code":index})
 
-      if(Array.isArray(logInvRepInvLoc.tradeItemInventoryStatus))
-      logInvRepInvLoc.tradeItemInventoryStatus.forEach((tradeItInvStatus,tradeItInvStatusIndex) =>{
-        if(tradeItInvStatus.gtin == undefined && Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
-          var gtin = ''
-          var lot = ''
-          tradeItInvStatus.additionalTradeItemIdentification.forEach((addTradeItId) =>{
-            if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GTIN')
-            gtin = addTradeItId.$t
-            else if(addTradeItId.additionalTradeItemIdentificationTypeCode == 'GIIS_ITEM_LOT')
-            lot = addTradeItId.$t
-          })
-          if(gtin || lot)
-          timrStock.push({
-                          'gtin': gtin,
-                          'GIIS_ITEM_LOT': lot,
-                          'code': tradeItInvStatus.inventoryDispositionCode,
-                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
-                        })
+            if(items[index] == undefined) {
+              items[index] = {"id":vimsid,"code":code,"quantity":quantity}
+            }
+            else {
+              items[index].quantity = Number(items[index].quantity) + Number(quantity)
+            }
+          }
+          ensureProcessed--
+          if(ensureProcessed ==0)
+          callback(items,stockCodes)
         }
-        else if(tradeItInvStatus.gtin == undefined && !Array.isArray(tradeItInvStatus.additionalTradeItemIdentification)) {
-          timrStock.push({
-                          'gtin': tradeItInvStatus.additionalTradeItemIdentification.$t,
-                          'code': tradeItInvStatus.inventoryDispositionCode,
-                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
-                        })
-        }
-        else if(tradeItInvStatus.gtin != undefined) {
-          timrStock.push({
-                          'gtin': tradeItInvStatus.gtin,
-                          'code': tradeItInvStatus.inventoryDispositionCode,
-                          'quantity': tradeItInvStatus.transactionalItemData.tradeItemQuantity
-                        })
-        }
-
-        if(tradeItInvStatusIndex == logInvRepInvLoc.tradeItemInventoryStatus.length-1) {
-          callback(timrStock)
-        }
-      })
-
-      else if(logInvRepInvLocIndex == json.logisticsInventoryReportMessage.logisticsInventoryReport.logisticsInventoryReportInventoryLocation.length-1){
-        callback(timrStock)
       }
     }
+
   }
 }

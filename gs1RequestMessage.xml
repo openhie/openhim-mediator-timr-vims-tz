@@ -39,11 +39,11 @@
        %s
       </endDate>
     </reportingPeriod>
-    <LogisticsInventoryRequestLocation>
+    <logisticsInventoryRequestLocation>
       <inventoryLocation>
 	<additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
       </inventoryLocation>
-    </LogisticsInventoryRequestLocation>
+    </logisticsInventoryRequestLocation>
     <documentActionCode>ADD</documentActionCode>
   </logisticsInventoryReportRequest>
 </logistics_inventory_report_request:logisticsInventoryReportRequestMessage>
