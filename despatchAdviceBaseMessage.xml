@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<despatch_advice:despatchAdviceMessage xmlns:despatch_advice="urn:gs1:ecom:despatch_advice:xsd:3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:despatch_advice:xsd:3 ../Schemas/gs1/ecom/DespatchAdvice.xsd">
+  <StandardBusinessDocumentHeader xmlns="http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader">
+    <HeaderVersion>1.0</HeaderVersion>
+    <Receiver>
+      <Identifier Authority="HIE_FRID">%s</Identifier>
+      <ContactInformation/>
+    </Receiver>
+    <Sender>
+      <Identifier Authority="HIE_FRID">%s</Identifier>
+      <ContactInformation>
+        <Contact>%s</Contact>
+      </ContactInformation>
+    </Sender>
+    <DocumentIdentification>
+      <Standard>GS1</Standard>
+      <TypeVersion>3.3</TypeVersion>
+      <InstanceIdentifier>100005</InstanceIdentifier>
+      <Type>despatchAdvice</Type>
+      <MultipleType>false</MultipleType>
+      <CreationDateAndTime>2017-07-03T12:00:01.000-05:00</CreationDateAndTime>
+    </DocumentIdentification>
+  </StandardBusinessDocumentHeader>
+  <despatchAdvice>
+    <creationDateTime>%s</creationDateTime>
+    <documentStatusCode>ORIGINAL</documentStatusCode>
+    <despatchAdviceIdentification>
+      <entityIdentification>%s</entityIdentification>
+    </despatchAdviceIdentification>
+    <receiver>
+      <additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
+    </receiver>
+    <shipper>
+      <additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
+    </shipper>
+    <shipTo>
+      <additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
+    </shipTo>
+    <despatchInformation>
+      <despatchDateTime>%s</despatchDateTime>
+      <actualShipDateTime>%s</actualShipDateTime>
+    </despatchInformation>
+    <despatchAdviceLogisticUnit>
+      %s
+    </despatchAdviceLogisticUnit>
+  </despatchAdvice>
+</despatch_advice:despatchAdviceMessage>
