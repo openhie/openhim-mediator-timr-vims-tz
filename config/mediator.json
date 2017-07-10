@@ -122,24 +122,62 @@
           "type": "password"
         }
       ]
+    },
+    {
+      "param": "openinfoman",
+      "displayName": "InterLinked Registry - Openinfoman",
+      "description": "Server holding facility mappings between DHIS2,VIMS,TImR and HFR",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. http://52.32.67.173:8984/CSD)",
+          "type": "string"
+        },
+        {
+          "param": "document",
+          "displayName": "Facility Document",
+          "description": "Document holding facilities",
+          "type": "string"
+        },
+        {
+          "param": "username",
+          "displayName": "Username",
+          "description": "Username required to send data to DHIS2",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Password",
+          "description": "Password required to send data to DHIS2",
+          "type": "password"
+        }
+      ]
     }
   ],
   "config": {
     "oauth2": {
-      "url": "http://192.168.10.7:8080/auth/oauth2_token",
-      "fhirScope": "http://192.168.10.7:8080/fhir",
-      "gs1Scope": "http://192.168.10.7:8080/gs1",
+      "url": "http://timr.marc-hi.ca:8080/auth/oauth2_token",
+      "fhirScope": "http://timr.marc-hi.ca:8080/fhir",
+      "gs1Scope": "http://timr.marc-hi.ca:8080/fhir",
       "token": "aWxfbWVkaWF0b3I6QE1lZGlhdG9yU291cmNlMTIz",
       "username": "il_mediator",
       "password": "@MediatorSource123"
     },
     "timr": {
-      "url": "http://192.168.10.7:8080/"
+      "url": "http://timr.marc-hi.ca:8080/"
     },
     "vims": {
       "url": "https://vimstraining.elmis-dev.org",
       "username": "vims-divo",
       "password": "Admin123"
+    },
+    "openinfoman": {
+      "url": "http://localhost:8984",
+      "document": "BID",
+      "username": "",
+      "password": ""
     }
   }
 }

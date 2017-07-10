@@ -51,7 +51,7 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,callback) {
+    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,periods,callback) {
       this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           callback()
@@ -67,9 +67,8 @@ module.exports = function (timrcnf,oauthcnf) {
         queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=True&dose-sequence='+dose.timrid})
         queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=False&dose-sequence='+dose.timrid})
         queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=False&dose-sequence='+dose.timrid})
-        //make start date and end date dynamic
-        var vaccineStartDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
-        var vaccineEndDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
+        var vaccineStartDate = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var vaccineEndDate = moment(periods[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var totalLoop = queryPar.length
         queryPar.forEach ((query,index) => {
           let url = URI(timrconfig.url)
@@ -99,13 +98,13 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getStockData: function (access_token,facilityUUID,callback) {
+    getStockData: function (access_token,facilityUUID,periods,callback) {
       /*fs.readFile('/home/ashaban/openhim-mediator-timr-vims-tz/gs1data.xml','utf8', function(err,data) {
         callback(data)
       })*/
       fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
-        var startDate = moment().subtract(1,'month').startOf('month').format('YYYY-MM-DD')
-        var endDate = moment().subtract(1,'month').endOf('month').format('YYYY-MM-DD')
+        var startDate = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(periods[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
         let url = URI(timrconfig.url)
         .segment('gs1')
@@ -128,7 +127,7 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    extractStockData: function (data,callback) {
+    extractStockData: function (data,facilityUUID,callback) {
       const ast = XmlReader.parseSync(data);
       const logisticsInventoryReport = xmlQuery(ast).children().find("logisticsInventoryReport")
       const logInvRepInvLoc = logisticsInventoryReport.children().find("logisticsInventoryReportInventoryLocation").children()
@@ -153,12 +152,12 @@ module.exports = function (timrcnf,oauthcnf) {
             //get Code
             var code = logInvRepInvLoc.eq(counter).find("inventoryDispositionCode").text()
             var index = vimsid+code
+
             var stockAdded = stockCodes.find(stockCode=> {
               return stockCode.code == index
             })
             if(stockAdded == undefined)
             stockCodes.push({"code":index})
-
             if(items[index] == undefined) {
               items[index] = {"id":vimsid,"code":code,"quantity":quantity}
             }
@@ -167,10 +166,34 @@ module.exports = function (timrcnf,oauthcnf) {
             }
           }
           ensureProcessed--
-          if(ensureProcessed ==0)
+          if(ensureProcessed ==0) {
+            winston.error(stockCodes)
           callback(items,stockCodes)
+          }
         }
       }
+    },
+
+    saveDistribution: function(despatchAdviceBaseMessage,access_token,callback) {
+      winston.error(despatchAdviceBaseMessage)
+      let url = URI(timrconfig.url)
+      .segment('gs1')
+      .segment('despatchAdvice')
+      .toString()
+      var options = {
+        url: url.toString(),
+        headers: {
+          'Content-Type': 'application/xml',
+          Authorization: `BEARER ${access_token}`
+        },
+        body: despatchAdviceBaseMessage
+      }
+      request.post(options, function (err, res, body) {
+        if (err) {
+          return callback(err)
+        }
+        callback(body)
+      })
     }
 
   }

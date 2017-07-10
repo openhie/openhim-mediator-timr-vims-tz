@@ -3,6 +3,7 @@ const URI = require('urijs')
 const request = require('request')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
+const winston = require('winston')
 module.exports = function (oimconf) {
   const config = oimconf
   return {
@@ -51,6 +52,41 @@ module.exports = function (oimconf) {
         }
         if(facilities.length == totalFac)
         callback(facilities)
+      })
+    },
+
+    getVimsFacilityId: function(uuid,callback) {
+      var url = new URI(config.url)
+        .segment('/CSD/csr/')
+        .segment(config.document)
+        .segment('careServicesRequest')
+        .segment('/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all')
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
+      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
+                      <csd:id entityID="${uuid}"></csd:id>
+                     </csd:requestParams>`
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: auth,
+          'Content-Type': 'text/xml'
+           },
+           body: csd_msg
+      }
+      request.post(options, function (err, res, body) {
+        if (err) {
+          return callback(err)
+        }
+        var ast = XmlReader.parseSync(body)
+        var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
+        var facility = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children()
+        for(var counter=0;counter<facLength;counter++){
+          if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
+          callback (facility.eq(counter).find("csd:otherID").text())
+          }
+        }
       })
     }
   }

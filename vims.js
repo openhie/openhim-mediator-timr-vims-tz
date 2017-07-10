@@ -3,11 +3,17 @@ const winston = require('winston')
 const request = require('request')
 const URI = require('urijs')
 const moment = require('moment')
+const async = require('async')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
+const querystring = require('querystring');
+const util = require('util')
+const fs = require('fs')
+const runner = require("child_process");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
-
+const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
+const jsonfile = require('/var/www/html/testserver/vimsReceivingAdvice.json')
 module.exports = function (cnf) {
   const config = cnf
   return {
@@ -32,7 +38,6 @@ module.exports = function (cnf) {
           Authorization: auth
         }
       }
-
       request.get(options, (err, res, body) => {
         if (err) {
           return callback(err)
@@ -43,7 +48,7 @@ module.exports = function (cnf) {
           body.periods.forEach ((period,index)=>{
             var systemMonth = moment(period.periodName, 'MMM YYYY','en').format('MM')
             var prevMonth = moment().subtract(1,'month').format('MM')
-            if(period.id > 0 && systemMonth == prevMonth)
+            if(period.id > 0 && period.status == "DRAFT")
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
               callback(periods)
@@ -155,7 +160,6 @@ module.exports = function (cnf) {
       /**
         push stock report to VIMS
       */
-      winston.info("Processing Stock For Item " + vimsItemCode)
       var totalStockCodes = stockCodes.length
       periods.forEach ((period) => {
         var periodId = period.id
@@ -218,6 +222,208 @@ module.exports = function (cnf) {
 
         })
       })
+    },
+    getTimrItemCode: function(vimsItemCode,callback) {
+      timrVimsItems.group.forEach((groups) => {
+        groups.element.forEach((element)=>{
+          if(element.code == vimsItemCode) {
+            element.target.forEach((target) => {
+              callback(target.code)
+            })
+          }
+        })
+      })
+    },
+    getOrganizationUUIDFromVimsId: function (vimsOrgId,callback) {
+      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all'
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
+      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
+                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsOrgId}</csd:otherID>
+                     </csd:requestParams>`
+      var options = {
+        url: url,
+        headers: {
+          'Content-Type': 'text/xml'
+           },
+           body: csd_msg
+      }
+      request.post(options, function (err, res, body) {
+        if (err) {
+          return callback(err)
+        }
+        var ast = XmlReader.parseSync(body)
+        var uuid = xmlQuery(ast).find("organizationDirectory").children().attr("entityID")
+        var name = xmlQuery(ast).find("organizationDirectory").children().find("csd:organization").children().find("csd:primaryName").text()
+        callback(uuid,name)
+      })
+    },
+
+    getFacilityUUIDFromVimsId: function (vimsFacId,callback) {
+      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all'
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
+      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
+                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsFacId}</csd:otherID>
+                     </csd:requestParams>`
+      var options = {
+        url: url,
+        headers: {
+          'Content-Type': 'text/xml'
+           },
+           body: csd_msg
+      }
+      request.post(options, function (err, res, body) {
+        if (err) {
+          return callback(err)
+        }
+        var ast = XmlReader.parseSync(body)
+        var uuid = xmlQuery(ast).find("facilityDirectory").children().attr("entityID")
+        var name = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().find("csd:primaryName").text()
+        callback(uuid,name)
+      })
+    },
+
+    getDistribution: function(vimsDistrictId,callback) {
+      //pretend you are fetching periods so that we get cookie to retrieve stock distribution
+      var username = config.username
+      var password = config.password
+      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsDistrictId + "/82')"
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: auth,
+        }
+      }
+      request.get(options, (err, res, body) => {
+        if (err) {
+          return callback(err)
+        }
+        var startDate = moment().startOf('month').format("YYYY-MM-DD")
+        var endDate = moment().endOf('month').format("YYYY-MM-DD")
+        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/get-by-date-range/" + vimsDistrictId + "?date=" + startDate + "&endDate=" + endDate
+        var options = {
+          url: url.toString(),
+          headers: {
+            Cookie:res.headers["set-cookie"]
+          }
+        }
+        request.get(options, (err, res, body) => {
+          var distributions = JSON.parse(body).distributions
+          //this will help to access getTimrItemCode function inside async
+          var me = this;
+          async.eachSeries(distributions,function(distribution,nextDistr) {
+            fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
+              var timrToFacilityId = null
+              var timrFromFacilityId = null
+              var fromFacilityName = null
+              var distributionDate = distribution.distributionDate
+              var creationDate = moment().format()
+              var distributionId = distribution.id
+              me.getFacilityUUIDFromVimsId(distribution.toFacilityId,(facId,facName)=>{
+                var toFacilityName = facName
+                var timrToFacilityId = facId
+                me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,(facId1,facName1)=>{
+                  fromFacilityName = facName1
+                  timrFromFacilityId = facId1
+                  var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
+
+                  async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
+                    async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                      fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
+                        var lotQuantity = lot.quantity
+                        var lotId = lot.lotId
+                        var gtin = lineItems.product.gtin
+                        var vims_item_id = lineItems.product.id
+                        var item_name = lineItems.product.fullName
+                        if(item_name == null)
+                        var item_name = lineItems.product.primaryName
+                        var timr_item_id = 0
+                        me.getTimrItemCode(vims_item_id,id=>{
+                          timr_item_id = id
+                        })
+                        var lotCode = lot.lot.lotCode
+                        var expirationDate = lot.lot.expirationDate
+                        var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
+                        if(isNaN(timr_item_id)) {
+                          var codeListVersion = "OpenIZ-MaterialType"
+                        }
+                        else {
+                          var codeListVersion = "CVX"
+                        }
+                        var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                        despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
+                        nextLot()
+                      })
+                    },function(){
+                      nextlineItems()
+                    })
+                  },function(){
+                    nextDistr()
+                    despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
+                    if(timrToFacilityId)
+                    callback(despatchAdviceBaseMessage)
+                  })
+                })
+              })
+            })
+          },function(){
+
+          })
+
+      if (err) {
+        return callback(err)
+      }
+        })
+      })
+    },
+
+    sendReceivingAdvice: function(distribution,cookie,callback) {
+      //pretend you are fetching periods so that we get cookie to retrieve stock distribution
+      fs.writeFile("/tmp/distribution.json",JSON.stringify(distribution),function(err){
+        runner.exec("php vims.php",function(err,phpResponse,stderr){
+          winston.error(phpResponse)
+        })
+      })
+      /*
+      var url = URI(config.url).segment('rest-api/ivd/periods/16333/82')
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: auth
+        }
+      }
+      request.get(options, (err, res, body) => {
+        winston.error(body)
+        if (err) {
+          return callback(err)
+        }
+      var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
+      winston.error(res.headers["set-cookie"])
+      var options = {
+        url: url.toString(),
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie:res.headers["set-cookie"]
+        },
+        json:distribution
+      }
+
+      request.post(options, function (err, res, body) {
+        if (err) {
+          return callback(err)
+        }
+        winston.error(body)
+        winston.error("Error" + err)
+        callback(err)
+      })
+    })*/
     }
   }
 }
