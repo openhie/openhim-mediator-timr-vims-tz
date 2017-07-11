@@ -304,7 +304,7 @@ module.exports = function (cnf) {
         }
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/get-by-date-range/" + vimsDistrictId + "?date=" + startDate + "&endDate=" + endDate
+        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/16588"
         var options = {
           url: url.toString(),
           headers: {
@@ -312,10 +312,11 @@ module.exports = function (cnf) {
           }
         }
         request.get(options, (err, res, body) => {
-          var distributions = JSON.parse(body).distributions
+          var distribution = JSON.parse(body).distribution
+          winston.error
           //this will help to access getTimrItemCode function inside async
           var me = this;
-          async.eachSeries(distributions,function(distribution,nextDistr) {
+
             fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
               var timrToFacilityId = null
               var timrFromFacilityId = null
@@ -362,7 +363,6 @@ module.exports = function (cnf) {
                       nextlineItems()
                     })
                   },function(){
-                    nextDistr()
                     despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
                     if(timrToFacilityId)
                     callback(despatchAdviceBaseMessage)
@@ -370,9 +370,6 @@ module.exports = function (cnf) {
                 })
               })
             })
-          },function(){
-
-          })
 
       if (err) {
         return callback(err)
