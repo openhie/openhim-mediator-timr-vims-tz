@@ -175,7 +175,6 @@ module.exports = function (timrcnf,oauthcnf) {
     },
 
     saveDistribution: function(despatchAdviceBaseMessage,access_token,callback) {
-      winston.error(despatchAdviceBaseMessage)
       let url = URI(timrconfig.url)
       .segment('gs1')
       .segment('despatchAdvice')

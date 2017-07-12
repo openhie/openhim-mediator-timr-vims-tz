@@ -182,12 +182,12 @@ function setupApp () {
                             })
                           })
                         },function() {
-                          winston.error("Getting New Data Element")
+                          winston.info("Getting New Data Element")
                           processNextDtElmnt()
                         })
                       })
                     },function() {
-                      winston.error("Getting New Facility")
+                      winston.info("Getting New Facility")
                       processNextFacility()
                     })
                   })
@@ -204,24 +204,40 @@ function setupApp () {
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
-    vims.getDistribution("19083",despatchAdviceBaseMessage=>{
-      timr.getAccessToken('gs1',(err, res, body) => {
-        var access_token = JSON.parse(body).access_token
-        timr.saveDistribution(despatchAdviceBaseMessage,access_token,(res)=>{
-          winston.error(res)
+    oim.getVimsFacilities(facilities=>{
+      async.eachSeries(facilities,function(facility,processNextFacility){
+        var vimsFacilityId = facility.vimsFacilityId
+        var facilityName = facility.facilityName
+        vims.getDistribution(vimsFacilityId,(despatchAdviceBaseMessage,err)=>{
+          if(despatchAdviceBaseMessage){
+            winston.info(despatchAdviceBaseMessage)
+            timr.getAccessToken('gs1',(err, res, body) => {
+              processNextFacility()
+              var access_token = JSON.parse(body).access_token
+              timr.saveDistribution(despatchAdviceBaseMessage,access_token,(res)=>{
+                winston.info(res)
+                processNextFacility()
+              })
+            })
+          }
+          else {
+            winston.error("No Distribution For "+vimsFacilityId)
+            processNextFacility()
+          }
         })
       })
     })
   }),
   app.post('/distr', (req, res) => {
+    res.send("Msg Received,Processing!!!")
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     //get the distribution
     //pretend you are fetching periods so that we get cookie to retrieve stock distribution
-    function getCookie(vimsDistrictId,callback) {
+    function getCookie(vimsToFacilityId,callback) {
       var username = config.vims.username
       var password = config.vims.password
-      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsDistrictId + "/82')"
+      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsToFacilityId + "/82')"
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
@@ -237,11 +253,11 @@ function setupApp () {
       })
     }
 
-    function getDistribution(vimsDistrictId,callback) {
-      getCookie(vimsDistrictId,cookie=>{
+    function getDistribution(vimsToFacilityId,callback) {
+      getCookie(vimsToFacilityId,cookie=>{
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/get-by-date-range/" + vimsDistrictId + "?date=" + startDate + "&endDate=" + endDate
+        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/" + vimsToFacilityId
         var options = {
           url: url.toString(),
           headers: {
@@ -249,8 +265,12 @@ function setupApp () {
           }
         }
         request.get(options, (err, res, body) => {
-          var distributions = JSON.parse(body).distributions
-          callback(distributions)
+          var distribution = JSON.parse(body).distribution
+          if(distribution !== null) {
+            callback(distribution,err)
+          }
+          else
+          callback("",err)
         })
       })
     }
@@ -281,49 +301,49 @@ function setupApp () {
       var vimsToFacilityId = null
       oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
         vimsToFacilityId = vimsFacId
-      })
+        getDistribution(vimsToFacilityId,(distribution,err)=>{
+          if(distribution){
+            if(distributionid == distribution.id) {
+              distribution.status = "RECEIVED"
+              async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
+                var lineItemQuantity = 0
+                async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                  var lotId = lot.lotId
+                  var lotQuantity = lot.quantity
 
-      getDistribution(19083,distributions=>{
-        async.each(distributions,function(distribution){
-          if(vimsToFacilityId == distribution.toFacilityId && distributionid == distribution.id) {
-            distribution.status = "RECEIVED"
-            async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-              var lineItemQuantity = 0
-              async.eachSeries(lineItems.lots,function(lot,nextLot) {
-                var lotId = lot.lotId
-                var lotQuantity = lot.quantity
+                  //find quantity accepted for this lot
+                  var productsLength = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children().size()
+                  var products = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children()
+                  var quantityAcc = 0
+                  for(var counter=0;counter<productsLength;counter++){
+                    if(products.eq(counter).find("receivingAdviceLineItem").children().
+                                            find("transactionalTradeItem").children().
+                                            find("additionalTradeItemIdentification").
+                                            attr("additionalTradeItemIdentificationTypeCode") == "VIMS_STOCK_ID" && products.eq(counter).find("receivingAdviceLineItem").children().
+                                            find("transactionalTradeItem").children().
+                                            find("additionalTradeItemIdentification").text() == lotId)
+                    quantityAcc = products.eq(counter).find("receivingAdviceLineItem").children().find("quantityAccepted").text()
+                  }
+                  //set this lot to quantity Accepted
+                  lot.quantity = Number(quantityAcc)
 
-                //find quantity accepted for this lot
-                var productsLength = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children().size()
-                var products = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children()
-                var quantityAcc = 0
-                for(var counter=0;counter<productsLength;counter++){
-                  if(products.eq(counter).find("receivingAdviceLineItem").children().
-                                          find("transactionalTradeItem").children().
-                                          find("additionalTradeItemIdentification").
-                                          attr("additionalTradeItemIdentificationTypeCode") == "VIMS_STOCK_ID" && products.eq(counter).find("receivingAdviceLineItem").children().
-                                          find("transactionalTradeItem").children().
-                                          find("additionalTradeItemIdentification").text() == lotId)
-                  quantityAcc = products.eq(counter).find("receivingAdviceLineItem").children().find("quantityAccepted").text()
-                }
-                //set this lot to quantity Accepted
-                lot.quantity = Number(quantityAcc)
-
-                lineItemQuantity = Number(lineItemQuantity) + Number(quantityAcc)
-                nextLot()
-              },function(){
-                lineItems.quantity = lineItemQuantity
-                nextlineItems()
-              })
-            },function(){
-              //submit Receiving Advice To VIMS
-              getCookie(19083,cookie=>{
-                vims.sendReceivingAdvice(distribution,cookie,(res)=>{
-
+                  lineItemQuantity = Number(lineItemQuantity) + Number(quantityAcc)
+                  nextLot()
+                },function(){
+                  lineItems.quantity = lineItemQuantity
+                  nextlineItems()
                 })
-              })
+              },function(){
+                //submit Receiving Advice To VIMS
+                getCookie(vimsToFacilityId,cookie=>{
+                  winston.error(JSON.stringify(distribution))
+                  vims.sendReceivingAdvice(distribution,cookie,(res)=>{
 
-            })
+                  })
+                })
+
+              })
+            }
           }
         })
       })

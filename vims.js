@@ -13,7 +13,6 @@ const runner = require("child_process");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
-const jsonfile = require('/var/www/html/testserver/vimsReceivingAdvice.json')
 module.exports = function (cnf) {
   const config = cnf
   return {
@@ -286,11 +285,11 @@ module.exports = function (cnf) {
       })
     },
 
-    getDistribution: function(vimsDistrictId,callback) {
+    getDistribution: function(vimsFacilityId,callback) {
       //pretend you are fetching periods so that we get cookie to retrieve stock distribution
       var username = config.username
       var password = config.password
-      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsDistrictId + "/82')"
+      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsFacilityId + "/82')"
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
@@ -304,7 +303,7 @@ module.exports = function (cnf) {
         }
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/16588"
+        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId
         var options = {
           url: url.toString(),
           headers: {
@@ -313,66 +312,71 @@ module.exports = function (cnf) {
         }
         request.get(options, (err, res, body) => {
           var distribution = JSON.parse(body).distribution
-          winston.error
           //this will help to access getTimrItemCode function inside async
           var me = this;
 
-            fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
-              var timrToFacilityId = null
-              var timrFromFacilityId = null
-              var fromFacilityName = null
-              var distributionDate = distribution.distributionDate
-              var creationDate = moment().format()
-              var distributionId = distribution.id
-              me.getFacilityUUIDFromVimsId(distribution.toFacilityId,(facId,facName)=>{
-                var toFacilityName = facName
-                var timrToFacilityId = facId
-                me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,(facId1,facName1)=>{
-                  fromFacilityName = facName1
-                  timrFromFacilityId = facId1
-                  var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
+            //check to ensure that despatch is available
+            if(distribution !== null) {
+              fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
+                var timrToFacilityId = null
+                var timrFromFacilityId = null
+                var fromFacilityName = null
+                var distributionDate = distribution.distributionDate
+                var creationDate = moment().format()
+                var distributionId = distribution.id
+                me.getFacilityUUIDFromVimsId(distribution.toFacilityId,(facId,facName)=>{
+                  var toFacilityName = facName
+                  var timrToFacilityId = facId
+                  me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,(facId1,facName1)=>{
+                    fromFacilityName = facName1
+                    timrFromFacilityId = facId1
+                    var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
 
-                  async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-                    async.eachSeries(lineItems.lots,function(lot,nextLot) {
-                      fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
-                        var lotQuantity = lot.quantity
-                        var lotId = lot.lotId
-                        var gtin = lineItems.product.gtin
-                        var vims_item_id = lineItems.product.id
-                        var item_name = lineItems.product.fullName
-                        if(item_name == null)
-                        var item_name = lineItems.product.primaryName
-                        var timr_item_id = 0
-                        me.getTimrItemCode(vims_item_id,id=>{
-                          timr_item_id = id
+                    async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
+                      async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                        fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
+                          var lotQuantity = lot.quantity
+                          var lotId = lot.lotId
+                          var gtin = lineItems.product.gtin
+                          var vims_item_id = lineItems.product.id
+                          var item_name = lineItems.product.fullName
+                          if(item_name == null)
+                          var item_name = lineItems.product.primaryName
+                          var timr_item_id = 0
+                          me.getTimrItemCode(vims_item_id,id=>{
+                            timr_item_id = id
+                          })
+                          var lotCode = lot.lot.lotCode
+                          var expirationDate = lot.lot.expirationDate
+                          var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
+                          if(isNaN(timr_item_id)) {
+                            var codeListVersion = "OpenIZ-MaterialType"
+                          }
+                          else {
+                            var codeListVersion = "CVX"
+                          }
+                          var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                          despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
+                          nextLot()
                         })
-                        var lotCode = lot.lot.lotCode
-                        var expirationDate = lot.lot.expirationDate
-                        var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
-                        if(isNaN(timr_item_id)) {
-                          var codeListVersion = "OpenIZ-MaterialType"
-                        }
-                        else {
-                          var codeListVersion = "CVX"
-                        }
-                        var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
-                        despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
-                        nextLot()
+                      },function(){
+                        nextlineItems()
                       })
                     },function(){
-                      nextlineItems()
+                      despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
+                      if(timrToFacilityId)
+                      callback(despatchAdviceBaseMessage,err)
                     })
-                  },function(){
-                    despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
-                    if(timrToFacilityId)
-                    callback(despatchAdviceBaseMessage)
                   })
                 })
               })
-            })
+            }
+            else {
+              callback("",err)
+            }
 
       if (err) {
-        return callback(err)
+        return callback("",err)
       }
         })
       })
