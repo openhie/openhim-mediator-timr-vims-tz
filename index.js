@@ -8,13 +8,11 @@ const moment = require("moment")
 const request = require('request')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
-const Dom = require('xmldom').DOMParser
 const TImR = require('./timr')
 const VIMS = require('./vims')
 const OIM = require('./openinfoman')
 const async = require('async')
 const bodyParser = require('body-parser')
-var js2xmlparser = require("js2xmlparser");
 var xmlparser = require('express-xml-bodyparser');
 
 // Config
@@ -26,8 +24,8 @@ const mediatorConfig = require('./config/mediator')
 const https = require('https')
 const http = require('http')
 
-https.globalAgent.maxSockets = 1
-http.globalAgent.maxSockets = 1
+https.globalAgent.maxSockets = 10
+http.globalAgent.maxSockets = 10
 
 // Logging setup
 winston.remove(winston.transports.Console)
@@ -95,7 +93,6 @@ function setupApp () {
       callback(dosesMapping)
     }
 
-    /*
     oim.getVimsFacilities(facilities=>{
       winston.info("Processing Stock Data")
       winston.info("Fetching Facilities")
@@ -105,7 +102,12 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting Periods")
-          vims.getPeriod(vimsFacilityId,(periods)=>{
+          vims.getPeriod(vimsFacilityId,(periods,orchs)=>{
+            if (orchs) {
+              orchestrations = orchestrations.concat(orchs)
+            }
+
+
             if(periods.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
               processNextFacility()
@@ -142,14 +144,27 @@ function setupApp () {
           })
         }
       },function(){
-        res.send("Done")
-        winston.info("Done")
+        res.writeHead(200, { 'Content-Type': 'application/json+openhim' })
+        res.end(JSON.stringify({
+          'x-mediator-urn': mediatorConfig.urn,
+          status: 'Successful',
+          request: {
+            method: req.method,
+            headers: req.headers,
+            timestamp: req.timestamp,
+            path: req.path
+          },
+          response: {
+            status: 200,
+            timestamp: new Date()
+          },
+          orchestrations: orchestrations
+        }))
       })
-    })*/
+    })
 
 
     //process immunization coverage
-    /*
     oim.getVimsFacilities(facilities=>{
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
@@ -199,7 +214,7 @@ function setupApp () {
       },function(){
         winston.info('Done!!!')
       })
-    })*/
+    })
 
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
@@ -212,7 +227,6 @@ function setupApp () {
           if(despatchAdviceBaseMessage){
             winston.info(despatchAdviceBaseMessage)
             timr.getAccessToken('gs1',(err, res, body) => {
-              processNextFacility()
               var access_token = JSON.parse(body).access_token
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,(res)=>{
                 winston.info(res)
@@ -225,43 +239,28 @@ function setupApp () {
             processNextFacility()
           }
         })
+      },function(){
+        //res.send("Done")
       })
     })
   }),
-  app.post('/distr', (req, res) => {
-    res.send("Msg Received,Processing!!!")
+  app.post('/receivingAdvice', (req, res) => {
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     //get the distribution
-    //pretend you are fetching periods so that we get cookie to retrieve stock distribution
-    function getCookie(vimsToFacilityId,callback) {
-      var username = config.vims.username
-      var password = config.vims.password
-      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsToFacilityId + "/82')"
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-      var options = {
-        url: url.toString(),
-        headers: {
-          Authorization: auth,
-        }
-      }
-      request.get(options, (err, res, body) => {
-        if (err) {
-          return callback(err)
-        }
-        callback(res.headers["set-cookie"])
-      })
-    }
 
     function getDistribution(vimsToFacilityId,callback) {
-      getCookie(vimsToFacilityId,cookie=>{
+      vims.j_spring_security_check((err,header,orchestrations)=>{
+        if(err){
+          callback("",err)
+        }
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/" + vimsToFacilityId
+        var url = URI(config.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsToFacilityId)
         var options = {
           url: url.toString(),
           headers: {
-            Cookie:cookie
+            Cookie:header["set-cookie"]
           }
         }
         request.get(options, (err, res, body) => {
@@ -275,80 +274,79 @@ function setupApp () {
       })
     }
 
+    var distr = req.rawBody
+    winston.error(distr)
+    var ast = XmlReader.parseSync(distr)
+    var distributionid = xmlQuery(ast).find("receivingAdvice").children().
+                                        find("despatchAdvice").children().
+                                        find("entityIdentification").text()
+    var shiptoLength = xmlQuery(ast).find("receivingAdvice").children().find("shipTo").children().size()
+    var shipto = xmlQuery(ast).find("receivingAdvice").children().find("shipTo").children()
+    var toFacilityId = ""
+    for(var counter=0;counter<shiptoLength;counter++) {
+      if(shipto.eq(counter).attr("additionalPartyIdentificationTypeCode") == "HIE_FRID")
+        toFacilityId = shipto.eq(counter).find("additionalPartyIdentification").text()
+    }
 
+    var shipfromLength = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children().size()
+    var shipfrom = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children()
+    var fromFacilityId = ""
+    for(var counter=0;counter<shiptoLength;counter++) {
+      if(shipfrom.eq(counter).attr("additionalPartyIdentificationTypeCode") == "GIIS_FACID")
+        fromFacilityId = shipfrom.eq(counter).find("additionalPartyIdentification").text()
+    }
 
-      var distr = req.rawBody
-      var ast = XmlReader.parseSync(distr)
-      var distributionid = xmlQuery(ast).find("receivingAdvice").children().
-                                          find("despatchAdvice").children().
-                                          find("entityIdentification").text()
-      var shiptoLength = xmlQuery(ast).find("receivingAdvice").children().find("shipTo").children().size()
-      var shipto = xmlQuery(ast).find("receivingAdvice").children().find("shipTo").children()
-      var toFacilityId = ""
-      for(var counter=0;counter<shiptoLength;counter++) {
-        if(shipto.eq(counter).attr("additionalPartyIdentificationTypeCode") == "HIE_FRID")
-          toFacilityId = shipto.eq(counter).find("additionalPartyIdentification").text()
-      }
+    var vimsToFacilityId = null
+    oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
+      vimsToFacilityId = vimsFacId
+      if(vimsFacId)
+      getDistribution(vimsToFacilityId,(distribution,err)=>{
+        if(distribution){
+          if(distributionid == distribution.id) {
+            distribution.status = "RECEIVED"
+            async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
+              var lineItemQuantity = 0
+              async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                var lotId = lot.lotId
+                var lotQuantity = lot.quantity
 
-      var shipfromLength = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children().size()
-      var shipfrom = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children()
-      var fromFacilityId = ""
-      for(var counter=0;counter<shiptoLength;counter++) {
-        if(shipfrom.eq(counter).attr("additionalPartyIdentificationTypeCode") == "GIIS_FACID")
-          fromFacilityId = shipfrom.eq(counter).find("additionalPartyIdentification").text()
-      }
+                //find quantity accepted for this lot
+                var productsLength = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children().size()
+                var products = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children()
+                var quantityAcc = 0
+                for(var counter=0;counter<productsLength;counter++){
+                  if(products.eq(counter).find("receivingAdviceLineItem").children().
+                                          find("transactionalTradeItem").children().
+                                          find("additionalTradeItemIdentification").
+                                          attr("additionalTradeItemIdentificationTypeCode") == "VIMS_STOCK_ID" && products.eq(counter).find("receivingAdviceLineItem").children().
+                                          find("transactionalTradeItem").children().
+                                          find("additionalTradeItemIdentification").text() == lotId)
+                  quantityAcc = products.eq(counter).find("receivingAdviceLineItem").children().find("quantityAccepted").text()
+                }
+                //set this lot to quantity Accepted
+                lot.quantity = Number(quantityAcc)
 
-      var vimsToFacilityId = null
-      oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
-        vimsToFacilityId = vimsFacId
-        getDistribution(vimsToFacilityId,(distribution,err)=>{
-          if(distribution){
-            if(distributionid == distribution.id) {
-              distribution.status = "RECEIVED"
-              async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-                var lineItemQuantity = 0
-                async.eachSeries(lineItems.lots,function(lot,nextLot) {
-                  var lotId = lot.lotId
-                  var lotQuantity = lot.quantity
-
-                  //find quantity accepted for this lot
-                  var productsLength = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children().size()
-                  var products = xmlQuery(ast).find("receivingAdvice").children().find("receivingAdviceLogisticUnit").children()
-                  var quantityAcc = 0
-                  for(var counter=0;counter<productsLength;counter++){
-                    if(products.eq(counter).find("receivingAdviceLineItem").children().
-                                            find("transactionalTradeItem").children().
-                                            find("additionalTradeItemIdentification").
-                                            attr("additionalTradeItemIdentificationTypeCode") == "VIMS_STOCK_ID" && products.eq(counter).find("receivingAdviceLineItem").children().
-                                            find("transactionalTradeItem").children().
-                                            find("additionalTradeItemIdentification").text() == lotId)
-                    quantityAcc = products.eq(counter).find("receivingAdviceLineItem").children().find("quantityAccepted").text()
-                  }
-                  //set this lot to quantity Accepted
-                  lot.quantity = Number(quantityAcc)
-
-                  lineItemQuantity = Number(lineItemQuantity) + Number(quantityAcc)
-                  nextLot()
-                },function(){
-                  lineItems.quantity = lineItemQuantity
-                  nextlineItems()
-                })
+                lineItemQuantity = Number(lineItemQuantity) + Number(quantityAcc)
+                nextLot()
               },function(){
-                //submit Receiving Advice To VIMS
-                getCookie(vimsToFacilityId,cookie=>{
-                  winston.error(JSON.stringify(distribution))
-                  vims.sendReceivingAdvice(distribution,cookie,(res)=>{
-
-                  })
-                })
+                lineItems.quantity = lineItemQuantity
+                nextlineItems()
+              })
+            },function(){
+              //submit Receiving Advice To VIMS
+              winston.error(JSON.stringify(distribution))
+              vims.sendReceivingAdvice(distribution,(res)=>{
 
               })
-            }
+            })
           }
-        })
+        }
       })
+    })
+  }),
 
-
+  app.post('/orderRequest', (req, res) => {
+    res.send(200)
   })
   return app
 }
@@ -378,7 +376,7 @@ function start (callback) {
         } else {
           winston.info('Successfully registered mediator!')
           let app = setupApp()
-          const server = app.listen(8545, () => {
+          const server = app.listen(9000, () => {
             let configEmitter = medUtils.activateHeartbeat(apiConf.api)
             configEmitter.on('config', (newConfig) => {
               winston.info('Received updated config:', newConfig)

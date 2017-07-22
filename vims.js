@@ -8,6 +8,7 @@ const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
 const querystring = require('querystring');
 const util = require('util')
+const utils = require('./utils')
 const fs = require('fs')
 const runner = require("child_process");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
@@ -25,6 +26,24 @@ module.exports = function (cnf) {
         return false;
       }
     },
+    j_spring_security_check: function(callback) {
+      var url = URI(config.url).segment('j_spring_security_check')
+      var postData = querystring.stringify({
+        j_username: config.username,
+        j_password: config.password
+      });
+      var options = {
+        url: url.toString(),
+        headers: {
+          'Content-type': 'application/x-www-form-urlencoded'
+        },
+        body:postData
+      }
+      let before = new Date()
+      request.post(options, (err, res, body) => {
+        callback(err,res.headers,[utils.buildOrchestration('Sping Authentication', before, 'POST', options.url, "", res, body)])
+      })
+    },
 
     getPeriod: function(vimsFacId,callback) {
       var url = URI(config.url).segment('rest-api/ivd/periods/'+vimsFacId+'/82')
@@ -37,6 +56,7 @@ module.exports = function (cnf) {
           Authorization: auth
         }
       }
+      let before = new Date()
       request.get(options, (err, res, body) => {
         if (err) {
           return callback(err)
@@ -50,12 +70,12 @@ module.exports = function (cnf) {
             if(period.id > 0 && period.status == "DRAFT")
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
-              callback(periods)
+              callback(periods,[utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', options.url, options.body, res, body)])
             }
           })
         }
         else {
-          callback(periods)
+          callback(periods,[utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', options.url, options.body, res, body)])
         }
       })
     },
@@ -92,11 +112,12 @@ module.exports = function (cnf) {
         }
       }
 
+      let before = new Date()
       request.get(options, (err, res, body) => {
         if (err) {
-          return callback(err)
+          return callback(err, [utils.buildOrchestration('Get VIMS Report', before, 'GET', options.url, options.body, res, body)])
         }
-        callback(JSON.parse(body))
+        return callback(JSON.parse(body), [utils.buildOrchestration('Get VIMS Report', before, 'GET', options.url, options.body, res, body)])
       })
     },
 
@@ -110,7 +131,7 @@ module.exports = function (cnf) {
         }
         else
         var doseid = dose.vimsid
-        this.getReport (periodId,(report) => {
+        this.getReport (periodId,(report,orchestrations) => {
           var totalCoveLine = report.report.coverageLineItems.length
           var found = false
           winston.info('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
@@ -162,7 +183,7 @@ module.exports = function (cnf) {
       var totalStockCodes = stockCodes.length
       periods.forEach ((period) => {
         var periodId = period.id
-        this.getReport (periodId,(report) => {
+        this.getReport (periodId,(report,orchestrations) => {
           var totalLogLineItems = report.report.logisticsLineItems.length;
           var found = false
           report.report.logisticsLineItems.forEach((logisticsLineItems,index) =>{
@@ -286,32 +307,19 @@ module.exports = function (cnf) {
     },
 
     getDistribution: function(vimsFacilityId,callback) {
-      //pretend you are fetching periods so that we get cookie to retrieve stock distribution
-      var username = config.username
-      var password = config.password
-      var url = "https://vimstraining.elmis-dev.org/rest-api/ivd/periods/" + vimsFacilityId + "/82')"
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-      var options = {
-        url: url.toString(),
-        headers: {
-          Authorization: auth,
-        }
-      }
-      request.get(options, (err, res, body) => {
-        if (err) {
-          return callback(err)
-        }
+      this.j_spring_security_check((err,header,orchestrations)=>{
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = "https://vimstraining.elmis-dev.org/vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId
+        var url = URI(config.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId)
         var options = {
           url: url.toString(),
           headers: {
-            Cookie:res.headers["set-cookie"]
+            Cookie:header["set-cookie"]
           }
         }
         request.get(options, (err, res, body) => {
           var distribution = JSON.parse(body).distribution
+          winston.info(JSON.stringify(distribution))
           //this will help to access getTimrItemCode function inside async
           var me = this;
 
@@ -382,49 +390,34 @@ module.exports = function (cnf) {
       })
     },
 
-    sendReceivingAdvice: function(distribution,cookie,callback) {
+    sendReceivingAdvice: function(distribution,callback) {
       //pretend you are fetching periods so that we get cookie to retrieve stock distribution
-      fs.writeFile("/tmp/distribution.json",JSON.stringify(distribution),function(err){
+      /*fs.writeFile("/tmp/distribution.json",JSON.stringify(distribution),function(err){
         runner.exec("php vims.php",function(err,phpResponse,stderr){
           winston.error(phpResponse)
         })
-      })
-      /*
-      var url = URI(config.url).segment('rest-api/ivd/periods/16333/82')
-      var username = config.username
-      var password = config.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-      var options = {
-        url: url.toString(),
-        headers: {
-          Authorization: auth
+      })*/
+      this.j_spring_security_check((err,header,orchestrations)=>{
+        winston.error(header)
+        var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
+        winston.error(res.headers["set-cookie"])
+        var options = {
+          url: url.toString(),
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie:header["set-cookie"]
+          },
+          json:JSON.stringify(distribution)
         }
-      }
-      request.get(options, (err, res, body) => {
-        winston.error(body)
-        if (err) {
-          return callback(err)
-        }
-      var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
-      winston.error(res.headers["set-cookie"])
-      var options = {
-        url: url.toString(),
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie:res.headers["set-cookie"]
-        },
-        json:distribution
-      }
 
-      request.post(options, function (err, res, body) {
-        if (err) {
-          return callback(err)
-        }
-        winston.error(body)
-        winston.error("Error" + err)
-        callback(err)
+        request.post(options, function (err, res, body) {
+          if (err) {
+            return callback(err)
+          }
+          winston.error(body)
+          callback(err)
+        })
       })
-    })*/
     }
   }
 }

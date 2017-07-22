@@ -82,11 +82,17 @@ module.exports = function (oimconf) {
         var ast = XmlReader.parseSync(body)
         var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
         var facility = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children()
+        var loopCntr = facLength
+        var facFound = false
         for(var counter=0;counter<facLength;counter++){
           if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
-          callback (facility.eq(counter).find("csd:otherID").text())
+            facFound = true
+            callback (facility.eq(counter).find("csd:otherID").text())
           }
+          loopCntr--
         }
+        winston.error(loopCntr === 0 && facFound === false)
+        callback("")
       })
     }
   }
