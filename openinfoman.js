@@ -91,7 +91,7 @@ module.exports = function (oimconf) {
           }
           loopCntr--
         }
-        winston.error(loopCntr === 0 && facFound === false)
+        if(loopCntr === 0 && facFound === false)
         callback("")
       })
     }

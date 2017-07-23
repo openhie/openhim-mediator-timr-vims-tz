@@ -6,6 +6,7 @@ const medUtils = require('openhim-mediator-utils')
 const winston = require('winston')
 const moment = require("moment")
 const request = require('request')
+const URI = require('urijs')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
 const TImR = require('./timr')
@@ -256,7 +257,7 @@ function setupApp () {
         }
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = URI(config.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsToFacilityId)
+        var url = URI(config.vims.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsToFacilityId)
         var options = {
           url: url.toString(),
           headers: {
@@ -275,7 +276,6 @@ function setupApp () {
     }
 
     var distr = req.rawBody
-    winston.error(distr)
     var ast = XmlReader.parseSync(distr)
     var distributionid = xmlQuery(ast).find("receivingAdvice").children().
                                         find("despatchAdvice").children().
@@ -299,7 +299,7 @@ function setupApp () {
     var vimsToFacilityId = null
     oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
       vimsToFacilityId = vimsFacId
-      if(vimsFacId)
+      if(vimsToFacilityId)
       getDistribution(vimsToFacilityId,(distribution,err)=>{
         if(distribution){
           if(distributionid == distribution.id) {
@@ -334,7 +334,6 @@ function setupApp () {
               })
             },function(){
               //submit Receiving Advice To VIMS
-              winston.error(JSON.stringify(distribution))
               vims.sendReceivingAdvice(distribution,(res)=>{
 
               })
@@ -392,12 +391,12 @@ function start (callback) {
     // default to config from mediator registration
     config = mediatorConfig.config
     let app = setupApp()
-    const server = app.listen(8545, () => callback(server))
+    const server = app.listen(9000, () => callback(server))
   }
 }
 exports.start = start
 
 if (!module.parent) {
   // if this script is run directly, start the server
-  start(() => winston.info('Listening on 8545...'))
+  start(() => winston.info('Listening on 9000...'))
 }

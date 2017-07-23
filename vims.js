@@ -391,30 +391,22 @@ module.exports = function (cnf) {
     },
 
     sendReceivingAdvice: function(distribution,callback) {
-      //pretend you are fetching periods so that we get cookie to retrieve stock distribution
-      /*fs.writeFile("/tmp/distribution.json",JSON.stringify(distribution),function(err){
-        runner.exec("php vims.php",function(err,phpResponse,stderr){
-          winston.error(phpResponse)
-        })
-      })*/
       this.j_spring_security_check((err,header,orchestrations)=>{
-        winston.error(header)
         var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
-        winston.error(res.headers["set-cookie"])
         var options = {
           url: url.toString(),
           headers: {
             'Content-Type': 'application/json',
             Cookie:header["set-cookie"]
           },
-          json:JSON.stringify(distribution)
+          json:distribution
         }
 
         request.post(options, function (err, res, body) {
           if (err) {
             return callback(err)
           }
-          winston.error(body)
+          winston.error(JSON.stringify(body))
           callback(err)
         })
       })
