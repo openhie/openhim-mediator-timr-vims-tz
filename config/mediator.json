@@ -139,19 +139,19 @@
         {
           "param": "url",
           "displayName": "URL",
-          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/auth/oauth2_token)",
+          "description": "The base URL (e.g. http://35.164.113.129:8080/auth/oauth2_token)",
           "type": "string"
         },
         {
           "param": "gs1Scope",
           "displayName": "GS1 Scope",
-          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/gs1)",
+          "description": "The base URL (e.g. http://35.164.113.129:8080/gs1)",
           "type": "string"
         },
         {
           "param": "fhirScope",
           "displayName": "FHIR Scope",
-          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/fhir)",
+          "description": "The base URL (e.g. http://35.164.113.129:8080/fhir)",
           "type": "string"
         },
         {
@@ -249,15 +249,15 @@
   ],
   "config": {
     "oauth2": {
-      "url": "http://timr.marc-hi.ca:8080/auth/oauth2_token",
-      "fhirScope": "http://timr.marc-hi.ca:8080/fhir",
-      "gs1Scope": "http://timr.marc-hi.ca:8080/fhir",
+      "url": "http://35.164.113.129:8080/auth/oauth2_token",
+      "fhirScope": "http://35.164.113.129:8080/fhir",
+      "gs1Scope": "http://35.164.113.129:8080/fhir",
       "token": "aWxfbWVkaWF0b3I6QE1lZGlhdG9yU291cmNlMTIz",
       "username": "il_mediator",
       "password": "@MediatorSource123"
     },
     "timr": {
-      "url": "http://timr.marc-hi.ca:8080/"
+      "url": "http://35.164.113.129:8080/"
     },
     "vims": {
       "url": "https://vimstraining.elmis-dev.org",

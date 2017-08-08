@@ -27,7 +27,10 @@ module.exports = function (oimconf) {
            },
            body: csd_msg
       }
+
+      let before = new Date()
       request.post(options, function (err, res, body) {
+        //orchestrations.push(utils.buildOrchestration('Fetching VIMS Facilities From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
           return callback(err)
         }

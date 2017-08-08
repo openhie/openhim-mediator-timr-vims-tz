@@ -114,15 +114,15 @@ function setupApp () {
           winston.info("Getting Periods")
           vims.getPeriod(vimsFacilityId,(periods)=>{
             if(periods.length > 1 ) {
-              winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
+              winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
               processNextFacility()
             }
             else if(periods.length == 0) {
-              winston.error("Skip Processing " + facilityName + ", No Period Found")
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
               processNextFacility()
             }
             else {
-              winston.info("Getting Access Token")
+              winston.info("Getting Access Token from VIMS")
               if(periods.length == 1) {
                 timr.getAccessToken('fhir',(err, res, body) => {
                   winston.info("Processing Stock For " + facilityName + ", Period " + periods[0].periodName)

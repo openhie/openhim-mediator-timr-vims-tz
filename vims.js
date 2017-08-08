@@ -41,7 +41,7 @@ module.exports = function (cnf) {
       }
       let before = new Date()
       request.post(options, (err, res, body) => {
-        callback(err,res.headers,[utils.buildOrchestration('Sping Authentication', before, 'POST', options.url, "", res, body)])
+        callback(err,res.headers,[utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, "", res, body)])
       })
     },
 
