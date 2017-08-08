@@ -5,27 +5,118 @@
   "description": "This mediator synchronises data between TImR and VIMS",
   "defaultChannelConfig": [
     {
-      "name": "AUTO - TImR and VIMS Sync",
-      "urlPattern": "^/timr-vims-sync$",
-      "pollingSchedule": "15 07,13 * * *",
+      "urlPattern": "/syncImmunizationCoverage",
+      "pollingSchedule": "30 06 * * *",
+      "name": "TImR and VIMS Immunization Coverage Sync",
       "status": "enabled",
       "routes": [
         {
-          "name": "Activate TImR and VIMS Sync",
-          "secured": false,
-          "host": "localhost",
-          "port": 9000,
-          "path": "/sync",
+          "password": "",
+          "username": "",
           "primary": true,
+          "path": "/syncImmunizationCoverage",
+          "port": 9000,
+          "host": "localhost",
+          "secured": false,
+          "name": "Activate TImR and VIMS Immunization Coverage Sync",
+          "forwardAuthHeader": false,
           "status": "enabled",
           "type": "http"
         }
       ],
       "authType": "private",
+      "whitelist": [
+        "127.0.0.1"
+      ],
       "allow": [
-        "timr-vims-sync"
+        "testclient"
       ],
       "type": "polling"
+    },
+    {
+      "urlPattern": "/syncStock",
+      "pollingSchedule": "30 06 * * *",
+      "name": "TImR and VIMS Stock Sync",
+      "status": "enabled",
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Stock Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncStock",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [
+        "127.0.0.1"
+      ],
+      "allow": [
+        "testclient"
+      ],
+      "type": "polling"
+    },
+    {
+      "urlPattern": "/getDespatchAdvice",
+      "pollingSchedule": "30 06 * * *",
+      "name": "Get Despatch Advice from VIMS",
+      "status": "enabled",
+      "routes": [
+        {
+          "name": "Activate VIMS and TImR Despatch Advice",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/despatchAdvice",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [
+        "127.0.0.1"
+      ],
+      "allow": [
+        "testclient"
+      ],
+      "type": "polling"
+    },
+    {
+      "name": "Send Proof Of Delivery To VIMS",
+      "urlPattern": "/receivingAdvice",
+      "status": "enabled",
+      "routes": [
+        {
+          "name": "POD - receivingAdvice",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/receivingAdvice",
+          "pathTransform": "",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "vims"
+      ],
+      "type": "http"
     }
     ],
     "endpoints": [

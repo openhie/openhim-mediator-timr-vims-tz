@@ -3,9 +3,11 @@
 
 const express = require('express')
 const medUtils = require('openhim-mediator-utils')
+const utils = require('./utils')
 const winston = require('winston')
 const moment = require("moment")
 const request = require('request')
+const circularJson = require('circular-json')
 const URI = require('urijs')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
@@ -54,10 +56,111 @@ function setupApp () {
   }))
   app.use(bodyParser.json())
 
-  app.get('/sync', (req, res) => {
-    const timr = TImR(config.timr,config.oauth2)
-    const vims = VIMS(config.vims)
+  function updateTransaction (req,body,orchestrations) {
+    const transactionId = req.headers['x-openhim-transactionid']
+    var update = {
+      'x-mediator-urn': mediatorConfig.urn,
+      status: 'Successful',
+      response: {
+        status: 404,
+        timestamp: new Date(),
+        body: body
+      },
+      orchestrations: orchestrations
+    }
+    medUtils.authenticate(apiConf.api, function (err) {
+      if (err) {
+        return winston.error(err.stack);
+      }
+      var headers = medUtils.genAuthHeaders(apiConf.api)
+      var options = {
+        url: apiConf.api.apiURL + '/transactions/' + transactionId,
+        headers: headers,
+        json:update
+      }
+
+      request.put(options, function(err, apiRes, body) {
+        if (err) {
+          return winston.error(err);
+        }
+        if (apiRes.statusCode !== 200) {
+          return winston.error(new Error('Unable to save updated transaction to OpenHIM-core, received status code ' + apiRes.statusCode + ' with body ' + body).stack);
+        }
+        winston.info('Successfully updated transaction with id ' + transactionId);
+      });
+    })
+  }
+
+  app.get('/syncImmunizationCoverage', (req, res) => {
     const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims)
+    const timr = TImR(config.timr,config.oauth2)
+    //process immunization coverage
+    //need to put this inside terminology service
+    function getDosesMapping (callback) {
+      var dosesMapping = []
+      dosesMapping.push({'name': 'Dose 0','timrid': '0','vimsid': '0','vimsid1': '1'})
+      dosesMapping.push({'name': 'Dose 1','timrid': '1','vimsid': '1','vimsid1': '2'})
+      dosesMapping.push({'name': 'Dose 2','timrid': '2','vimsid': '2','vimsid1': '3'})
+      dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
+      callback(dosesMapping)
+    }
+    oim.getVimsFacilities(facilities=>{
+      async.eachSeries(facilities,function(facility,processNextFacility){
+        var vimsFacilityId = facility.vimsFacilityId
+        var timrFacilityId = facility.timrFacilityId
+        var facilityName = facility.facilityName
+        if(vimsFacilityId > 0) {
+          winston.info("Getting Periods")
+          vims.getPeriod(vimsFacilityId,(periods)=>{
+            if(periods.length > 1 ) {
+              winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
+              processNextFacility()
+            }
+            else if(periods.length == 0) {
+              winston.error("Skip Processing " + facilityName + ", No Period Found")
+              processNextFacility()
+            }
+            else {
+              winston.info("Getting Access Token")
+              if(periods.length == 1) {
+                timr.getAccessToken('fhir',(err, res, body) => {
+                  winston.info("Processing Stock For " + facilityName + ", Period " + periods[0].periodName)
+                  var access_token = JSON.parse(body).access_token
+                  vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
+                    async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
+                      getDosesMapping((doses) =>{
+                        async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
+                          timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,periods,(err,values) => {
+                            vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,(err) =>{
+                              processNextDose()
+                            })
+                          })
+                        },function() {
+                          winston.info("Getting New Data Element")
+                          processNextDtElmnt()
+                        })
+                      })
+                    },function() {
+                      winston.info("Getting New Facility")
+                      processNextFacility()
+                    })
+                  })
+                })
+              }
+            }
+          })
+        }
+      },function(){
+        winston.info('Done!!!')
+      })
+    })
+  }),
+
+  app.get('/syncStock', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims)
+    const timr = TImR(config.timr,config.oauth2)
     req.timestamp = new Date()
     let orchestrations = []
 
@@ -82,16 +185,6 @@ function setupApp () {
         orchestrations: orchestrations
       })
       res.end(response)
-    }
-
-    //need to put this inside terminology service
-    function getDosesMapping (callback) {
-      var dosesMapping = []
-      dosesMapping.push({'name': 'Dose 0','timrid': '0','vimsid': '0','vimsid1': '1'})
-      dosesMapping.push({'name': 'Dose 1','timrid': '1','vimsid': '1','vimsid1': '2'})
-      dosesMapping.push({'name': 'Dose 2','timrid': '2','vimsid': '2','vimsid1': '3'})
-      dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
-      callback(dosesMapping)
     }
 
     oim.getVimsFacilities(facilities=>{
@@ -163,63 +256,15 @@ function setupApp () {
         }))
       })
     })
+  }),
 
-
-    //process immunization coverage
-    oim.getVimsFacilities(facilities=>{
-      async.eachSeries(facilities,function(facility,processNextFacility){
-        var vimsFacilityId = facility.vimsFacilityId
-        var timrFacilityId = facility.timrFacilityId
-        var facilityName = facility.facilityName
-        if(vimsFacilityId > 0) {
-          winston.info("Getting Periods")
-          vims.getPeriod(vimsFacilityId,(periods)=>{
-            if(periods.length > 1 ) {
-              winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
-              processNextFacility()
-            }
-            else if(periods.length == 0) {
-              winston.error("Skip Processing " + facilityName + ", No Period Found")
-              processNextFacility()
-            }
-            else {
-              winston.info("Getting Access Token")
-              if(periods.length == 1) {
-                timr.getAccessToken('fhir',(err, res, body) => {
-                  winston.info("Processing Stock For " + facilityName + ", Period " + periods[0].periodName)
-                  var access_token = JSON.parse(body).access_token
-                  vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
-                    async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
-                      getDosesMapping((doses) =>{
-                        async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
-                          timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,periods,(err,values) => {
-                            vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,(err) =>{
-                              processNextDose()
-                            })
-                          })
-                        },function() {
-                          winston.info("Getting New Data Element")
-                          processNextDtElmnt()
-                        })
-                      })
-                    },function() {
-                      winston.info("Getting New Facility")
-                      processNextFacility()
-                    })
-                  })
-                })
-              }
-            }
-          })
-        }
-      },function(){
-        winston.info('Done!!!')
-      })
-    })
-
+  app.get('/despatchAdvice',(req,res)=>{
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims)
+    const timr = TImR(config.timr,config.oauth2)
     oim.getVimsFacilities(facilities=>{
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
@@ -245,13 +290,16 @@ function setupApp () {
       })
     })
   }),
+
   app.post('/receivingAdvice', (req, res) => {
+    req.timestamp = new Date()
+    let orchestrations = []
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     //get the distribution
 
     function getDistribution(vimsToFacilityId,callback) {
-      vims.j_spring_security_check((err,header,orchestrations)=>{
+      vims.j_spring_security_check((err,header,orchs)=>{
         if(err){
           callback("",err)
         }
@@ -264,13 +312,17 @@ function setupApp () {
             Cookie:header["set-cookie"]
           }
         }
+        let before = new Date()
         request.get(options, (err, res, body) => {
           var distribution = JSON.parse(body).distribution
           if(distribution !== null) {
-            callback(distribution,err)
+            orchs = orchs.concat([utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.body, res, body)])
+            callback(distribution,err,orchs)
           }
-          else
-          callback("",err)
+          else {
+            orchs = orchs.concat([utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.body, res, body)])
+            callback("",err,orchs)
+          }
         })
       })
     }
@@ -300,7 +352,12 @@ function setupApp () {
     oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
       vimsToFacilityId = vimsFacId
       if(vimsToFacilityId)
-      getDistribution(vimsToFacilityId,(distribution,err)=>{
+      getDistribution(vimsToFacilityId,(distribution,err,orchestrations)=>{
+        if(!distribution) {
+          var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
+          var body = "No matching DespatchAdvice in VIMS"
+          updateTransaction(req,body,orchestrations)
+        }
         if(distribution){
           if(distributionid == distribution.id) {
             distribution.status = "RECEIVED"
