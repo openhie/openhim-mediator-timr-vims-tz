@@ -26,7 +26,7 @@ module.exports = function (cnf) {
         return false;
       }
     },
-    j_spring_security_check: function(callback) {
+    j_spring_security_check: function(orchestrations,callback) {
       var url = URI(config.url).segment('j_spring_security_check')
       var postData = querystring.stringify({
         j_username: config.username,
@@ -41,11 +41,12 @@ module.exports = function (cnf) {
       }
       let before = new Date()
       request.post(options, (err, res, body) => {
-        callback(err,res.headers,[utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, "", res, body)])
+        orchestrations.push(utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, "", res, body))
+        callback(err,res.headers)
       })
     },
 
-    getPeriod: function(vimsFacId,callback) {
+    getPeriod: function(vimsFacId,orchestrations,callback) {
       var url = URI(config.url).segment('rest-api/ivd/periods/'+vimsFacId+'/82')
       var username = config.username
       var password = config.password
@@ -58,6 +59,7 @@ module.exports = function (cnf) {
       }
       let before = new Date()
       request.get(options, (err, res, body) => {
+        orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), options.headers, res, body))
         if (err) {
           return callback(err)
         }
@@ -70,12 +72,12 @@ module.exports = function (cnf) {
             if(period.id > 0 && period.status == "DRAFT")
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
-              callback(periods,[utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', options.url, options.body, res, body)])
+              callback(periods)
             }
           })
         }
         else {
-          callback(periods,[utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', options.url, options.body, res, body)])
+          callback(periods)
         }
       })
     },
@@ -100,7 +102,7 @@ module.exports = function (cnf) {
       })
     },
 
-    getReport: function (id,callback) {
+    getReport: function (id,orchestrations,callback) {
       var url = URI(config.url).segment('rest-api/ivd/get/'+id+'.json')
       var username = config.username
       var password = config.password
@@ -114,14 +116,15 @@ module.exports = function (cnf) {
 
       let before = new Date()
       request.get(options, (err, res, body) => {
+        orchestrations.push(utils.buildOrchestration('Get VIMS Report', before, 'GET', url.toString(), options.headers, res, body))
         if (err) {
-          return callback(err, [utils.buildOrchestration('Get VIMS Report', before, 'GET', options.url, options.body, res, body)])
+          return callback(err)
         }
-        return callback(JSON.parse(body), [utils.buildOrchestration('Get VIMS Report', before, 'GET', options.url, options.body, res, body)])
+        return callback(JSON.parse(body))
       })
     },
 
-    saveImmunizationData: function (periods,values,vimsVaccCode,dose,callback) {
+    saveImmunizationData: function (periods,values,vimsVaccCode,dose,orchestrations,callback) {
       periods.forEach ((period) => {
         var periodId = period.id
         if(vimsVaccCode == '2413')
@@ -156,7 +159,9 @@ module.exports = function (cnf) {
                 },
                 json:updatedReport
               }
+              let before = new Date()
               request.put(options, function (err, res, body) {
+                orchestrations.push(utils.buildOrchestration('Updating Immunization VIMS Coverage', before, 'PUT', url.toString(), updatedReport, res, body))
                 if (err) {
                   winston.error(err)
                   return callback(err)
@@ -176,7 +181,7 @@ module.exports = function (cnf) {
       })
     },
 
-    saveStockData: function(periods,timrStockData,stockCodes,vimsItemCode,callback) {
+    saveStockData: function(periods,timrStockData,stockCodes,vimsItemCode,orchestrations,callback) {
       /**
         push stock report to VIMS
       */
@@ -224,7 +229,9 @@ module.exports = function (cnf) {
                 },
                 json:updatedReport
               }
+              let before = new Date()
               request.put(options, function (err, res, body) {
+                orchestrations.push(utils.buildOrchestration('Updating Stock In VIMS', before, 'PUT', url.toString(), updatedReport, res, body))
                 if (err) {
                   return callback(err)
                 }
@@ -254,7 +261,7 @@ module.exports = function (cnf) {
         })
       })
     },
-    getOrganizationUUIDFromVimsId: function (vimsOrgId,callback) {
+    getOrganizationUUIDFromVimsId: function (vimsOrgId,orchestrations,callback) {
       var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all'
       var username = config.username
       var password = config.password
@@ -269,7 +276,9 @@ module.exports = function (cnf) {
            },
            body: csd_msg
       }
+      let before = new Date()
       request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Get organization UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           return callback(err)
         }
@@ -280,7 +289,7 @@ module.exports = function (cnf) {
       })
     },
 
-    getFacilityUUIDFromVimsId: function (vimsFacId,callback) {
+    getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
       var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all'
       var username = config.username
       var password = config.password
@@ -295,7 +304,9 @@ module.exports = function (cnf) {
            },
            body: csd_msg
       }
+      let before = new Date()
       request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           return callback(err)
         }
@@ -306,8 +317,8 @@ module.exports = function (cnf) {
       })
     },
 
-    getDistribution: function(vimsFacilityId,callback) {
-      this.j_spring_security_check((err,header,orchestrations)=>{
+    getDistribution: function(vimsFacilityId,orchestrations,callback) {
+      this.j_spring_security_check(orchestrations,(err,header)=>{
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
         var url = URI(config.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId)
@@ -317,7 +328,9 @@ module.exports = function (cnf) {
             Cookie:header["set-cookie"]
           }
         }
+        let before = new Date()
         request.get(options, (err, res, body) => {
+          orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'GET', url.toString(), options.headers, res, body))
           var distribution = JSON.parse(body).distribution
           winston.info(JSON.stringify(distribution))
           //this will help to access getTimrItemCode function inside async
@@ -390,8 +403,8 @@ module.exports = function (cnf) {
       })
     },
 
-    sendReceivingAdvice: function(distribution,callback) {
-      this.j_spring_security_check((err,header,orchestrations)=>{
+    sendReceivingAdvice: function(orchestrations,distribution,callback) {
+      this.j_spring_security_check(orchestrations,(err,header)=>{
         var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
         var options = {
           url: url.toString(),
@@ -402,7 +415,9 @@ module.exports = function (cnf) {
           json:distribution
         }
 
+        let before = new Date()
         request.post(options, function (err, res, body) {
+          orchestrations.push(utils.buildOrchestration('Send Receiving Advice To VIMS', before, 'POST', url.toString(), distribution, res, body))
           if (err) {
             return callback(err)
           }

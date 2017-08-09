@@ -27,8 +27,8 @@ const mediatorConfig = require('./config/mediator')
 const https = require('https')
 const http = require('http')
 
-https.globalAgent.maxSockets = 10
-http.globalAgent.maxSockets = 10
+https.globalAgent.maxSockets = 32
+http.globalAgent.maxSockets = 32
 
 // Logging setup
 winston.remove(winston.transports.Console)
@@ -56,13 +56,13 @@ function setupApp () {
   }))
   app.use(bodyParser.json())
 
-  function updateTransaction (req,body,orchestrations) {
+  function updateTransaction (req,body,statatusText,statusCode,orchestrations) {
     const transactionId = req.headers['x-openhim-transactionid']
     var update = {
       'x-mediator-urn': mediatorConfig.urn,
-      status: 'Successful',
+      status: statatusText,
       response: {
-        status: 404,
+        status: statusCode,
         timestamp: new Date(),
         body: body
       },
@@ -92,9 +92,14 @@ function setupApp () {
   }
 
   app.get('/syncImmunizationCoverage', (req, res) => {
+    let orchestrations = []
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     const timr = TImR(config.timr,config.oauth2)
+
+    //transaction will take long time,send response and then go ahead processing
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
     //process immunization coverage
     //need to put this inside terminology service
     function getDosesMapping (callback) {
@@ -105,14 +110,14 @@ function setupApp () {
       dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
       callback(dosesMapping)
     }
-    oim.getVimsFacilities(facilities=>{
+    oim.getVimsFacilities(orchestrations,(facilities)=>{
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting Periods")
-          vims.getPeriod(vimsFacilityId,(periods)=>{
+          vims.getPeriod(vimsFacilityId,orchestrations,(periods)=>{
             if(periods.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
               processNextFacility()
@@ -124,15 +129,19 @@ function setupApp () {
             else {
               winston.info("Getting Access Token from VIMS")
               if(periods.length == 1) {
-                timr.getAccessToken('fhir',(err, res, body) => {
+                timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
                   winston.info("Processing Stock For " + facilityName + ", Period " + periods[0].periodName)
+                  if(err){
+                    //try processing next facility in case of error
+                    processNextFacility()
+                  }
                   var access_token = JSON.parse(body).access_token
                   vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
                     async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
                       getDosesMapping((doses) =>{
                         async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
-                          timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,periods,(err,values) => {
-                            vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,(err) =>{
+                          timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,periods,orchestrations,(err,values) => {
+                            vims.saveImmunizationData(periods,values,vimsVaccCode.code,dose,orchestrations,(err) =>{
                               processNextDose()
                             })
                           })
@@ -152,7 +161,8 @@ function setupApp () {
           })
         }
       },function(){
-        winston.info('Done!!!')
+        winston.info('Done Synchronizing Immunization Coverage!!!')
+        updateTransaction(req,"","Successful","200",orchestrations)
       })
     })
   }),
@@ -163,6 +173,9 @@ function setupApp () {
     const timr = TImR(config.timr,config.oauth2)
     req.timestamp = new Date()
     let orchestrations = []
+
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
 
     function reportFailure (err, req) {
       res.writeHead(500, { 'Content-Type': 'application/json+openhim' })
@@ -187,7 +200,7 @@ function setupApp () {
       res.end(response)
     }
 
-    oim.getVimsFacilities(facilities=>{
+    oim.getVimsFacilities(orchestrations,(facilities)=>{
       winston.info("Processing Stock Data")
       winston.info("Fetching Facilities")
       async.eachSeries(facilities,function(facility,processNextFacility){
@@ -196,7 +209,7 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting Periods")
-          vims.getPeriod(vimsFacilityId,(periods,orchs)=>{
+          vims.getPeriod(vimsFacilityId,orchestrations,(periods,orchs)=>{
             if (orchs) {
               orchestrations = orchestrations.concat(orchs)
             }
@@ -213,16 +226,16 @@ function setupApp () {
             else {
               winston.info("Getting Access Token")
               if(periods.length == 1) {
-                timr.getAccessToken('gs1',(err, res, body) => {
+                timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
                   var access_token = JSON.parse(body).access_token
-                  timr.getStockData(access_token,timrFacilityId,periods,(data) =>{
+                  timr.getStockData(access_token,timrFacilityId,periods,orchestrations,(data) =>{
                     timr.extractStockData(data,timrFacilityId,(timrStockData,stockCodes) =>{
                       vims.getItemsDataElmnts ((err,vimsItemsDataElmnts) => {
                           async.eachSeries(vimsItemsDataElmnts,function(vimsItemsDataElmnt,processNextDtElmnt) {
                             winston.info("Processing Stock For " + facilityName +
                                          ", ProductID " + vimsItemsDataElmnt.code +
                                          ", Period " + periods[0].periodName)
-                            vims.saveStockData(periods,timrStockData,stockCodes,vimsItemsDataElmnt.code,(res) =>{
+                            vims.saveStockData(periods,timrStockData,stockCodes,vimsItemsDataElmnt.code,orchestrations,(res) =>{
                               processNextDtElmnt()
                             })
                           },function(){
@@ -238,22 +251,8 @@ function setupApp () {
           })
         }
       },function(){
-        res.writeHead(200, { 'Content-Type': 'application/json+openhim' })
-        res.end(JSON.stringify({
-          'x-mediator-urn': mediatorConfig.urn,
-          status: 'Successful',
-          request: {
-            method: req.method,
-            headers: req.headers,
-            timestamp: req.timestamp,
-            path: req.path
-          },
-          response: {
-            status: 200,
-            timestamp: new Date()
-          },
-          orchestrations: orchestrations
-        }))
+        winston.info('Done Synchronizing Stock Data!!!')
+        updateTransaction(req,"","Successful","200",orchestrations)
       })
     })
   }),
@@ -265,16 +264,20 @@ function setupApp () {
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     const timr = TImR(config.timr,config.oauth2)
-    oim.getVimsFacilities(facilities=>{
+
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+
+    oim.getVimsFacilities(orchestrations,(facilities)=>{
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var facilityName = facility.facilityName
-        vims.getDistribution(vimsFacilityId,(despatchAdviceBaseMessage,err)=>{
+        vims.getDistribution(vimsFacilityId,orchestrations,(despatchAdviceBaseMessage,err)=>{
           if(despatchAdviceBaseMessage){
             winston.info(despatchAdviceBaseMessage)
-            timr.getAccessToken('gs1',(err, res, body) => {
+            timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
               var access_token = JSON.parse(body).access_token
-              timr.saveDistribution(despatchAdviceBaseMessage,access_token,(res)=>{
+              timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
                 winston.info(res)
                 processNextFacility()
               })
@@ -286,7 +289,8 @@ function setupApp () {
           }
         })
       },function(){
-        //res.send("Done")
+        winston.info('Done Getting Despatch Advice!!!')
+        updateTransaction(req,"","Successful","200",orchestrations)
       })
     })
   }),
@@ -298,8 +302,11 @@ function setupApp () {
     const vims = VIMS(config.vims)
     //get the distribution
 
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+
     function getDistribution(vimsToFacilityId,callback) {
-      vims.j_spring_security_check((err,header,orchs)=>{
+      vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
           callback("",err)
         }
@@ -314,13 +321,12 @@ function setupApp () {
         }
         let before = new Date()
         request.get(options, (err, res, body) => {
+          orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.headers, res, body))
           var distribution = JSON.parse(body).distribution
           if(distribution !== null) {
-            orchs = orchs.concat([utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.body, res, body)])
             callback(distribution,err,orchs)
           }
           else {
-            orchs = orchs.concat([utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.body, res, body)])
             callback("",err,orchs)
           }
         })
@@ -349,14 +355,16 @@ function setupApp () {
     }
 
     var vimsToFacilityId = null
-    oim.getVimsFacilityId(toFacilityId,vimsFacId=>{
+    oim.getVimsFacilityId(toFacilityId,orchestrations,(vimsFacId)=>{
       vimsToFacilityId = vimsFacId
       if(vimsToFacilityId)
-      getDistribution(vimsToFacilityId,(distribution,err,orchestrations)=>{
+      getDistribution(vimsToFacilityId,(distribution,err,orchs)=>{
+        orchestrations = orchestrations.concat(orchs)
         if(!distribution) {
           var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
           var body = "No matching DespatchAdvice in VIMS"
-          updateTransaction(req,body,orchestrations)
+          winston.warn('No matching DespatchAdvice in VIMS!!!')
+          updateTransaction(req,"","Completed","200",orchestrations)
         }
         if(distribution){
           if(distributionid == distribution.id) {
@@ -391,8 +399,9 @@ function setupApp () {
               })
             },function(){
               //submit Receiving Advice To VIMS
-              vims.sendReceivingAdvice(distribution,(res)=>{
-
+              vims.sendReceivingAdvice(distribution,orchestrations,(res)=>{
+                winston.warn('Receiving Advice Submitted To VIMS!!!')
+                updateTransaction(req,"","Successful","200",orchestrations)
               })
             })
           }
@@ -402,7 +411,7 @@ function setupApp () {
   }),
 
   app.post('/orderRequest', (req, res) => {
-    res.send(200)
+    res.end(200)
   })
   return app
 }

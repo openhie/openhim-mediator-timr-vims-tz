@@ -11,12 +11,13 @@ const fs = require('fs')
 const parser = require('xml2json')
 const parseString = require('xml2js').parseString;
 const util = require('util');
+const utils = require('./utils')
 
 module.exports = function (timrcnf,oauthcnf) {
   const timrconfig = timrcnf
   const oauthconfig = oauthcnf
   return {
-    getAccessToken: function (scope,callback) {
+    getAccessToken: function (scope,orchestrations,callback) {
       if(scope == 'gs1')
       var scope_url = oauthconfig.gs1Scope
       else if(scope == 'fhir')
@@ -31,9 +32,16 @@ module.exports = function (timrcnf,oauthcnf) {
         body: `grant_type=password&username=${oauthconfig.username}&password=${oauthconfig.password}&scope=${scope_url}`
       }
       request.post(options, (err, res, body) => {
+        orchestrations.push(utils.buildOrchestration('Fetching Facilities Mapped With VIMS From OpenInfoMan', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           winston.error(err)
           return callback(err)
+        }
+        try {
+          JSON.parse(body);
+        } catch (e) {
+          winston.error("An error occured while getting Access Token from TImR")
+          return callback(e)
         }
         callback(err, res, body)
       })
@@ -51,7 +59,7 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,periods,callback) {
+    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,periods,orchestrations,callback) {
       this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           callback()
@@ -82,7 +90,9 @@ module.exports = function (timrcnf,oauthcnf) {
               Authorization: `BEARER ${access_token}`
             }
           }
+          let before = new Date()
           request.get(options, (err, res, body) => {
+            orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), options.headers, res, body))
             if (err) {
               return callback(err)
             }
@@ -98,7 +108,7 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
-    getStockData: function (access_token,facilityUUID,periods,callback) {
+    getStockData: function (access_token,facilityUUID,periods,orchestrations,callback) {
       /*fs.readFile('/home/ashaban/openhim-mediator-timr-vims-tz/gs1data.xml','utf8', function(err,data) {
         callback(data)
       })*/
@@ -118,7 +128,9 @@ module.exports = function (timrcnf,oauthcnf) {
           },
           body: gs1RequestMessage
         }
+        let before = new Date()
         request.post(options, function (err, res, body) {
+          orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, body))
           if (err) {
             return callback(err)
           }
@@ -174,7 +186,7 @@ module.exports = function (timrcnf,oauthcnf) {
       }
     },
 
-    saveDistribution: function(despatchAdviceBaseMessage,access_token,callback) {
+    saveDistribution: function(despatchAdviceBaseMessage,access_token,orchestrations,callback) {
       let url = URI(timrconfig.url)
       .segment('gs1')
       .segment('despatchAdvice')
@@ -187,7 +199,9 @@ module.exports = function (timrcnf,oauthcnf) {
         },
         body: despatchAdviceBaseMessage
       }
+      let before = new Date()
       request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Sending Despatch Advice To TImR', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           return callback(err)
         }

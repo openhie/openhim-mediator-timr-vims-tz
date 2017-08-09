@@ -4,10 +4,12 @@ const request = require('request')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
 const winston = require('winston')
+const utils = require('./utils')
+
 module.exports = function (oimconf) {
   const config = oimconf
   return {
-    getVimsFacilities: function (callback) {
+    getVimsFacilities: function (orchestrations,callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -30,7 +32,7 @@ module.exports = function (oimconf) {
 
       let before = new Date()
       request.post(options, function (err, res, body) {
-        //orchestrations.push(utils.buildOrchestration('Fetching VIMS Facilities From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
+        orchestrations.push(utils.buildOrchestration('Fetching Facilities Mapped With VIMS From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
           return callback(err)
         }
@@ -58,7 +60,7 @@ module.exports = function (oimconf) {
       })
     },
 
-    getVimsFacilityId: function(uuid,callback) {
+    getVimsFacilityId: function(uuid,orchestrations,callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -78,7 +80,9 @@ module.exports = function (oimconf) {
            },
            body: csd_msg
       }
+      let before = new Date()
       request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Fetching VIMS Facility ID From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
           return callback(err)
         }
