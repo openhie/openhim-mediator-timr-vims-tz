@@ -92,7 +92,7 @@ module.exports = function (timrcnf,oauthcnf) {
           }
           let before = new Date()
           request.get(options, (err, res, body) => {
-            orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), options.headers, res, body))
+            orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
             if (err) {
               return callback(err)
             }

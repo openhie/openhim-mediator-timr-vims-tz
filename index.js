@@ -264,6 +264,7 @@ function setupApp () {
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
     const timr = TImR(config.timr,config.oauth2)
+    let orchestrations = []
 
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
@@ -321,7 +322,7 @@ function setupApp () {
         }
         let before = new Date()
         request.get(options, (err, res, body) => {
-          orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, options.headers, res, body))
+          orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
           if(distribution !== null) {
             callback(distribution,err,orchs)

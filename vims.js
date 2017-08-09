@@ -41,7 +41,7 @@ module.exports = function (cnf) {
       }
       let before = new Date()
       request.post(options, (err, res, body) => {
-        orchestrations.push(utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, "", res, body))
+        orchestrations.push(utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, postData, res, JSON.stringify(res.headers) ))
         callback(err,res.headers)
       })
     },
@@ -59,7 +59,7 @@ module.exports = function (cnf) {
       }
       let before = new Date()
       request.get(options, (err, res, body) => {
-        orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), options.headers, res, body))
+        orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
         if (err) {
           return callback(err)
         }
@@ -116,7 +116,7 @@ module.exports = function (cnf) {
 
       let before = new Date()
       request.get(options, (err, res, body) => {
-        orchestrations.push(utils.buildOrchestration('Get VIMS Report', before, 'GET', url.toString(), options.headers, res, body))
+        orchestrations.push(utils.buildOrchestration('Get VIMS Report', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
         if (err) {
           return callback(err)
         }
@@ -330,7 +330,7 @@ module.exports = function (cnf) {
         }
         let before = new Date()
         request.get(options, (err, res, body) => {
-          orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'GET', url.toString(), options.headers, res, body))
+          orchestrations.push(utils.buildOrchestration('Get Stock Distribution From VIMS', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
           winston.info(JSON.stringify(distribution))
           //this will help to access getTimrItemCode function inside async
@@ -345,10 +345,10 @@ module.exports = function (cnf) {
                 var distributionDate = distribution.distributionDate
                 var creationDate = moment().format()
                 var distributionId = distribution.id
-                me.getFacilityUUIDFromVimsId(distribution.toFacilityId,(facId,facName)=>{
+                me.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
                   var toFacilityName = facName
                   var timrToFacilityId = facId
-                  me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,(facId1,facName1)=>{
+                  me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
                     fromFacilityName = facName1
                     timrFromFacilityId = facId1
                     var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
