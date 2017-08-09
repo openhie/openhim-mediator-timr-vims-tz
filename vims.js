@@ -317,7 +317,7 @@ module.exports = function (cnf) {
       })
     },
 
-    getDistribution: function(vimsFacilityId,orchestrations,callback) {
+    checkDistribution: function(vimsFacilityId,orchestrations,callback) {
       this.j_spring_security_check(orchestrations,(err,header)=>{
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
@@ -337,7 +337,7 @@ module.exports = function (cnf) {
           var me = this;
 
             //check to ensure that despatch is available
-            if(distribution !== null) {
+            if(distribution !== null && distribution !== undefined) {
               fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
                 var timrToFacilityId = null
                 var timrFromFacilityId = null
@@ -348,7 +348,7 @@ module.exports = function (cnf) {
                 me.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
                   var toFacilityName = facName
                   var timrToFacilityId = facId
-                  me.getOrganizationUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
+                  me.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
                     fromFacilityName = facName1
                     timrFromFacilityId = facId1
                     var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)

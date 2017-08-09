@@ -273,7 +273,7 @@ function setupApp () {
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var facilityName = facility.facilityName
-        vims.getDistribution(vimsFacilityId,orchestrations,(despatchAdviceBaseMessage,err)=>{
+        vims.checkDistribution(vimsFacilityId,orchestrations,(despatchAdviceBaseMessage,err)=>{
           if(despatchAdviceBaseMessage){
             winston.info(despatchAdviceBaseMessage)
             timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
@@ -306,7 +306,7 @@ function setupApp () {
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
 
-    function getDistribution(vimsToFacilityId,callback) {
+    function getDistribution(vimsToFacilityId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
           callback("",err)
@@ -359,7 +359,7 @@ function setupApp () {
     oim.getVimsFacilityId(toFacilityId,orchestrations,(vimsFacId)=>{
       vimsToFacilityId = vimsFacId
       if(vimsToFacilityId)
-      getDistribution(vimsToFacilityId,(distribution,err,orchs)=>{
+      getDistribution(vimsToFacilityId,orchestrations,(distribution,err,orchs)=>{
         orchestrations = orchestrations.concat(orchs)
         if(!distribution) {
           var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
