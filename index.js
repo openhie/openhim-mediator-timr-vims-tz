@@ -7,7 +7,6 @@ const utils = require('./utils')
 const winston = require('winston')
 const moment = require("moment")
 const request = require('request')
-const circularJson = require('circular-json')
 const URI = require('urijs')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
@@ -16,7 +15,7 @@ const VIMS = require('./vims')
 const OIM = require('./openinfoman')
 const async = require('async')
 const bodyParser = require('body-parser')
-var xmlparser = require('express-xml-bodyparser');
+var xmlparser = require('express-xml-bodyparser')
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core

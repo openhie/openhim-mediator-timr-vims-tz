@@ -8,8 +8,6 @@ const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const fs = require('fs')
-const parser = require('xml2json')
-const parseString = require('xml2js').parseString;
 const util = require('util');
 const utils = require('./utils')
 
