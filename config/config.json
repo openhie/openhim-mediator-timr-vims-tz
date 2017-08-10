@@ -5,5 +5,5 @@
     "apiURL": "https://localhost:8080",
     "trustSelfSigned": true    
   },
-  "register": true,
+  "register": true
 }
