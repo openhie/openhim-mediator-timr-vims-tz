@@ -9,13 +9,15 @@ const xmlQuery = require('xml-query')
 const querystring = require('querystring');
 const util = require('util')
 const utils = require('./utils')
+const OIM = require('./openinfoman')
 const fs = require('fs')
-const runner = require("child_process");
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
-module.exports = function (cnf) {
-  const config = cnf
+module.exports = function (vimscnf,oimcnf) {
+  const vimsconfig = vimscnf
+  const oimconfig = oimcnf
+  const oim = OIM(oimcnf)
   return {
     isValidJson: function(json){
       try{
@@ -27,10 +29,10 @@ module.exports = function (cnf) {
       }
     },
     j_spring_security_check: function(orchestrations,callback) {
-      var url = URI(config.url).segment('j_spring_security_check')
+      var url = URI(vimsconfig.url).segment('j_spring_security_check')
       var postData = querystring.stringify({
-        j_username: config.username,
-        j_password: config.password
+        j_username: vimsconfig.username,
+        j_password: vimsconfig.password
       });
       var options = {
         url: url.toString(),
@@ -47,9 +49,9 @@ module.exports = function (cnf) {
     },
 
     getPeriod: function(vimsFacId,orchestrations,callback) {
-      var url = URI(config.url).segment('rest-api/ivd/periods/'+vimsFacId+'/82')
-      var username = config.username
-      var password = config.password
+      var url = URI(vimsconfig.url).segment('rest-api/ivd/periods/'+vimsFacId+'/82')
+      var username = vimsconfig.username
+      var password = vimsconfig.password
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
@@ -103,9 +105,9 @@ module.exports = function (cnf) {
     },
 
     getReport: function (id,orchestrations,callback) {
-      var url = URI(config.url).segment('rest-api/ivd/get/'+id+'.json')
-      var username = config.username
-      var password = config.password
+      var url = URI(vimsconfig.url).segment('rest-api/ivd/get/'+id+'.json')
+      var username = vimsconfig.username
+      var password = vimsconfig.password
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
@@ -147,9 +149,9 @@ module.exports = function (cnf) {
               report.report.coverageLineItems[index].outreachMale = values.outreachMale
               report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
               var updatedReport = report.report
-              var url = URI(config.url).segment('rest-api/ivd/save')
-              var username = config.username
-              var password = config.password
+              var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+              var username = vimsconfig.username
+              var password = vimsconfig.password
               var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
               var options = {
                 url: url.toString(),
@@ -217,9 +219,9 @@ module.exports = function (cnf) {
                 report.report.logisticsLineItems[index].quantityDiscardedOpened = timrStockData[(vimsItemCode+"REASON-OPENWASTE")].quantity
               }
               var updatedReport = report.report
-              var url = URI(config.url).segment('rest-api/ivd/save')
-              var username = config.username
-              var password = config.password
+              var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+              var username = vimsconfig.username
+              var password = vimsconfig.password
               var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
               var options = {
                 url: url.toString(),
@@ -261,67 +263,12 @@ module.exports = function (cnf) {
         })
       })
     },
-    getOrganizationUUIDFromVimsId: function (vimsOrgId,orchestrations,callback) {
-      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all'
-      var username = config.username
-      var password = config.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
-      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
-                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsOrgId}</csd:otherID>
-                     </csd:requestParams>`
-      var options = {
-        url: url,
-        headers: {
-          'Content-Type': 'text/xml'
-           },
-           body: csd_msg
-      }
-      let before = new Date()
-      request.post(options, function (err, res, body) {
-        orchestrations.push(utils.buildOrchestration('Get organization UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
-        if (err) {
-          return callback(err)
-        }
-        var ast = XmlReader.parseSync(body)
-        var uuid = xmlQuery(ast).find("organizationDirectory").children().attr("entityID")
-        var name = xmlQuery(ast).find("organizationDirectory").children().find("csd:organization").children().find("csd:primaryName").text()
-        callback(uuid,name)
-      })
-    },
-
-    getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
-      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all'
-      var username = config.username
-      var password = config.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
-      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
-                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsFacId}</csd:otherID>
-                     </csd:requestParams>`
-      var options = {
-        url: url,
-        headers: {
-          'Content-Type': 'text/xml'
-           },
-           body: csd_msg
-      }
-      let before = new Date()
-      request.post(options, function (err, res, body) {
-        orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
-        if (err) {
-          return callback(err)
-        }
-        var ast = XmlReader.parseSync(body)
-        var uuid = xmlQuery(ast).find("facilityDirectory").children().attr("entityID")
-        var name = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().find("csd:primaryName").text()
-        callback(uuid,name)
-      })
-    },
 
     checkDistribution: function(vimsFacilityId,orchestrations,callback) {
       this.j_spring_security_check(orchestrations,(err,header)=>{
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
-        var url = URI(config.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId)
+        var url = URI(vimsconfig.url).segment("vaccine/inventory/distribution/distribution-supervisorid/" + vimsFacilityId)
         var options = {
           url: url.toString(),
           headers: {
@@ -345,10 +292,10 @@ module.exports = function (cnf) {
                 var distributionDate = distribution.distributionDate
                 var creationDate = moment().format()
                 var distributionId = distribution.id
-                me.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
+                oim.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
                   var toFacilityName = facName
                   var timrToFacilityId = facId
-                  me.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
+                  oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
                     fromFacilityName = facName1
                     timrFromFacilityId = facId1
                     var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
@@ -405,7 +352,7 @@ module.exports = function (cnf) {
 
     sendReceivingAdvice: function(orchestrations,distribution,callback) {
       this.j_spring_security_check(orchestrations,(err,header)=>{
-        var url = URI(config.url).segment('vaccine/inventory/distribution/save.json')
+        var url = URI(vimsconfig.url).segment('vaccine/inventory/distribution/save.json')
         var options = {
           url: url.toString(),
           headers: {

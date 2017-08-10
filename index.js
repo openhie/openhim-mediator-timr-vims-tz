@@ -262,7 +262,7 @@ function setupApp () {
     Getting stock distribution from DVS (VIMS)
     */
     const oim = OIM(config.openinfoman)
-    const vims = VIMS(config.vims)
+    const vims = VIMS(config.vims,config.openinfoman)
     const timr = TImR(config.timr,config.oauth2)
     let orchestrations = []
 

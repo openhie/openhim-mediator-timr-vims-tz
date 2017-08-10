@@ -38,6 +38,7 @@ module.exports = function (oimconf) {
         }
         var ast = XmlReader.parseSync(body);
         var totalFac = xmlQuery(ast).find("facilityDirectory").children().size()
+        var loopCntr = totalFac
         var facilityDirectory = xmlQuery(ast).find("facilityDirectory").children()
         var facilities = []
         for(var counter = 0;counter<totalFac;counter++) {
@@ -46,17 +47,32 @@ module.exports = function (oimconf) {
           var totalDetails = facilityDirectory.eq(counter).children().size()
           var detailsLoopControl = totalDetails
           var vimsFacilityId = 0
+          var DVS = false
           for(var detailsCount = 0;detailsCount<totalDetails;detailsCount++) {
-            if(facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "https://vims.moh.go.tz" &&
-              facilityDetails.eq(detailsCount).attr("code") == "id")
-            vimsFacilityId = facilityDetails.eq(detailsCount).text()
+            if( facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "https://vims.moh.go.tz" &&
+                facilityDetails.eq(detailsCount).attr("code") == "id"
+              )
+              vimsFacilityId = facilityDetails.eq(detailsCount).text()
             if(facilityDetails.eq(detailsCount).has("csd:primaryName"))
-            var facilityName = facilityDetails.eq(detailsCount).find("csd:primaryName").text()
+              var facilityName = facilityDetails.eq(detailsCount).find("csd:primaryName").text()
+            if( facilityDetails.eq(detailsCount).has("csd:extension") &&
+                facilityDetails.eq(detailsCount).attr("type") == "facilityType" &&
+                facilityDetails.eq(detailsCount).attr("urn") == "urn:openhie.org:openinfoman-tz" &&
+                facilityDetails.eq(detailsCount).children().find("facilityType").text() == "DVS"
+              )
+              DVS = true
           }
-          facilities.push({"timrFacilityId":timrFacilityId,"vimsFacilityId":vimsFacilityId,"facilityName":facilityName})
+          if(DVS === false) {
+            facilities.push({"timrFacilityId":timrFacilityId,"vimsFacilityId":vimsFacilityId,"facilityName":facilityName})
+            loopCntr--
+          }
+          else {
+            loopCntr--
+          }
         }
-        if(facilities.length == totalFac)
-        callback(facilities)
+        if(loopCntr == 0){
+          callback(facilities)
+        }
       })
     },
 
@@ -100,6 +116,62 @@ module.exports = function (oimconf) {
         }
         if(loopCntr === 0 && facFound === false)
         callback("")
+      })
+    },
+
+    getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
+      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all'
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
+      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
+                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsFacId}</csd:otherID>
+                     </csd:requestParams>`
+      var options = {
+        url: url,
+        headers: {
+          'Content-Type': 'text/xml'
+           },
+           body: csd_msg
+      }
+      let before = new Date()
+      request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
+        if (err) {
+          return callback(err)
+        }
+        var ast = XmlReader.parseSync(body)
+        var uuid = xmlQuery(ast).find("facilityDirectory").children().attr("entityID")
+        var name = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().find("csd:primaryName").text()
+        callback(uuid,name)
+      })
+    },
+
+    getOrganizationUUIDFromVimsId: function (vimsOrgId,orchestrations,callback) {
+      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all'
+      var username = config.username
+      var password = config.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
+      var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
+                      <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsOrgId}</csd:otherID>
+                     </csd:requestParams>`
+      var options = {
+        url: url,
+        headers: {
+          'Content-Type': 'text/xml'
+           },
+           body: csd_msg
+      }
+      let before = new Date()
+      request.post(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Get organization UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
+        if (err) {
+          return callback(err)
+        }
+        var ast = XmlReader.parseSync(body)
+        var uuid = xmlQuery(ast).find("organizationDirectory").children().attr("entityID")
+        var name = xmlQuery(ast).find("organizationDirectory").children().find("csd:organization").children().find("csd:primaryName").text()
+        callback(uuid,name)
       })
     }
   }
