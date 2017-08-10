@@ -285,7 +285,7 @@ function setupApp () {
             })
           }
           else {
-            winston.error("No Distribution For "+vimsFacilityId)
+            winston.info("No Distribution For "+facilityName + " ("+vimsFacilityId+")")
             processNextFacility()
           }
         })
