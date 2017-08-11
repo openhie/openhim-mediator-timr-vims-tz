@@ -8,12 +8,18 @@ const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const fs = require('fs')
+const querystring = require('querystring')
+const async = require('async')
 const util = require('util');
 const utils = require('./utils')
+const VIMS = require('./vims')
 
-module.exports = function (timrcnf,oauthcnf) {
+module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
   const timrconfig = timrcnf
   const oauthconfig = oauthcnf
+  const vimsconfig = vimscnf
+  const oimconfig = oimcnf
+  const vims = VIMS(vimsconfig,oimcnf)
   return {
     getAccessToken: function (scope,orchestrations,callback) {
       if(scope == 'gs1')
@@ -106,10 +112,77 @@ module.exports = function (timrcnf,oauthcnf) {
       })
     },
 
+    processColdChain: function (access_token,nexturl,orchestrations,callback) {
+      if(!nexturl)
+      nexturl = URI(timrconfig.url)
+                    .segment('fhir')
+                    .segment('Location')
+                    +'?_count=500&_format=json&'
+      nexturl = URI(timrconfig.url)
+                    .segment('fhir')
+                    .segment('Location')
+                    +'?identifier=urn:uuid:274b1447-f120-35af-b82e-0f576c5c7c4e&_format=json&'
+      var options = {
+        url: nexturl.toString(),
+        headers: {
+          Authorization: `BEARER ${access_token}`
+        }
+      }
+      let before = new Date()
+      request.get(options, (err, res, body) => {
+        orchestrations.push(utils.buildOrchestration('Getting Cold Chain Data', before, 'GET', nexturl.toString(), JSON.stringify(options.headers), res, body))
+        if (err) {
+          return callback(err)
+        }
+        body = JSON.parse(body)
+        var entries = body.entry
+        var me = this
+        async.eachSeries(entries,function(entry,nextEntry){
+          if(entry.resource.hasOwnProperty("extension")) {
+            var extensions = entry.resource.extension
+            async.eachSeries(extensions,function(extension,nextExtension){
+              if(extension.hasOwnProperty("url") && extension.url == "http://openiz.org/extensions/contrib/bid/ivdExtendedData") {
+                var data = new Buffer(extension.valueBase64Binary, 'base64').toString("ascii")
+                winston.error(data)
+                if(entry.resource.hasOwnProperty("identifier")) {
+                  var identifiers = entry.resource.identifier
+                  for(var idCnt=0,totalId=identifiers.length;idCnt<totalId;idCnt++) {
+                    if(identifiers[idCnt].system == "http://hfrportal.ehealth.go.tz/") {
+                      winston.error(identifiers[idCnt].value)
+                      var uuid = identifiers[idCnt].value
+                      vims.saveColdChain(data,uuid,orchestrations,(err,res)=>{
+                        nextExtension()
+                      })
+                    }
+                  }
+                }
+                else
+                nextExtension()
+              }
+              else
+              nextExtension()
+            },function(){
+              nextEntry()
+            })
+          }
+        },function(){
+            nexturl = false
+            for(var len=0,totalLinks=body.link.length;len<totalLinks;len++) {
+              if(body.link[len].hasOwnProperty("relation") && body.link[len].relation=="next")
+                nexturl = body.link[len].url
+            }
+            winston.error(nexturl)
+            if(nexturl)
+            me.processColdChain(access_token,nexturl,orchestrations,(err)=>{
+              callback(err)
+            })
+            if(!nexturl)
+            callback(err)
+          })
+        })
+    },
+
     getStockData: function (access_token,facilityUUID,periods,orchestrations,callback) {
-      /*fs.readFile('/home/ashaban/openhim-mediator-timr-vims-tz/gs1data.xml','utf8', function(err,data) {
-        callback(data)
-      })*/
       fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
         var startDate = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
         var endDate = moment(periods[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')

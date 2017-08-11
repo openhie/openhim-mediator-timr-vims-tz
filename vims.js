@@ -4,12 +4,13 @@ const request = require('request')
 const URI = require('urijs')
 const moment = require('moment')
 const async = require('async')
-const querystring = require('querystring');
+const querystring = require('querystring')
 const util = require('util')
 const utils = require('./utils')
 const OIM = require('./openinfoman')
 const fs = require('fs')
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
+const vitaminDataElements = require('./terminologies/vims-vitamin-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 module.exports = function (vimscnf,oimcnf) {
@@ -92,6 +93,16 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
+    getVitaminDataElmnts: function (callback) {
+      var concept = vitaminDataElements.compose.include[0].concept
+      var dataElmnts = []
+      concept.forEach ((code,index) => {
+        dataElmnts.push({'code':code.code})
+        if(concept.length-1 == index)
+          callback('',dataElmnts)
+      })
+    },
+
     getItemsDataElmnts: function (callback) {
       var concept = itemsDataElements.compose.include[0].concept
       var dataElmnts = []
@@ -134,7 +145,7 @@ module.exports = function (vimscnf,oimcnf) {
         }
         else
         var doseid = dose.vimsid
-        this.getReport (periodId,(report,orchestrations) => {
+        this.getReport (periodId,orchestrations,(report) => {
           var totalCoveLine = report.report.coverageLineItems.length
           var found = false
           winston.info('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
@@ -177,6 +188,70 @@ module.exports = function (vimscnf,oimcnf) {
             }
           })
 
+        })
+      })
+    },
+
+    saveColdChain: function(coldChain,uuid,orchestrations,callback) {
+      var data = JSON.parse(coldChain)
+      oim.getVimsFacilityId(uuid,orchestrations,(vimsid)=>{
+        if(vimsid==""){
+          return callback("")
+        }
+        this.getPeriod(vimsid,orchestrations,(periods,orchs)=>{
+          if(periods.length > 1 ) {
+            winston.error("VIMS has returned two DRAFT reports,processng cold chain stoped!!!")
+            return callback("")
+          }
+          else if(periods.length == 0) {
+            winston.error("Skip Processing Facility" + uuid + ", No Period Found")
+            callback("")
+          }
+          else if(periods.length == 1) {
+            async.eachSeries(periods,(period,nextPeriod)=>{
+              var periodId = period.id
+              this.getReport (periodId,orchestrations,(report) => {
+                winston.error(JSON.stringify(report))
+                report.report.coldChainLineItems.forEach((coldChainLineItem,index) =>{
+                  var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
+                  if(data.hasOwnProperty(periodDate)) {
+                    report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
+                    report.report.coldChainLineItems[index].minTemp = data[periodDate].coldStoreMin
+                    report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
+                    report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
+                    report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
+                    var updatedReport = report.report
+                    var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+                    var username = vimsconfig.username
+                    var password = vimsconfig.password
+                    var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+                    var options = {
+                      url: url.toString(),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: auth
+                      },
+                      json:updatedReport
+                    }
+                    let before = new Date()
+                    request.put(options, function (err, res, body) {
+                      orchestrations.push(utils.buildOrchestration('Updating VIMS Cold Chain', before, 'PUT', url.toString(), updatedReport, res, body))
+                      if (err) {
+                        winston.error(err)
+                        return callback(err,res)
+                      }
+                      return callback(err,res)
+                    })
+                  }
+                  else{
+                    callback("")
+                  }
+                })
+              })
+
+
+            })
+          }
         })
       })
     },

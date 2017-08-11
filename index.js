@@ -94,7 +94,7 @@ function setupApp () {
     let orchestrations = []
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
-    const timr = TImR(config.timr,config.oauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
 
     //transaction will take long time,send response and then go ahead processing
     res.end()
@@ -126,10 +126,10 @@ function setupApp () {
               processNextFacility()
             }
             else {
-              winston.info("Getting Access Token from VIMS")
+              winston.info("Getting Access Token from TImR")
               if(periods.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
-                  winston.info("Processing Stock For " + facilityName + ", Period " + periods[0].periodName)
+                  winston.info("Processing Coverage For " + facilityName + ", Period " + periods[0].periodName)
                   if(err){
                     //try processing next facility in case of error
                     processNextFacility()
@@ -150,8 +150,16 @@ function setupApp () {
                         })
                       })
                     },function() {
-                      winston.info("Getting New Facility")
-                      processNextFacility()
+                        vims.getVitaminDataElmnts((err,vimsVitDataElmnts) => {
+                          async.eachSeries(vimsVitDataElmnts,function(vimsVitCode,processNextDtElmnt) {
+                            timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,periods,orchestrations,(err,values) => {
+                              vims.saveVitaminData(periods,values,vimsVitCode.code,orchestrations,(err) =>{
+                                winston.info("Getting New Facility")
+                                processNextFacility()
+                              })
+                            })
+                          })
+                        })
                     })
                   })
                 })
@@ -291,6 +299,17 @@ function setupApp () {
       },function(){
         winston.info('Done Getting Despatch Advice!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+      })
+    })
+  }),
+
+  app.get('/syncColdChain',(req,res)=>{
+    let orchestrations = []
+    const timr = TImR(config.timr,config.oauth2,config.vims,config.openinfoman)
+    timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+      var access_token = JSON.parse(body).access_token
+      timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
+        winston.error("Done")
       })
     })
   }),

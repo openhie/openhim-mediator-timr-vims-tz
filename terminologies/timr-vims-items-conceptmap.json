@@ -132,7 +132,7 @@
           "code": "2431",
           "target": [
             {
-              "code": "Supplement-VitaminA",
+              "code": "Substance/7D80E518-6E04-4091-8D19-7265BB09BC1F",
               "equivalence":"wider"
             }
           ]
@@ -141,7 +141,7 @@
           "code": "2430",
           "target": [
             {
-              "code": "Supplement-VitaminA",
+              "code": "Substance/7D80E518-6E04-4091-8D19-7265BB09BC1F",
               "equivalence":"wider"
             }
           ]
