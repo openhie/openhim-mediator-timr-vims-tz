@@ -8,6 +8,7 @@ const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const timrVimsVita = require('./terminologies/timr-vims-vitamin-conceptmap.json')
+const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-vitamin-conceptmap.json')
 const fs = require('fs')
 const querystring = require('querystring')
 const async = require('async')
@@ -70,6 +71,24 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
+    getTimrCode: function (vimsCode,conceptMapName,callback) {
+      async.eachSeries(conceptMapName.group,(groups,nxtGrp)=>{
+        async.eachSeries(groups.element,(element,nxtElmnt)=>{
+          if(element.code == vimsVaccCode) {
+            element.target.forEach((target) => {
+              return callback(target.code)
+            })
+          }
+          else
+            nxtElmnt()
+        },function(){
+            nxtGrp()
+        })
+      },function(){
+        return callback("")
+      })
+    },
+
     getVitaminCode: function (vimsVitCode,callback) {
       async.eachSeries(timrVimsVita.group,(groups,nxtGrp)=>{
         async.eachSeries(groups.element,(element,nxtElmnt)=>{
@@ -88,7 +107,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
-    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,periods,orchestrations,callback) {
+    getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,period,orchestrations,callback) {
       this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           callback()
@@ -104,8 +123,8 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=True&dose-sequence='+dose.timrid})
         queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=False&dose-sequence='+dose.timrid})
         queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=False&dose-sequence='+dose.timrid})
-        var vaccineStartDate = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-        var vaccineEndDate = moment(periods[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+        var vaccineStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var vaccineEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var totalLoop = queryPar.length
         queryPar.forEach ((query,index) => {
           let url = URI(timrconfig.url)
@@ -137,19 +156,19 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
-    getVitaminData: function (access_token,vimsVitCode,timrFacilityId,periods,orchestrations,callback) {
+    getVitaminData: function (access_token,vimsVitCode,timrFacilityId,period,orchestrations,callback) {
       var genderTerminologies = [
                       {"fhirgender":"male","vimsgender":"maleValue"},
                       {"fhirgender":"female","vimsgender":"femaleValue"}
                    ]
       var ageGroups = [
-                        {"48612":9},
-                        {"48613":15},
-                        {"48614":18}
+                        {"1":9},
+                        {"2":15},
+                        {"3":18}
                       ]
 
-      var vaccineYearMonth = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
-      var endDay = moment(periods[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
+      var vaccineYearMonth = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
+      var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
 
       var startDay = 1;
       var values = []
@@ -204,16 +223,59 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
+    getDiseaseData: function(access_token,vimsDiseaseCode,timrFacilityId,period,orchestrations,callback) {
+      var timrDiseaseConditions = {
+                      "55607006":"case",
+                      "184305005":"death"
+                    }
+
+      var values = []
+      var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+      var endDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+      this.getTimrCode (vimsDiseaseCode,"timrVimsDiseaseConceptMap",(timrDisCode)=> {
+        async.eachSeries(timrDiseaseConditions,(condition,nxtCndtn)=>{
+          var conditionCode = Object.keys(condition)[0]
+          var conditionName = condition
+          let url = URI(timrconfig.url)
+          .segment('fhir')
+          .segment('Observation')
+          +'?' + 'value-concept=' + timrDisCode + '&code=' + conditionCode + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + startDate + 'T00:00' + '&date=le' + endDate + 'T23:59' + '&_format=json&_count=0'
+          .toString()
+          var options = {
+            url: url.toString(),
+            headers: {
+              Authorization: `BEARER ${access_token}`
+            }
+          }
+          let before = new Date()
+          request.get(options, (err, res, body) => {
+            orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+            if (err) {
+              winston.error(err)
+            }
+            var value = JSON.parse(body).total
+            values[conditionName] = value
+            nxtCndtn()
+          })
+        },function(){
+            return callback('',values)
+        })
+      })
+    }
+
     processColdChain: function (access_token,nexturl,orchestrations,callback) {
       if(!nexturl)
       nexturl = URI(timrconfig.url)
                     .segment('fhir')
                     .segment('Location')
                     +'?_count=500&_format=json&'
+      /*
+      this is for testing
       nexturl = URI(timrconfig.url)
                     .segment('fhir')
                     .segment('Location')
                     +'?identifier=urn:uuid:274b1447-f120-35af-b82e-0f576c5c7c4e&_format=json&'
+      */
       var options = {
         url: nexturl.toString(),
         headers: {
@@ -274,10 +336,10 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         })
     },
 
-    getStockData: function (access_token,facilityUUID,periods,orchestrations,callback) {
+    getStockData: function (access_token,facilityUUID,period,orchestrations,callback) {
       fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
-        var startDate = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-        var endDate = moment(periods[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
+        var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(period[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
         let url = URI(timrconfig.url)
         .segment('gs1')

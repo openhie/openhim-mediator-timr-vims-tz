@@ -11,6 +11,7 @@ const OIM = require('./openinfoman')
 const fs = require('fs')
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const vitaminDataElements = require('./terminologies/vims-vitamin-valuesets.json')
+const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 module.exports = function (vimscnf,oimcnf) {
@@ -94,6 +95,17 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
+    getValueSets: function (valueSetName,callback) {
+      var concept = valueSetName.compose.include[0].concept
+      var valueSets = []
+      async.eachSeries(concept,(code,nxtConcept)=>{
+        valueSets.push({'code':code.code})
+        nxtConcept()
+      },function(){
+        callback('',valueSets)
+      })
+    },
+
     getVitaminDataElmnts: function (callback) {
       var concept = vitaminDataElements.compose.include[0].concept
       var dataElmnts = []
@@ -138,8 +150,8 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveImmunizationData: function (periods,values,vimsVaccCode,dose,orchestrations,callback) {
-      periods.forEach ((period) => {
+    saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
+      period.forEach ((period) => {
         var periodId = period.id
         if(vimsVaccCode == '2413')
         var doseid = dose.vimsid1
@@ -212,11 +224,10 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveVitaminData: function (periods,values,vimsVitCode,orchestrations,callback) {
-      async.eachSeries(periods,(period,nextPeriod)=>{
+    saveVitaminData: function (period,values,vimsVitCode,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
         this.getReport (periodId,orchestrations,(report) => {
-          winston.error(JSON.stringify(report))
           winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
           async.eachOfSeries(report.report.vitaminSupplementationLineItems,(vitaminSupplementationLineItems,index,nxtSupplmnt)=>{
             var ageGroupID = report.report.vitaminSupplementationLineItems[index].id
@@ -263,17 +274,17 @@ module.exports = function (vimscnf,oimcnf) {
         if(vimsid==""){
           return callback("")
         }
-        this.getPeriod(vimsid,orchestrations,(periods,orchs)=>{
-          if(periods.length > 1 ) {
+        this.getPeriod(vimsid,orchestrations,(period,orchs)=>{
+          if(period.length > 1 ) {
             winston.error("VIMS has returned two DRAFT reports,processng cold chain stoped!!!")
             return callback("")
           }
-          else if(periods.length == 0) {
+          else if(period.length == 0) {
             winston.error("Skip Processing Facility" + uuid + ", No Period Found")
             callback("")
           }
-          else if(periods.length == 1) {
-            async.eachSeries(periods,(period,nextPeriod)=>{
+          else if(period.length == 1) {
+            async.eachSeries(period,(period,nextPeriod)=>{
               var periodId = period.id
               this.getReport (periodId,orchestrations,(report) => {
                 winston.error(JSON.stringify(report))
@@ -321,12 +332,12 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveStockData: function(periods,timrStockData,stockCodes,vimsItemCode,orchestrations,callback) {
+    saveStockData: function(period,timrStockData,stockCodes,vimsItemCode,orchestrations,callback) {
       /**
         push stock report to VIMS
       */
       var totalStockCodes = stockCodes.length
-      periods.forEach ((period) => {
+      period.forEach ((period) => {
         var periodId = period.id
         this.getReport (periodId,(report,orchestrations) => {
           var totalLogLineItems = report.report.logisticsLineItems.length;

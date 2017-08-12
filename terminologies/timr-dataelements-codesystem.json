@@ -56,6 +56,18 @@
   {
     "display": "Mebendazole",
     "code": "Substance/7D80E518-6E04-4091-8D19-7A3BB2B32C1F"
+  },
+  {
+    "display": "Neonatal Tetanus",
+    "code": "A33"
+  },
+  {
+    "display": "Acute Flaccid Paralysis (AFP)",
+    "code": "G82.0"
+  },
+  {
+    "display": "Fever",
+    "code": "R50.9"
   }
 ]
 }

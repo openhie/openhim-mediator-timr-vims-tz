@@ -1,0 +1,53 @@
+{
+  "resourceType": "ConceptMap",
+  "id": "timr-immunization-to-DHIS2-immunization-conceptmap",
+  "url": "http://localhost/fhir/ConceptMap/timr-immunization-to-DHIS2-immunization-conceptmap",
+  "version": "1.0.0",
+  "name": "timr-diseases-to-vims-diseases-conceptmap",
+  "status": "draft",
+  "experimental": true,
+  "publisher": "Ally Shaban",
+  "date": "2017-08-12",
+  "description": "A mapping between the timr disease dataelements and VIMS disease Data Elements",
+  "sourceReference": {
+    "reference": "ValueSet/dhis-immunization-valuesets.json"
+  },
+  "targetReference": {
+    "reference": "ValueSet/timr-immunization-valuesets.json"
+  },
+  "group": [
+    {
+      "source": "http://dhis.moh.go.tz/api/ValueSet",
+      "target": "http://timr.marc-hi.ca:8080/fhir/api/ValueSets",
+      "element": [
+        {
+          "code": "1",
+          "target": [
+            {
+              "code": "R50.9",
+              "equivalence":"wider"
+            }
+          ]
+        },
+        {
+          "code": "2",
+          "target": [
+            {
+              "code": "G82.0",
+              "equivalence":"wider"
+            }
+          ]
+        },
+        {
+          "code": "3",
+          "target": [
+            {
+              "code": "A33",
+              "equivalence":"wider"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

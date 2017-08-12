@@ -72,6 +72,18 @@
   {
     "display": "Vit. A 100000 IU",
     "code": "2430"
+  },
+  {
+    "display": "Fever and rash illness",
+    "code": "1"
+  },
+  {
+    "display": "AFP Cases",
+    "code": "2"
+  },
+  {
+    "display": "Neonatal Tetanus",
+    "code": "3"
   }
 ]
 }
