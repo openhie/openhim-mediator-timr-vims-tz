@@ -86,30 +86,33 @@ module.exports = function (vimscnf,oimcnf) {
     getImmunDataElmnts: function (callback) {
       var concept = immDataElements.compose.include[0].concept
       var dataElmnts = []
-      concept.forEach ((code,index) => {
+      async.eachSeries(concept,(code,nxtConcept)=>{
         dataElmnts.push({'code':code.code})
-        if(concept.length-1 == index)
-          callback('',dataElmnts)
+        nxtConcept()
+      },function(){
+        callback('',dataElmnts)
       })
     },
 
     getVitaminDataElmnts: function (callback) {
       var concept = vitaminDataElements.compose.include[0].concept
       var dataElmnts = []
-      concept.forEach ((code,index) => {
+      async.eachSeries(concept,(code,nxtConcept)=>{
         dataElmnts.push({'code':code.code})
-        if(concept.length-1 == index)
-          callback('',dataElmnts)
+        nxtConcept()
+      },function(){
+        callback('',dataElmnts)
       })
     },
 
     getItemsDataElmnts: function (callback) {
       var concept = itemsDataElements.compose.include[0].concept
       var dataElmnts = []
-      concept.forEach ((code,index) => {
+      async.eachSeries(concept,(code,nxtConcept)=>{
         dataElmnts.push({'code':code.code})
-        if(concept.length-1 == index)
-          callback('',dataElmnts)
+        nxtConcept()
+      },function(){
+        callback('',dataElmnts)
       })
     },
 
@@ -189,6 +192,68 @@ module.exports = function (vimscnf,oimcnf) {
           })
 
         })
+      })
+    },
+
+    extractValuesFromAgeGroup: function (values,ageGroupID,callback) {
+      var mergedValues = []
+      async.eachSeries(values,(value,nxtValue)=>{
+        if(Object.keys(value)[0] == ageGroupID) {
+          if(mergedValues.length == 0)
+          mergedValues.push({[value[ageGroupID].gender]: value[ageGroupID].value})
+          else
+          mergedValues[(mergedValues.length-1)][value[ageGroupID].gender] = value[ageGroupID].value
+          nxtValue()
+        }
+        else
+          nxtValue()
+      },function(){
+          return callback(mergedValues)
+      })
+    },
+
+    saveVitaminData: function (periods,values,vimsVitCode,orchestrations,callback) {
+      async.eachSeries(periods,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(report) => {
+          winston.error(JSON.stringify(report))
+          winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
+          async.eachOfSeries(report.report.vitaminSupplementationLineItems,(vitaminSupplementationLineItems,index,nxtSupplmnt)=>{
+            var ageGroupID = report.report.vitaminSupplementationLineItems[index].id
+            this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
+              var maleValue = mergedValues[0].maleValue
+              var femaleValue = mergedValues[0].femaleValue
+              report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
+              report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
+              nxtSupplmnt()
+            })
+          },function(){
+            var updatedReport = report.report
+            var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+            var username = vimsconfig.username
+            var password = vimsconfig.password
+            var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+            var options = {
+              url: url.toString(),
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: auth
+              },
+              json:updatedReport
+            }
+            let before = new Date()
+            request.put(options, function (err, res, body) {
+              orchestrations.push(utils.buildOrchestration('Updating VIMS Supplements', before, 'PUT', url.toString(), updatedReport, res, body))
+              if (err) {
+                winston.error(err)
+              }
+              nextPeriod()
+            })
+          })
+        })
+      },function(){
+          winston.info("Done Processing "+vimsVitCode)
+          return callback()
       })
     },
 

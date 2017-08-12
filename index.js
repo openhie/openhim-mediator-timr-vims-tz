@@ -137,6 +137,7 @@ function setupApp () {
                   var access_token = JSON.parse(body).access_token
                   vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
                     async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
+                      winston.info("Getting New Data Element")
                       getDosesMapping((doses) =>{
                         async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
                           timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,periods,orchestrations,(err,values) => {
@@ -145,13 +146,15 @@ function setupApp () {
                             })
                           })
                         },function() {
-                          winston.info("Getting New Data Element")
                           processNextDtElmnt()
                         })
                       })
                     },function() {
+                        //before fetching new facility,lets process vitaminA for this facility first
+                        winston.info("Processing Supplements")
                         vims.getVitaminDataElmnts((err,vimsVitDataElmnts) => {
                           async.eachSeries(vimsVitDataElmnts,function(vimsVitCode,processNextDtElmnt) {
+                            winston.info("Processing "+vimsVitCode.code)
                             timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,periods,orchestrations,(err,values) => {
                               vims.saveVitaminData(periods,values,vimsVitCode.code,orchestrations,(err) =>{
                                 winston.info("Getting New Facility")

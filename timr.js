@@ -7,6 +7,7 @@ const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const timrVimsVita = require('./terminologies/timr-vims-vitamin-conceptmap.json')
 const fs = require('fs')
 const querystring = require('querystring')
 const async = require('async')
@@ -52,14 +53,38 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
     },
 
     getVaccineCode: function (vimsVaccCode,callback) {
-      timrVimsImm.group.forEach((groups) => {
-        groups.element.forEach((element)=>{
+      async.eachSeries(timrVimsImm.group,(groups,nxtGrp)=>{
+        async.eachSeries(groups.element,(element,nxtElmnt)=>{
           if(element.code == vimsVaccCode) {
             element.target.forEach((target) => {
-              callback(target.code)
+              return callback(target.code)
             })
           }
+          else
+            nxtElmnt()
+        },function(){
+            nxtGrp()
         })
+      },function(){
+        return callback("")
+      })
+    },
+
+    getVitaminCode: function (vimsVitCode,callback) {
+      async.eachSeries(timrVimsVita.group,(groups,nxtGrp)=>{
+        async.eachSeries(groups.element,(element,nxtElmnt)=>{
+          if(element.code == vimsVitCode) {
+            element.target.forEach((target) => {
+              return callback(target.code)
+            })
+          }
+          else
+            nxtElmnt()
+        },function(){
+            nxtGrp()
+        })
+      },function(){
+        return callback("")
       })
     },
 
@@ -108,6 +133,73 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
               return callback('',values)
             }
           })
+        })
+      })
+    },
+
+    getVitaminData: function (access_token,vimsVitCode,timrFacilityId,periods,orchestrations,callback) {
+      var genderTerminologies = [
+                      {"fhirgender":"male","vimsgender":"maleValue"},
+                      {"fhirgender":"female","vimsgender":"femaleValue"}
+                   ]
+      var ageGroups = [
+                        {"48612":9},
+                        {"48613":15},
+                        {"48614":18}
+                      ]
+
+      var vaccineYearMonth = moment(periods[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
+      var endDay = moment(periods[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
+
+      var startDay = 1;
+      var values = []
+      this.getVitaminCode (vimsVitCode,(timrVitCode)=> {
+        async.eachOfSeries(ageGroups,(age,ageGrpIndex,nxtAge)=>{
+          var genderRef = null
+          async.eachSeries(genderTerminologies,(gender,nxtGender)=>{
+            var value = 0
+            genderRef = gender
+            var totalDays = endDay
+          for(var day=startDay;day<=endDay;day++) {
+            var birthDatePar = ''
+            var countAges = 0
+            if(day<10)
+            var dateDay = '0' + day
+            else
+            var dateDay = day
+            var vaccineDate = vaccineYearMonth + '-' + dateDay
+            var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
+            let url = URI(timrconfig.url)
+            .segment('fhir')
+            .segment('MedicationAdministration')
+            +'?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&patient.birthDate=eq' + birthDate + '&_format=json&_count=0'
+            .toString()
+            var options = {
+              url: url.toString(),
+              headers: {
+                Authorization: `BEARER ${access_token}`
+              }
+            }
+            let before = new Date()
+            request.get(options, (err, res, body) => {
+              orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+              totalDays--
+              if (err) {
+                winston.error(err)
+                return
+              }
+              value = value + JSON.parse(body).total
+              if(totalDays == 0) {
+                values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
+                nxtGender()
+              }
+            })
+          }
+        },function(){
+          nxtAge()
+        })
+        },function(){
+            return callback("",values)
         })
       })
     },
