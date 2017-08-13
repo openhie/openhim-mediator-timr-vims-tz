@@ -474,10 +474,10 @@ module.exports = function (vimscnf,oimcnf) {
         request.get(options, (err, res, body) => {
           orchestrations.push(utils.buildOrchestration('Get Stock Distribution From VIMS', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
-          winston.info(JSON.stringify(distribution))
+          winston.info("Found " + JSON.stringify(body))
+
           //this will help to access getTimrItemCode function inside async
           var me = this;
-
             //check to ensure that despatch is available
             if(distribution !== null && distribution !== undefined) {
               fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
@@ -545,7 +545,7 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    sendReceivingAdvice: function(orchestrations,distribution,callback) {
+    sendReceivingAdvice: function(distribution,orchestrations,callback) {
       this.j_spring_security_check(orchestrations,(err,header)=>{
         var url = URI(vimsconfig.url).segment('vaccine/inventory/distribution/save.json')
         var options = {
@@ -559,7 +559,7 @@ module.exports = function (vimscnf,oimcnf) {
 
         let before = new Date()
         request.post(options, function (err, res, body) {
-          orchestrations.push(utils.buildOrchestration('Send Receiving Advice To VIMS', before, 'POST', url.toString(), distribution, res, body))
+          orchestrations.push(utils.buildOrchestration('Send Receiving Advice To VIMS', before, 'POST', url.toString(), JSON.stringify(distribution), res, JSON.stringify(body)))
           if (err) {
             return callback(err)
           }

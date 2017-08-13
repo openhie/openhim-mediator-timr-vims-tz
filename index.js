@@ -131,6 +131,7 @@ function setupApp () {
               winston.info("Getting Access Token from TImR")
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                  winston.info("Received Access Token")
                   winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
                   if(err){
                     //try processing next facility in case of error
@@ -215,6 +216,7 @@ function setupApp () {
               winston.info("Getting Access Token")
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                  winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
                   vims.getValueSets (vimsDiseaseValueSet,(err,vimsDiseaseValSet) => {
                     timr.getDiseaseData(access_token,vimsDiseaseValSet,timrFacilityId,period,orchestrations,(err,values) => {
@@ -296,9 +298,14 @@ function setupApp () {
               winston.info("Getting Access Token")
               if(period.length == 1) {
                 timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
+                  winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
+                  winston.info("Fetching TImR Stock Data")
                   timr.getStockData(access_token,timrFacilityId,period,orchestrations,(data) =>{
+                    winston.info("Done Fetching TImR Stock Data")
+                    winston.info("Extracting TImR Stock Data")
                     timr.extractStockData(data,timrFacilityId,(timrStockData,stockCodes) =>{
+                      winston.info("Done Extracting TImR Stock Data")
                       vims.getItemsDataElmnts ((err,vimsItemsDataElmnts) => {
                           async.eachSeries(vimsItemsDataElmnts,function(vimsItemsDataElmnt,processNextDtElmnt) {
                             winston.info("Processing Stock For " + facilityName +
@@ -345,9 +352,13 @@ function setupApp () {
         vims.checkDistribution(vimsFacilityId,orchestrations,(despatchAdviceBaseMessage,err)=>{
           if(despatchAdviceBaseMessage){
             winston.info(despatchAdviceBaseMessage)
+            winston.info("Getting GS1 Access Token From TImR")
             timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
+              winston.info("Received GS1 Access Token From TImR")
               var access_token = JSON.parse(body).access_token
+              winston.info("Saving Despatch Advice To TImR")
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
+                winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
                 processNextFacility()
               })
@@ -405,7 +416,7 @@ function setupApp () {
           orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
           if(distribution !== null) {
-            callback(distribution,err,orchs)
+            callback(distribution,err)
           }
           else {
             callback("",err,orchs)
@@ -436,11 +447,13 @@ function setupApp () {
     }
 
     var vimsToFacilityId = null
+    winston.info("Getting VIMS facility ID")
     oim.getVimsFacilityId(toFacilityId,orchestrations,(vimsFacId)=>{
+      winston.info("Received VIMS facility ID")
       vimsToFacilityId = vimsFacId
+      winston.info("Getting Distribution")
       if(vimsToFacilityId)
-      getDistribution(vimsToFacilityId,orchestrations,(distribution,err,orchs)=>{
-        orchestrations = orchestrations.concat(orchs)
+      getDistribution(vimsToFacilityId,orchestrations,(distribution,err)=>{
         if(!distribution) {
           var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
           var body = "No matching DespatchAdvice in VIMS"

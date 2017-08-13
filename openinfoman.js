@@ -120,7 +120,11 @@ module.exports = function (oimconf) {
     },
 
     getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
-      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all'
+      var url = new URI(config.url)
+        .segment('/CSD/csr/')
+        .segment(config.document)
+        .segment('careServicesRequest')
+        .segment('/urn:openhie.org:openinfoman-hwr:stored-function:facility_get_all')
       var username = config.username
       var password = config.password
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
@@ -128,7 +132,7 @@ module.exports = function (oimconf) {
                       <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsFacId}</csd:otherID>
                      </csd:requestParams>`
       var options = {
-        url: url,
+        url: url.toString(),
         headers: {
           'Content-Type': 'text/xml'
            },
@@ -148,7 +152,11 @@ module.exports = function (oimconf) {
     },
 
     getOrganizationUUIDFromVimsId: function (vimsOrgId,orchestrations,callback) {
-      var url = 'http://localhost:8984/CSD/csr/BID/careServicesRequest/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all'
+      var url = new URI(config.url)
+        .segment('/CSD/csr/')
+        .segment(config.document)
+        .segment('careServicesRequest')
+        .segment('/urn:openhie.org:openinfoman-hwr:stored-function:organization_get_all')
       var username = config.username
       var password = config.password
       var auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
@@ -156,7 +164,7 @@ module.exports = function (oimconf) {
                       <csd:otherID assigningAuthorityName="https://vims.moh.go.tz" code="id">${vimsOrgId}</csd:otherID>
                      </csd:requestParams>`
       var options = {
-        url: url,
+        url: url.toString(),
         headers: {
           'Content-Type': 'text/xml'
            },
