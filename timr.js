@@ -8,7 +8,7 @@ const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const timrVimsVita = require('./terminologies/timr-vims-vitamin-conceptmap.json')
-const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-vitamin-conceptmap.json')
+const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-diseases-conceptmap.json')
 const fs = require('fs')
 const querystring = require('querystring')
 const async = require('async')
@@ -74,7 +74,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
     getTimrCode: function (vimsCode,conceptMapName,callback) {
       async.eachSeries(conceptMapName.group,(groups,nxtGrp)=>{
         async.eachSeries(groups.element,(element,nxtElmnt)=>{
-          if(element.code == vimsVaccCode) {
+          if(element.code == vimsCode) {
             element.target.forEach((target) => {
               return callback(target.code)
             })
@@ -223,45 +223,57 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
-    getDiseaseData: function(access_token,vimsDiseaseCode,timrFacilityId,period,orchestrations,callback) {
+    getDiseaseData: function(access_token,vimsDiseaseValSets,timrFacilityId,period,orchestrations,callback) {
       var timrDiseaseConditions = {
                       "55607006":"case",
                       "184305005":"death"
                     }
 
-      var values = []
+      var values = {}
       var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
       var endDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-      this.getTimrCode (vimsDiseaseCode,"timrVimsDiseaseConceptMap",(timrDisCode)=> {
-        async.eachSeries(timrDiseaseConditions,(condition,nxtCndtn)=>{
-          var conditionCode = Object.keys(condition)[0]
-          var conditionName = condition
-          let url = URI(timrconfig.url)
-          .segment('fhir')
-          .segment('Observation')
-          +'?' + 'value-concept=' + timrDisCode + '&code=' + conditionCode + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + startDate + 'T00:00' + '&date=le' + endDate + 'T23:59' + '&_format=json&_count=0'
-          .toString()
-          var options = {
-            url: url.toString(),
-            headers: {
-              Authorization: `BEARER ${access_token}`
+
+      var me = this
+      async.eachSeries(vimsDiseaseValSets,function(vimsDiseaseValSet,processNextValSet) {
+        var vimsDiseaseCode = vimsDiseaseValSet.code
+        me.getTimrCode (vimsDiseaseCode,timrVimsDiseaseConceptMap,(timrDisCode)=> {
+          winston.info("Fetching Data For Disease Code " + timrDisCode + " From TImR")
+          async.eachOfSeries(timrDiseaseConditions,(conditionName,conditionCode,nxtCndtn)=>{
+            let url = URI(timrconfig.url)
+            .segment('fhir')
+            .segment('Observation')
+            +'?' + 'value-concept=' + timrDisCode + '&code=' + conditionCode + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + startDate + 'T00:00' + '&date=le' + endDate + 'T23:59' + '&_format=json&_count=0'
+            .toString()
+            var options = {
+              url: url.toString(),
+              headers: {
+                Authorization: `BEARER ${access_token}`
+              }
             }
-          }
-          let before = new Date()
-          request.get(options, (err, res, body) => {
-            orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-            if (err) {
-              winston.error(err)
-            }
-            var value = JSON.parse(body).total
-            values[conditionName] = value
-            nxtCndtn()
+            let before = new Date()
+            request.get(options, (err, res, body) => {
+              winston.error(body)
+              orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+              if (err) {
+                winston.error(err)
+              }
+              var value = JSON.parse(body).total
+
+              if(vimsDiseaseCode in values)
+                Object.assign(values[vimsDiseaseCode],{[conditionName]:value})
+              else
+                values[vimsDiseaseCode] = {[conditionName]:value}
+              nxtCndtn()
+            })
+          },function(){
+              processNextValSet()
           })
-        },function(){
-            return callback('',values)
         })
+      },function(){
+          return callback('',values)
       })
-    }
+
+    },
 
     processColdChain: function (access_token,nexturl,orchestrations,callback) {
       if(!nexturl)

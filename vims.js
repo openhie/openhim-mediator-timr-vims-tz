@@ -11,7 +11,6 @@ const OIM = require('./openinfoman')
 const fs = require('fs')
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const vitaminDataElements = require('./terminologies/vims-vitamin-valuesets.json')
-const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 module.exports = function (vimscnf,oimcnf) {
@@ -74,12 +73,12 @@ module.exports = function (vimscnf,oimcnf) {
             if(period.id > 0 && period.status == "DRAFT")
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
-              callback(periods)
+              return callback(periods)
             }
           })
         }
         else {
-          callback(periods)
+          return callback(periods)
         }
       })
     },
@@ -230,14 +229,19 @@ module.exports = function (vimscnf,oimcnf) {
         this.getReport (periodId,orchestrations,(report) => {
           winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
           async.eachOfSeries(report.report.vitaminSupplementationLineItems,(vitaminSupplementationLineItems,index,nxtSupplmnt)=>{
-            var ageGroupID = report.report.vitaminSupplementationLineItems[index].id
-            this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
-              var maleValue = mergedValues[0].maleValue
-              var femaleValue = mergedValues[0].femaleValue
-              report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
-              report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
+            if(report.report.vitaminSupplementationLineItems[index].vaccineVitaminId == vimsVitCode) {
+              var ageGroupID = report.report.vitaminSupplementationLineItems[index].vitaminAgeGroupId
+              this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
+                winston.error(mergedValues)
+                var maleValue = mergedValues[0].maleValue
+                var femaleValue = mergedValues[0].femaleValue
+                report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
+                report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
+                nxtSupplmnt()
+              })
+            }
+            else
               nxtSupplmnt()
-            })
           },function(){
             var updatedReport = report.report
             var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
@@ -264,6 +268,48 @@ module.exports = function (vimscnf,oimcnf) {
         })
       },function(){
           winston.info("Done Processing "+vimsVitCode)
+          return callback()
+      })
+    },
+
+    saveDiseaseData: function (period,values,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(report) => {
+          winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
+          winston.error(JSON.stringify(report.report))
+          async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
+            var diseaseID = report.report.diseaseLineItems[index].diseaseId
+            var cases = values[diseaseID]["case"]
+            var death = values[diseaseID]["death"]
+            report.report.diseaseLineItems[index].cases = cases
+            report.report.diseaseLineItems[index].death = death
+            nxtDisLineItm()
+          },function(){
+            var updatedReport = report.report
+            var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+            var username = vimsconfig.username
+            var password = vimsconfig.password
+            var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+            var options = {
+              url: url.toString(),
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: auth
+              },
+              json:updatedReport
+            }
+            let before = new Date()
+            request.put(options, function (err, res, body) {
+              orchestrations.push(utils.buildOrchestration('Updating VIMS diseaseLineItems', before, 'PUT', url.toString(), updatedReport, res, body))
+              if (err) {
+                winston.error(err)
+              }
+              nextPeriod()
+            })
+          })
+        })
+      },function(){
           return callback()
       })
     },

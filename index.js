@@ -17,6 +17,8 @@ const async = require('async')
 const bodyParser = require('body-parser')
 var xmlparser = require('express-xml-bodyparser')
 
+const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
+
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
@@ -154,7 +156,7 @@ function setupApp () {
                         winston.info("Processing Supplements")
                         vims.getVitaminDataElmnts((err,vimsVitDataElmnts) => {
                           async.eachSeries(vimsVitDataElmnts,function(vimsVitCode,processNextDtElmnt) {
-                            winston.info("Processing "+vimsVitCode.code)
+                            winston.info("Processing Supplement Id "+vimsVitCode.code)
                             timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
                               vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
                                 winston.info("Getting New Facility")
@@ -214,16 +216,12 @@ function setupApp () {
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
                   var access_token = JSON.parse(body).access_token
-                  vims.getValueSets ("vimsDiseaseValueSet",(err,vimsDiseaseValSet) => {
-                    async.eachSeries(vimsDiseaseValSet,function(vimsDiseaseCode,processNextValSet) {
-                      winston.info("Getting New Disease Code")
-                      timr.getDiseaseData(access_token,vimsDiseaseCode.code,dose,timrFacilityId,period,orchestrations,(err,values) => {
-                        vims.saveDiseaseData(period,values,vimsDiseaseCode.code,dose,orchestrations,(err) =>{
-                          processNextValSet()
-                        })
-                      })
-                    },function() {
+                  vims.getValueSets (vimsDiseaseValueSet,(err,vimsDiseaseValSet) => {
+                    timr.getDiseaseData(access_token,vimsDiseaseValSet,timrFacilityId,period,orchestrations,(err,values) => {
+                      vims.saveDiseaseData(period,values,orchestrations,(err) =>{
+                        winston.info("Done Updating diseaseLineItems In VIMS For " + facilityName)
                         processNextFacility()
+                      })
                     })
                   })
                 })

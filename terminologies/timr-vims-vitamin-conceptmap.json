@@ -21,7 +21,7 @@
       "target": "http://timr.marc-hi.ca:8080/fhir/api/ValueSets",
       "element": [
         {
-          "code": "2430",
+          "code": "1",
           "target": [
             {
               "code": "Substance/7D80E518-6E04-4091-8D19-7265BB09BC1F",

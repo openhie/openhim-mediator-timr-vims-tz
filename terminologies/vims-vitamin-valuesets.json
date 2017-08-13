@@ -18,10 +18,7 @@
         "system": "http://timr.marc-hi.ca:8080/fhir/ValueSets",
         "concept": [
           {
-            "code": "2430"
-          },
-          {
-            "code": "2431"
+            "code": "1"
           }
         ]
       }
