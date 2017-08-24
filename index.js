@@ -18,6 +18,7 @@ const bodyParser = require('body-parser')
 var xmlparser = require('express-xml-bodyparser')
 
 const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
+const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -180,6 +181,68 @@ function setupApp () {
     })
   }),
 
+  app.get('/syncAdverseEvents', (req, res) => {
+    let orchestrations = []
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+
+    //transaction will take long time,send response and then go ahead processing
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    oim.getVimsFacilities(orchestrations,(facilities)=>{
+      async.eachSeries(facilities,function(facility,processNextFacility){
+        var vimsFacilityId = facility.vimsFacilityId
+        var timrFacilityId = facility.timrFacilityId
+        var facilityName = facility.facilityName
+        if(vimsFacilityId > 0) {
+          winston.info("Getting period")
+          vims.getPeriod(vimsFacilityId,orchestrations,(period)=>{
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
+              processNextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              processNextFacility()
+            }
+            else {
+              winston.info("Getting Access Token from TImR")
+              if(period.length == 1) {
+                timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                  winston.info("Received Access Token")
+                  winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
+                  if(err){
+                    //try processing next facility in case of error
+                    processNextFacility()
+                  }
+                  var access_token = JSON.parse(body).access_token
+                  vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
+                    async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextValSet) {
+                      winston.info("Getting New Data Element")
+                      timr.getAdverseEventData(access_token,vimsVaccCode.code,timrFacilityId,period,orchestrations,(err,values) => {
+                        vims.saveAdverseEventData(period,values,vimsVaccCode.code,orchestrations,(err) =>{
+                          processNextValSet()
+                        })
+                      })
+                    },function() {
+                        //before fetching new facility,lets process vitaminA for this facility first
+                        winston.info("Done Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
+                        processNextFacility()
+                    })
+                  })
+                })
+              }
+            }
+          })
+        }
+      },function(){
+        winston.info('Done Synchronizing Immunization Coverage!!!')
+        updateTransaction(req,"","Successful","200",orchestrations)
+      })
+    })
+  }),
+
   app.get('/syncDiseases', (req, res) => {
     let orchestrations = []
     const oim = OIM(config.openinfoman)
@@ -232,7 +295,7 @@ function setupApp () {
           })
         }
       },function(){
-        winston.info('Done Synchronizing Stock Data!!!')
+        winston.info('Done Synchronizing Disease Data!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
       })
     })
@@ -333,7 +396,7 @@ function setupApp () {
     })
   }),
 
-  app.get('/despatchAdvice',(req,res)=>{
+  app.get('/despatchAdviceIL',(req,res)=>{
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
@@ -372,6 +435,31 @@ function setupApp () {
       },function(){
         winston.info('Done Getting Despatch Advice!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+      })
+    })
+  }),
+
+  app.post('/despatchAdviceVims',(req,res)=>{
+    /*loop through all districts
+    Getting stock distribution from DVS (VIMS)
+    */
+    winston.info("Received Despactch Advise From VIMS")
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,config.openinfoman)
+    const timr = TImR(config.timr,config.oauth2)
+    let orchestrations = []
+
+    updateTransaction (req,"Still Processing","Processing","200","")
+    var distribution = req.rawBody
+    vims.convertDistributionToGS1(distribution,orchestrations,(despatchAdviceBaseMessage)=>{
+      timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
+        winston.info("Received GS1 Access Token From TImR")
+        var access_token = JSON.parse(body).access_token
+        winston.info("Saving Despatch Advice To TImR")
+        timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
+          winston.info("Saved Despatch Advice To TImR")
+          winston.info(res)
+        })
       })
     })
   }),

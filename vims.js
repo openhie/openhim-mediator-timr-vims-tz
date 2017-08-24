@@ -272,12 +272,74 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
+    saveAdverseEventData: function (period,values,vimsVaccCode,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(report) => {
+          winston.info('Adding To VIMS AdverseEvent Details '+ JSON.stringify(values))
+          //if no adverse effect reported
+          if(!report.report.adverseEffectLineItems[0].hasOwnProperty("id")) {
+            var reportIndex = 0
+            async.eachSeries(values,(value,nxtValue)=>{
+              if(value.value > 0) {
+                var date = value.date
+                var value = value.value
+                report.report.adverseEffectLineItems[reportIndex].productId = vimsVaccCode
+                report.report.adverseEffectLineItems[reportIndex].date = date
+                report.report.adverseEffectLineItems[reportIndex].cases = value
+                reportIndex++
+                nxtValue()
+              }
+              else{
+                nxtValue()
+              }
+            },function(){
+                nextPeriod()
+            })
+          }
+          //if there is adverse effect reported
+          else {
+            async.eachSeries(values,(value,nxtValue)=>{
+              //makesure we dont update Adverse Effect associated with multiple products
+              var found = false
+              async.eachOfSeries(report.report.adverseEffectLineItems,(adverseEffectLineItems,index,nxtAdvEff)=>{
+                if( adverseEffectLineItems.productId == vimsVaccCode &&
+                    adverseEffectLineItems.date == value.date &&
+                    !adverseEffectLineItems.relatedLineItems[0].hasOwnProperty("id") &&
+                    value.value > 0
+                  ) {
+                    report.report.adverseEffectLineItems[reportIndex].cases = value.value
+                    found = true
+                    nxtValue()
+                  }
+                  else
+                  nxtAdvEff()
+              },function(){
+                //if nothing found then it was not added,add it from scratch
+                if(found == false && value.value > 0) {
+                  var adverseEffectLineItems = report.report.adverseEffectLineItems
+                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].cases = value.value
+                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].date = value.date
+                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].productId = vimsVaccCode
+                }
+                nxtValue()
+              })
+            },function(){
+                nextPeriod()
+            })
+          }
+        })
+      },function(){
+          return callback()
+      })
+    },
+
     saveDiseaseData: function (period,values,orchestrations,callback) {
       async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
         this.getReport (periodId,orchestrations,(report) => {
           winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
-          winston.error(JSON.stringify(report.report))
+          winston.error(JSON.stringify(report))
           async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
             var diseaseID = report.report.diseaseLineItems[index].diseaseId
             var cases = values[diseaseID]["case"]
@@ -457,6 +519,70 @@ module.exports = function (vimscnf,oimcnf) {
           }
         })
       })
+    },
+
+    convertDistributionToGS1: function(distribution,orchestrations,callback) {
+      distribution = JSON.parse(distribution)
+      var me = this
+      if(distribution !== null && distribution !== undefined) {
+        fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
+          var timrToFacilityId = null
+          var timrFromFacilityId = null
+          var fromFacilityName = null
+          var distributionDate = distribution.distributionDate
+          var creationDate = moment().format()
+          var distributionId = distribution.id
+          oim.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
+            var toFacilityName = facName
+            var timrToFacilityId = facId
+            oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
+              fromFacilityName = facName1
+              timrFromFacilityId = facId1
+              var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
+              async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
+                async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                  fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
+                    var lotQuantity = lot.quantity
+                    var lotId = lot.lotId
+                    var gtin = lineItems.product.gtin
+                    var vims_item_id = lineItems.product.id
+                    var item_name = lineItems.product.fullName
+                    if(item_name == null)
+                    var item_name = lineItems.product.primaryName
+                    var timr_item_id = 0
+                    me.getTimrItemCode(vims_item_id,id=>{
+                      timr_item_id = id
+                    })
+                    var lotCode = lot.lot.lotCode
+                    var expirationDate = lot.lot.expirationDate
+                    var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
+                    if(isNaN(timr_item_id)) {
+                      var codeListVersion = "OpenIZ-MaterialType"
+                    }
+                    else {
+                      var codeListVersion = "CVX"
+                    }
+                    var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                    despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
+                    nextLot()
+                  })
+                },function(){
+                  nextlineItems()
+                })
+              },function(){
+                despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
+                winston.info(despatchAdviceBaseMessage)
+                if(timrToFacilityId)
+                callback(despatchAdviceBaseMessage,err)
+                else {
+                  winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
+                  callback("",err)
+                }
+              })
+            })
+          })
+        })
+      }
     },
 
     checkDistribution: function(vimsFacilityId,orchestrations,callback) {
