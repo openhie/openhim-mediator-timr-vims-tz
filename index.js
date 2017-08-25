@@ -7,6 +7,7 @@ const utils = require('./utils')
 const winston = require('winston')
 const moment = require("moment")
 const request = require('request')
+const isJSON = require('is-json')
 const URI = require('urijs')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
@@ -112,7 +113,11 @@ function setupApp () {
       dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
       callback(dosesMapping)
     }
-    oim.getVimsFacilities(orchestrations,(facilities)=>{
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
@@ -120,6 +125,7 @@ function setupApp () {
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(period)=>{
+            winston.info("Done Getting Period")
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
               processNextFacility()
@@ -132,16 +138,18 @@ function setupApp () {
               winston.info("Getting Access Token from TImR")
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
-                  winston.info("Received Access Token")
-                  winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
-                  if(err){
-                    //try processing next facility in case of error
+                  if(err) {
+                    winston.error("An error occured while getting access token from TImR")
                     processNextFacility()
                   }
+                  winston.info("Done Getting Access Token")
+                  winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
                   var access_token = JSON.parse(body).access_token
+                  winston.info("Getting All VIMS Immunization Data Elements")
                   vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
+                    winston.info("Done Getting All VIMS Immunization Data Elements")
                     async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
-                      winston.info("Getting New Data Element")
+                      winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
                       getDosesMapping((doses) =>{
                         async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
                           timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,period,orchestrations,(err,values) => {
@@ -190,7 +198,11 @@ function setupApp () {
     //transaction will take long time,send response and then go ahead processing
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
-    oim.getVimsFacilities(orchestrations,(facilities)=>{
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
@@ -210,12 +222,12 @@ function setupApp () {
               winston.info("Getting Access Token from TImR")
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
-                  winston.info("Received Access Token")
-                  winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
-                  if(err){
-                    //try processing next facility in case of error
+                  if(err) {
+                    winston.error("An error occured while getting access token from TImR")
                     processNextFacility()
                   }
+                  winston.info("Received Access Token")
+                  winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
                   var access_token = JSON.parse(body).access_token
                   vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
                     async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextValSet) {
@@ -255,7 +267,11 @@ function setupApp () {
 
     winston.info("Processing Disease Data")
     winston.info("Fetching Facilities")
-    oim.getVimsFacilities(orchestrations,(facilities)=>{
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
@@ -279,6 +295,10 @@ function setupApp () {
               winston.info("Getting Access Token")
               if(period.length == 1) {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                  if(err) {
+                    winston.error("An error occured while getting access token from TImR")
+                    processNextFacility()
+                  }
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
                   vims.getValueSets (vimsDiseaseValueSet,(err,vimsDiseaseValSet) => {
@@ -334,9 +354,14 @@ function setupApp () {
       res.end(response)
     }
 
-    oim.getVimsFacilities(orchestrations,(facilities)=>{
-      winston.info("Processing Stock Data")
-      winston.info("Fetching Facilities")
+    winston.info("Processing Stock Data")
+    winston.info("Fetching Facilities")
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      winston.info("Done Fetching Facility Data")
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
@@ -361,6 +386,10 @@ function setupApp () {
               winston.info("Getting Access Token")
               if(period.length == 1) {
                 timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
+                  if(err) {
+                    winston.error("An error occured while getting access token from TImR")
+                    processNextFacility()
+                  }
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
                   winston.info("Fetching TImR Stock Data")
@@ -408,16 +437,41 @@ function setupApp () {
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
 
-    oim.getVimsFacilities(orchestrations,(facilities)=>{
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       async.eachSeries(facilities,function(facility,processNextFacility){
         var vimsFacilityId = facility.vimsFacilityId
         var facilityName = facility.facilityName
-        vims.checkDistribution(vimsFacilityId,orchestrations,(despatchAdviceBaseMessage,err)=>{
-          if(despatchAdviceBaseMessage){
-            winston.info(despatchAdviceBaseMessage)
+        vims.checkDistribution(vimsFacilityId,orchestrations,(err,distribution)=>{
+          if(err) {
+            winston.error("An error occured while checking distribution for " + facilityName)
+            processNextFacility()
+          }
+          if(distribution == false) {
+            winston.info("No Distribution returned For " + facilityName)
+            processNextFacility()
+          }
+          winston.info("Now Converting Distribution To GS1")
+          vims.convertDistributionToGS1(distribution,orchestrations,(err,despatchAdviceBaseMessage)=>{
+            if(err) {
+              winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
+              return
+            }
+            if(despatchAdviceBaseMessage == false) {
+              winston.info("Failed to convert VIMS Distribution to GS1")
+              return
+            }
+            winston.info("Done Converting Distribution To GS1")
             winston.info("Getting GS1 Access Token From TImR")
             timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
               winston.info("Received GS1 Access Token From TImR")
+              if(err) {
+                winston.error("An error occured while getting access token from TImR")
+                processNextFacility()
+              }
               var access_token = JSON.parse(body).access_token
               winston.info("Saving Despatch Advice To TImR")
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
@@ -426,11 +480,7 @@ function setupApp () {
                 processNextFacility()
               })
             })
-          }
-          else {
-            winston.info("No Distribution For "+facilityName + " ("+vimsFacilityId+")")
-            processNextFacility()
-          }
+          })
         })
       },function(){
         winston.info('Done Getting Despatch Advice!!!')
@@ -451,8 +501,19 @@ function setupApp () {
 
     updateTransaction (req,"Still Processing","Processing","200","")
     var distribution = req.rawBody
-    vims.convertDistributionToGS1(distribution,orchestrations,(despatchAdviceBaseMessage)=>{
+    vims.convertDistributionToGS1(distribution,orchestrations,(err,despatchAdviceBaseMessage)=>{
+      if(err) {
+        winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
+        return
+      }
+      if(despatchAdviceBaseMessage == false) {
+        winston.info("Failed to convert VIMS Distribution to GS1")
+        return
+      }
       timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
+        if(err) {
+          winston.error("An error occured while getting access token from TImR")
+        }
         winston.info("Received GS1 Access Token From TImR")
         var access_token = JSON.parse(body).access_token
         winston.info("Saving Despatch Advice To TImR")
@@ -468,6 +529,9 @@ function setupApp () {
     let orchestrations = []
     const timr = TImR(config.timr,config.oauth2,config.vims,config.openinfoman)
     timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+      if(err) {
+        winston.error("An error occured while getting access token from TImR")
+      }
       var access_token = JSON.parse(body).access_token
       timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
         winston.error("Done")
@@ -536,7 +600,11 @@ function setupApp () {
 
     var vimsToFacilityId = null
     winston.info("Getting VIMS facility ID")
-    oim.getVimsFacilityId(toFacilityId,orchestrations,(vimsFacId)=>{
+    oim.getVimsFacilityId(toFacilityId,orchestrations,(err,vimsFacId)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
       winston.info("Received VIMS facility ID")
       vimsToFacilityId = vimsFacId
       winston.info("Getting Distribution")

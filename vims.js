@@ -9,6 +9,7 @@ const util = require('util')
 const utils = require('./utils')
 const OIM = require('./openinfoman')
 const fs = require('fs')
+const isJSON = require('is-json')
 const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
 const vitaminDataElements = require('./terminologies/vims-vitamin-valuesets.json')
 const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
@@ -18,15 +19,6 @@ module.exports = function (vimscnf,oimcnf) {
   const oimconfig = oimcnf
   const oim = OIM(oimcnf)
   return {
-    isValidJson: function(json){
-      try{
-        JSON.parse(json);
-        return true;
-      }
-      catch (error){
-        return false;
-      }
-    },
     j_spring_security_check: function(orchestrations,callback) {
       var url = URI(vimsconfig.url).segment('j_spring_security_check')
       var postData = querystring.stringify({
@@ -171,7 +163,12 @@ module.exports = function (vimscnf,oimcnf) {
               report.report.coverageLineItems[index].regularFemale = values.regularFemale
               report.report.coverageLineItems[index].outreachMale = values.outreachMale
               report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
-              var updatedReport = report.report
+              var updatedReport = {
+                                    "id":report.report.id,
+                                    "facilityId":report.report.facilityId,
+                                    "periodId":report.report.periodId,
+                                    "coverageLineItems":[report.report.coverageLineItems[index]]
+                                  }
               var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
               var username = vimsconfig.username
               var password = vimsconfig.password
@@ -378,8 +375,13 @@ module.exports = function (vimscnf,oimcnf) {
 
     saveColdChain: function(coldChain,uuid,orchestrations,callback) {
       var data = JSON.parse(coldChain)
-      oim.getVimsFacilityId(uuid,orchestrations,(vimsid)=>{
+      oim.getVimsFacilityId(uuid,orchestrations,(err,vimsid)=>{
+        if(err) {
+          winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+          return
+        }
         if(vimsid==""){
+          winston.error(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
           return callback("")
         }
         this.getPeriod(vimsid,orchestrations,(period,orchs)=>{
@@ -532,10 +534,26 @@ module.exports = function (vimscnf,oimcnf) {
           var distributionDate = distribution.distributionDate
           var creationDate = moment().format()
           var distributionId = distribution.id
-          oim.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
+          oim.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(err,facId,facName)=>{
+            if(err) {
+              winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+              return callback(err,"")
+            }
+            if(facId == false) {
+              winston.error("VIMS Facility with ID " + distribution.toFacilityId + " Was not found on the system,stop processing")
+              return callback()
+            }
             var toFacilityName = facName
             var timrToFacilityId = facId
-            oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
+            oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(err,facId1,facName1)=>{
+              if(err) {
+                winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+                return callback(err,"")
+              }
+              if(facId1 == false) {
+                winston.error("VIMS Facility with ID " + distribution.fromFacilityId + " Was not found on the system,stop processing")
+                return callback()
+              }
               fromFacilityName = facName1
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
@@ -573,10 +591,10 @@ module.exports = function (vimscnf,oimcnf) {
                 despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
                 winston.info(despatchAdviceBaseMessage)
                 if(timrToFacilityId)
-                callback(despatchAdviceBaseMessage,err)
+                callback(err,despatchAdviceBaseMessage)
                 else {
                   winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
-                  callback("",err)
+                  callback(err,"")
                 }
               })
             })
@@ -598,75 +616,20 @@ module.exports = function (vimscnf,oimcnf) {
         }
         let before = new Date()
         request.get(options, (err, res, body) => {
+          if (err) {
+            winston.error("An Error has occured while checking stock distribution on VIMS")
+            return callback(err)
+          }
           orchestrations.push(utils.buildOrchestration('Get Stock Distribution From VIMS', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-          var distribution = JSON.parse(body).distribution
-          winston.info("Found " + JSON.stringify(body))
-
-          //this will help to access getTimrItemCode function inside async
-          var me = this;
-            //check to ensure that despatch is available
-            if(distribution !== null && distribution !== undefined) {
-              fs.readFile( './despatchAdviceBaseMessage.xml', 'utf8', function(err, data) {
-                var timrToFacilityId = null
-                var timrFromFacilityId = null
-                var fromFacilityName = null
-                var distributionDate = distribution.distributionDate
-                var creationDate = moment().format()
-                var distributionId = distribution.id
-                oim.getFacilityUUIDFromVimsId(distribution.toFacilityId,orchestrations,(facId,facName)=>{
-                  var toFacilityName = facName
-                  var timrToFacilityId = facId
-                  oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId,orchestrations,(facId1,facName1)=>{
-                    fromFacilityName = facName1
-                    timrFromFacilityId = facId1
-                    var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
-
-                    async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-                      async.eachSeries(lineItems.lots,function(lot,nextLot) {
-                        fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
-                          var lotQuantity = lot.quantity
-                          var lotId = lot.lotId
-                          var gtin = lineItems.product.gtin
-                          var vims_item_id = lineItems.product.id
-                          var item_name = lineItems.product.fullName
-                          if(item_name == null)
-                          var item_name = lineItems.product.primaryName
-                          var timr_item_id = 0
-                          me.getTimrItemCode(vims_item_id,id=>{
-                            timr_item_id = id
-                          })
-                          var lotCode = lot.lot.lotCode
-                          var expirationDate = lot.lot.expirationDate
-                          var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
-                          if(isNaN(timr_item_id)) {
-                            var codeListVersion = "OpenIZ-MaterialType"
-                          }
-                          else {
-                            var codeListVersion = "CVX"
-                          }
-                          var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
-                          despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
-                          nextLot()
-                        })
-                      },function(){
-                        nextlineItems()
-                      })
-                    },function(){
-                      despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
-                      if(timrToFacilityId)
-                      callback(despatchAdviceBaseMessage,err)
-                    })
-                  })
-                })
-              })
-            }
-            else {
-              callback("",err)
-            }
-
-      if (err) {
-        return callback("",err)
-      }
+          if(isJSON(body)) {
+            var distribution = JSON.parse(body).distribution
+            winston.info("Found " + JSON.stringify(body))
+            return callback(err,distribution)
+          }
+          else {
+            winston.error("VIMS has returned non JSON results,skip processing")
+            return callback()
+          }
         })
       })
     },

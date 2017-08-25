@@ -3,10 +3,12 @@ const winston = require('winston')
 const request = require('request')
 const URI = require('urijs')
 const moment = require("moment")
+const isJSON = require('is-json')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
 const catOptOpers = require('./config/categoryOptionsOperations.json')
 const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const timrVimsVita = require('./terminologies/timr-vims-vitamin-conceptmap.json')
 const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-diseases-conceptmap.json')
 const fs = require('fs')
@@ -43,31 +45,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           winston.error(err)
           return callback(err)
         }
-        try {
-          JSON.parse(body);
-        } catch (e) {
-          winston.error("An error occured while getting Access Token from TImR")
-          return callback(e)
+        if(!isJSON(body)) {
+          winston.error("TImR has returned non JSON results while getting Access Token For " + scope_url)
+          err = true
+          return callback(err)
         }
         callback(err, res, body)
-      })
-    },
-
-    getVaccineCode: function (vimsVaccCode,callback) {
-      async.eachSeries(timrVimsImm.group,(groups,nxtGrp)=>{
-        async.eachSeries(groups.element,(element,nxtElmnt)=>{
-          if(element.code == vimsVaccCode) {
-            element.target.forEach((target) => {
-              return callback(target.code)
-            })
-          }
-          else
-            nxtElmnt()
-        },function(){
-            nxtGrp()
-        })
-      },function(){
-        return callback("")
       })
     },
 
@@ -108,7 +91,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
     },
 
     getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,period,orchestrations,callback) {
-      this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
+      this.getTimrCode (vimsVaccCode,timrVimsImmConceptMap,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           callback()
           return
@@ -161,7 +144,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         winston.error("TImR facility is empty,skip processing")
         return callback()
       }
-      this.getVaccineCode(vimsVaccCode,(timrVaccCode)=> {
+      this.getTimrCode (vimsVaccCode,timrVimsImmConceptMap,(timrVaccCode)=> {
         if(timrVaccCode == "") {
           return callback()
         }

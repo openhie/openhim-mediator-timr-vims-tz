@@ -34,7 +34,8 @@ module.exports = function (oimconf) {
       request.post(options, function (err, res, body) {
         orchestrations.push(utils.buildOrchestration('Fetching Facilities Mapped With VIMS From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
-          return callback(err)
+          winston.error(err)
+          return callback(err,"")
         }
         var ast = XmlReader.parseSync(body);
         var totalFac = xmlQuery(ast).find("facilityDirectory").children().size()
@@ -71,7 +72,7 @@ module.exports = function (oimconf) {
           }
         }
         if(loopCntr == 0){
-          callback(facilities)
+          callback(err,facilities)
         }
       })
     },
@@ -100,7 +101,8 @@ module.exports = function (oimconf) {
       request.post(options, function (err, res, body) {
         orchestrations.push(utils.buildOrchestration('Fetching VIMS Facility ID From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
-          return callback(err)
+          winston.error(err)
+          return callback(err,"")
         }
         var ast = XmlReader.parseSync(body)
         var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
@@ -110,7 +112,7 @@ module.exports = function (oimconf) {
         for(var counter=0;counter<facLength;counter++){
           if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
             facFound = true
-            callback (facility.eq(counter).find("csd:otherID").text())
+            callback (err,facility.eq(counter).find("csd:otherID").text())
           }
           loopCntr--
         }
@@ -142,12 +144,13 @@ module.exports = function (oimconf) {
       request.post(options, function (err, res, body) {
         orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
-          return callback(err)
+          winston.error(err)
+          return callback(err,"","")
         }
         var ast = XmlReader.parseSync(body)
         var uuid = xmlQuery(ast).find("facilityDirectory").children().attr("entityID")
         var name = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().find("csd:primaryName").text()
-        callback(uuid,name)
+        callback(err,uuid,name)
       })
     },
 
@@ -179,7 +182,7 @@ module.exports = function (oimconf) {
         var ast = XmlReader.parseSync(body)
         var uuid = xmlQuery(ast).find("organizationDirectory").children().attr("entityID")
         var name = xmlQuery(ast).find("organizationDirectory").children().find("csd:organization").children().find("csd:primaryName").text()
-        callback(uuid,name)
+        callback(err,uuid,name)
       })
     }
   }

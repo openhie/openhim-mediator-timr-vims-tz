@@ -178,9 +178,9 @@
       "matchContentRegex": null
     },
     {
-      "urlPattern": "/getDespatchAdvice",
+      "urlPattern": "/despatchAdviceIL",
       "pollingSchedule": "30 06 * * *",
-      "name": "Get Despatch Advice from VIMS",
+      "name": "Get Despatch Advice from VIMS - IL Intiated",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
       "rewriteUrlsConfig": [],
@@ -198,7 +198,7 @@
           "password": "",
           "username": "",
           "primary": true,
-          "path": "/despatchAdvice",
+          "path": "/despatchAdviceIL",
           "port": 9000,
           "host": "localhost",
           "secured": false,
@@ -220,6 +220,43 @@
       "matchContentValue": null,
       "matchContentXpath": null,
       "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/getDespatchAdviceVims",
+      "name": "Get Despatch Advice from VIMS - VIMS Intiated",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate VIMS and TImR Despatch Advice",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/despatchAdviceVims",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "il_vims"
+      ],
+      "type": "http"
     },
     {
       "name": "Send Proof Of Delivery To VIMS",
