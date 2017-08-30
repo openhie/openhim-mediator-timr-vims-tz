@@ -20,6 +20,8 @@ var xmlparser = require('express-xml-bodyparser')
 
 const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
 const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
+const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
+const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -146,9 +148,9 @@ function setupApp () {
                   winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
                   var access_token = JSON.parse(body).access_token
                   winston.info("Getting All VIMS Immunization Data Elements")
-                  vims.getImmunDataElmnts ((err,vimsImmDataElmnts) => {
+                  vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
                     winston.info("Done Getting All VIMS Immunization Data Elements")
-                    async.eachSeries(vimsImmDataElmnts,function(vimsVaccCode,processNextDtElmnt) {
+                    async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
                       winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
                       getDosesMapping((doses) =>{
                         async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
@@ -164,8 +166,8 @@ function setupApp () {
                     },function() {
                         //before fetching new facility,lets process vitaminA for this facility first
                         winston.info("Processing Supplements")
-                        vims.getVitaminDataElmnts((err,vimsVitDataElmnts) => {
-                          async.eachSeries(vimsVitDataElmnts,function(vimsVitCode,processNextDtElmnt) {
+                        vims.getValueSets (vimsVitaminValueSets,(err,vimsVitValueSet) => {
+                          async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
                             winston.info("Processing Supplement Id "+vimsVitCode.code)
                             timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
                               vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
@@ -398,18 +400,18 @@ function setupApp () {
                     winston.info("Extracting TImR Stock Data")
                     timr.extractStockData(data,timrFacilityId,(timrStockData,stockCodes) =>{
                       winston.info("Done Extracting TImR Stock Data")
-                      vims.getItemsDataElmnts ((err,vimsItemsDataElmnts) => {
-                          async.eachSeries(vimsItemsDataElmnts,function(vimsItemsDataElmnt,processNextDtElmnt) {
-                            winston.info("Processing Stock For " + facilityName +
-                                         ", ProductID " + vimsItemsDataElmnt.code +
-                                         ", Period " + period[0].periodName)
-                            vims.saveStockData(period,timrStockData,stockCodes,vimsItemsDataElmnt.code,orchestrations,(res) =>{
-                              processNextDtElmnt()
-                            })
-                          },function(){
-                              winston.info("Done Processing " + facilityName)
-                              processNextFacility()
+                      vims.getValueSets (vimsItemsValueSets,(err,vimsItemsValSet) => {
+                        async.eachSeries(vimsItemsValSet,function(vimsItemsDataElmnt,processNextDtElmnt) {
+                          winston.info("Processing Stock For " + facilityName +
+                                       ", ProductID " + vimsItemsDataElmnt.code +
+                                       ", Period " + period[0].periodName)
+                          vims.saveStockData(period,timrStockData,stockCodes,vimsItemsDataElmnt.code,orchestrations,(res) =>{
+                            processNextDtElmnt()
                           })
+                        },function(){
+                            winston.info("Done Processing " + facilityName)
+                            processNextFacility()
+                        })
                       })
                     })
                   })

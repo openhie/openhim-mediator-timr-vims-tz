@@ -10,9 +10,6 @@ const utils = require('./utils')
 const OIM = require('./openinfoman')
 const fs = require('fs')
 const isJSON = require('is-json')
-const immDataElements = require('./terminologies/vims-immunization-valuesets.json')
-const vitaminDataElements = require('./terminologies/vims-vitamin-valuesets.json')
-const itemsDataElements = require('./terminologies/vims-items-valuesets.json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 module.exports = function (vimscnf,oimcnf) {
   const vimsconfig = vimscnf
@@ -75,17 +72,6 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    getImmunDataElmnts: function (callback) {
-      var concept = immDataElements.compose.include[0].concept
-      var dataElmnts = []
-      async.eachSeries(concept,(code,nxtConcept)=>{
-        dataElmnts.push({'code':code.code})
-        nxtConcept()
-      },function(){
-        callback('',dataElmnts)
-      })
-    },
-
     getValueSets: function (valueSetName,callback) {
       var concept = valueSetName.compose.include[0].concept
       var valueSets = []
@@ -97,25 +83,15 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    getVitaminDataElmnts: function (callback) {
-      var concept = vitaminDataElements.compose.include[0].concept
-      var dataElmnts = []
-      async.eachSeries(concept,(code,nxtConcept)=>{
-        dataElmnts.push({'code':code.code})
-        nxtConcept()
-      },function(){
-        callback('',dataElmnts)
-      })
-    },
-
-    getItemsDataElmnts: function (callback) {
-      var concept = itemsDataElements.compose.include[0].concept
-      var dataElmnts = []
-      async.eachSeries(concept,(code,nxtConcept)=>{
-        dataElmnts.push({'code':code.code})
-        nxtConcept()
-      },function(){
-        callback('',dataElmnts)
+    getTimrItemCode: function(vimsItemCode,callback) {
+      timrVimsItems.group.forEach((groups) => {
+        groups.element.forEach((element)=>{
+          if(element.code == vimsItemCode) {
+            element.target.forEach((target) => {
+              callback(target.code)
+            })
+          }
+        })
       })
     },
 
@@ -141,12 +117,37 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
+    saveVIMSReport: function(updatedReport,name,orchestrations,callback) {
+      var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+      var username = vimsconfig.username
+      var password = vimsconfig.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+      var options = {
+        url: url.toString(),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: auth
+        },
+        json:updatedReport
+      }
+      let before = new Date()
+      request.put(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, body))
+        if (err) {
+          winston.error(err)
+          return callback(err,res,body)
+        }
+        return callback(err,res,body)
+      })
+    },
+
     saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
       period.forEach ((period) => {
         var periodId = period.id
         if(vimsVaccCode == '2413')
         var doseid = dose.vimsid1
         else if(vimsVaccCode == '2412') {
+          //VIMS has dose 1 only for BCG
           var doseid = 1
         }
         else
@@ -169,26 +170,12 @@ module.exports = function (vimscnf,oimcnf) {
                                     "periodId":report.report.periodId,
                                     "coverageLineItems":[report.report.coverageLineItems[index]]
                                   }
-              var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-              var username = vimsconfig.username
-              var password = vimsconfig.password
-              var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-              var options = {
-                url: url.toString(),
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: auth
-                },
-                json:updatedReport
-              }
-              let before = new Date()
-              request.put(options, function (err, res, body) {
-                orchestrations.push(utils.buildOrchestration('Updating Immunization VIMS Coverage', before, 'PUT', url.toString(), updatedReport, res, body))
+              this.saveVIMSReport(updatedReport,"Immunization Coverage",orchestrations,(err,res,body)=>{
                 if (err) {
                   winston.error(err)
                   return callback(err)
                 }
-                callback(err)
+                callback()
               })
             }
             else {
@@ -234,33 +221,24 @@ module.exports = function (vimscnf,oimcnf) {
                 var femaleValue = mergedValues[0].femaleValue
                 report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
                 report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
-                nxtSupplmnt()
+                var updatedReport = {
+                                      "id":report.report.id,
+                                      "facilityId":report.report.facilityId,
+                                      "periodId":report.report.periodId,
+                                      "vitaminSupplementationLineItems":[report.report.vitaminSupplementationLineItems[index]]
+                                    }
+                this.saveVIMSReport(updatedReport,"Supplements",orchestrations,(err,res,body)=>{
+                  if (err) {
+                    winston.error(err)
+                  }
+                  nxtSupplmnt()
+                })
               })
             }
             else
               nxtSupplmnt()
           },function(){
-            var updatedReport = report.report
-            var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-            var username = vimsconfig.username
-            var password = vimsconfig.password
-            var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-            var options = {
-              url: url.toString(),
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: auth
-              },
-              json:updatedReport
-            }
-            let before = new Date()
-            request.put(options, function (err, res, body) {
-              orchestrations.push(utils.buildOrchestration('Updating VIMS Supplements', before, 'PUT', url.toString(), updatedReport, res, body))
-              if (err) {
-                winston.error(err)
-              }
-              nextPeriod()
-            })
+            nextPeriod()
           })
         })
       },function(){
@@ -343,29 +321,20 @@ module.exports = function (vimscnf,oimcnf) {
             var death = values[diseaseID]["death"]
             report.report.diseaseLineItems[index].cases = cases
             report.report.diseaseLineItems[index].death = death
-            nxtDisLineItm()
-          },function(){
-            var updatedReport = report.report
-            var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-            var username = vimsconfig.username
-            var password = vimsconfig.password
-            var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-            var options = {
-              url: url.toString(),
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: auth
-              },
-              json:updatedReport
-            }
-            let before = new Date()
-            request.put(options, function (err, res, body) {
-              orchestrations.push(utils.buildOrchestration('Updating VIMS diseaseLineItems', before, 'PUT', url.toString(), updatedReport, res, body))
+            var updatedReport = {
+                                  "id":report.report.id,
+                                  "facilityId":report.report.facilityId,
+                                  "periodId":report.report.periodId,
+                                  "diseaseLineItems":[report.report.diseaseLineItems[index]]
+                                }
+            this.saveVIMSReport(updatedReport,"diseaseLineItems",orchestrations,(err,res,body)=>{
               if (err) {
                 winston.error(err)
               }
-              nextPeriod()
+              nxtDisLineItm()
             })
+          },function(){
+            nextPeriod()
           })
         })
       },function(){
@@ -406,27 +375,26 @@ module.exports = function (vimscnf,oimcnf) {
                     report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
                     report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
                     report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
-                    var updatedReport = report.report
-                    var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-                    var username = vimsconfig.username
-                    var password = vimsconfig.password
-                    var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-                    var options = {
-                      url: url.toString(),
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: auth
-                      },
-                      json:updatedReport
-                    }
-                    let before = new Date()
-                    request.put(options, function (err, res, body) {
-                      orchestrations.push(utils.buildOrchestration('Updating VIMS Cold Chain', before, 'PUT', url.toString(), updatedReport, res, body))
-                      if (err) {
-                        winston.error(err)
+                    var coldChainUpdatedReport = {
+                                          "id":report.report.id,
+                                          "facilityId":report.report.facilityId,
+                                          "periodId":report.report.periodId,
+                                          "coldChainLineItems":[report.report.coldChainLineItems[index]]
+                                        }
+                    var outreachPlanUpdatedReport = {
+                                                      "id":report.report.id,
+                                                      "facilityId":report.report.facilityId,
+                                                      "periodId":report.report.periodId,
+                                                      "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions
+                                                    }
+                    this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
+                      this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
+                        if (err) {
+                          winston.error(err)
+                          return callback(err,res)
+                        }
                         return callback(err,res)
-                      }
-                      return callback(err,res)
+                      })
                     })
                   }
                   else{
@@ -434,8 +402,6 @@ module.exports = function (vimscnf,oimcnf) {
                   }
                 })
               })
-
-
             })
           }
         })
@@ -477,27 +443,18 @@ module.exports = function (vimscnf,oimcnf) {
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-OPENWASTE" }) != undefined) {
                 report.report.logisticsLineItems[index].quantityDiscardedOpened = timrStockData[(vimsItemCode+"REASON-OPENWASTE")].quantity
               }
-              var updatedReport = report.report
-              var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-              var username = vimsconfig.username
-              var password = vimsconfig.password
-              var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-              var options = {
-                url: url.toString(),
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: auth
-                },
-                json:updatedReport
-              }
-              let before = new Date()
-              request.put(options, function (err, res, body) {
-                orchestrations.push(utils.buildOrchestration('Updating Stock In VIMS', before, 'PUT', url.toString(), updatedReport, res, body))
+              var updatedReport = {
+                                    "id":report.report.id,
+                                    "facilityId":report.report.facilityId,
+                                    "periodId":report.report.periodId,
+                                    "logisticsLineItems":[report.report.logisticsLineItems[index]]
+                                  }
+              this.saveVIMSReport (updatedReport,"Stock",orchestrations,(err,res,body)=>{
                 if (err) {
                   return callback(err)
                 }
 
-                callback(err)
+                return callback(err)
               })
             }
             else {
@@ -508,17 +465,6 @@ module.exports = function (vimscnf,oimcnf) {
             }
           })
 
-        })
-      })
-    },
-    getTimrItemCode: function(vimsItemCode,callback) {
-      timrVimsItems.group.forEach((groups) => {
-        groups.element.forEach((element)=>{
-          if(element.code == vimsItemCode) {
-            element.target.forEach((target) => {
-              callback(target.code)
-            })
-          }
         })
       })
     },

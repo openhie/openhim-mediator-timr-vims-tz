@@ -6,11 +6,9 @@ const moment = require("moment")
 const isJSON = require('is-json')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
-const catOptOpers = require('./config/categoryOptionsOperations.json')
-const timrVimsImm = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
-const timrVimsVita = require('./terminologies/timr-vims-vitamin-conceptmap.json')
 const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-diseases-conceptmap.json')
+const timrVimsVitaConceptMap = require('./terminologies/timr-vims-vitamin-conceptmap.json')
 const fs = require('fs')
 const querystring = require('querystring')
 const async = require('async')
@@ -58,24 +56,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       async.eachSeries(conceptMapName.group,(groups,nxtGrp)=>{
         async.eachSeries(groups.element,(element,nxtElmnt)=>{
           if(element.code == vimsCode) {
-            element.target.forEach((target) => {
-              return callback(target.code)
-            })
-          }
-          else
-            nxtElmnt()
-        },function(){
-            nxtGrp()
-        })
-      },function(){
-        return callback("")
-      })
-    },
-
-    getVitaminCode: function (vimsVitCode,callback) {
-      async.eachSeries(timrVimsVita.group,(groups,nxtGrp)=>{
-        async.eachSeries(groups.element,(element,nxtElmnt)=>{
-          if(element.code == vimsVitCode) {
             element.target.forEach((target) => {
               return callback(target.code)
             })
@@ -216,7 +196,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
 
       var startDay = 1;
       var values = []
-      this.getVitaminCode (vimsVitCode,(timrVitCode)=> {
+      this.getTimrCode (vimsVitCode,timrVimsVitaConceptMap,(timrVitCode)=> {
         async.eachOfSeries(ageGroups,(age,ageGrpIndex,nxtAge)=>{
           var genderRef = null
           async.eachSeries(genderTerminologies,(gender,nxtGender)=>{
