@@ -496,7 +496,7 @@ module.exports = function (vimscnf,oimcnf) {
                 winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
                 return callback(err,"")
               }
-              if(facId1 == false) {
+              if(facId1 == false || facId1 == null || facId1 == undefined) {
                 winston.error("VIMS Facility with ID " + distribution.fromFacilityId + " Was not found on the system,stop processing")
                 return callback()
               }
@@ -547,6 +547,11 @@ module.exports = function (vimscnf,oimcnf) {
           })
         })
       }
+      else {
+        winston.error("Invalid Distribution Passed For Conversion")
+        //returning true to error
+        callback(true,"")
+      }
     },
 
     checkDistribution: function(vimsFacilityId,orchestrations,callback) {
@@ -569,7 +574,8 @@ module.exports = function (vimscnf,oimcnf) {
           orchestrations.push(utils.buildOrchestration('Get Stock Distribution From VIMS', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
           if(isJSON(body)) {
             var distribution = JSON.parse(body).distribution
-            winston.info("Found " + JSON.stringify(body))
+            if(distribution != null && distribution != false && distribution != undefined)
+            winston.info("Found " + body)
             return callback(err,distribution)
           }
           else {

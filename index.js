@@ -130,11 +130,11 @@ function setupApp () {
             winston.info("Done Getting Period")
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
-              processNextFacility()
+              return processNextFacility()
             }
             else if(period.length == 0) {
               winston.warn("Skip Processing " + facilityName + ", No Period Found")
-              processNextFacility()
+              return processNextFacility()
             }
             else {
               winston.info("Getting Access Token from TImR")
@@ -142,7 +142,7 @@ function setupApp () {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
                   if(err) {
                     winston.error("An error occured while getting access token from TImR")
-                    processNextFacility()
+                    return processNextFacility()
                   }
                   winston.info("Done Getting Access Token")
                   winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
@@ -214,11 +214,11 @@ function setupApp () {
           vims.getPeriod(vimsFacilityId,orchestrations,(period)=>{
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
-              processNextFacility()
+              return processNextFacility()
             }
             else if(period.length == 0) {
               winston.warn("Skip Processing " + facilityName + ", No Period Found")
-              processNextFacility()
+              return processNextFacility()
             }
             else {
               winston.info("Getting Access Token from TImR")
@@ -226,7 +226,7 @@ function setupApp () {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
                   if(err) {
                     winston.error("An error occured while getting access token from TImR")
-                    processNextFacility()
+                    return processNextFacility()
                   }
                   winston.info("Received Access Token")
                   winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
@@ -287,11 +287,11 @@ function setupApp () {
 
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
-              processNextFacility()
+              return processNextFacility()
             }
             else if(period.length == 0) {
               winston.error("Skip Processing " + facilityName + ", No Period Found")
-              processNextFacility()
+              return processNextFacility()
             }
             else {
               winston.info("Getting Access Token")
@@ -299,7 +299,7 @@ function setupApp () {
                 timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
                   if(err) {
                     winston.error("An error occured while getting access token from TImR")
-                    processNextFacility()
+                    return processNextFacility()
                   }
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
@@ -378,11 +378,11 @@ function setupApp () {
 
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
-              processNextFacility()
+              return processNextFacility()
             }
             else if(period.length == 0) {
               winston.error("Skip Processing " + facilityName + ", No Period Found")
-              processNextFacility()
+              return processNextFacility()
             }
             else {
               winston.info("Getting Access Token")
@@ -390,7 +390,7 @@ function setupApp () {
                 timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
                   if(err) {
                     winston.error("An error occured while getting access token from TImR")
-                    processNextFacility()
+                    return processNextFacility()
                   }
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
@@ -450,21 +450,22 @@ function setupApp () {
         vims.checkDistribution(vimsFacilityId,orchestrations,(err,distribution)=>{
           if(err) {
             winston.error("An error occured while checking distribution for " + facilityName)
-            processNextFacility()
+            return processNextFacility()
           }
-          if(distribution == false) {
-            winston.info("No Distribution returned For " + facilityName)
-            processNextFacility()
+          if(distribution == false || distribution == null || distribution == undefined) {
+            winston.info("No Distribution For " + facilityName)
+            return processNextFacility()
           }
           winston.info("Now Converting Distribution To GS1")
+          distribution = JSON.stringify(distribution)
           vims.convertDistributionToGS1(distribution,orchestrations,(err,despatchAdviceBaseMessage)=>{
             if(err) {
               winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
-              return
+              return processNextFacility()
             }
-            if(despatchAdviceBaseMessage == false) {
-              winston.info("Failed to convert VIMS Distribution to GS1")
-              return
+            if(despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
+              winston.error("Failed to convert VIMS Distribution to GS1")
+              return processNextFacility()
             }
             winston.info("Done Converting Distribution To GS1")
             winston.info("Getting GS1 Access Token From TImR")
@@ -472,14 +473,14 @@ function setupApp () {
               winston.info("Received GS1 Access Token From TImR")
               if(err) {
                 winston.error("An error occured while getting access token from TImR")
-                processNextFacility()
+                return processNextFacility()
               }
               var access_token = JSON.parse(body).access_token
               winston.info("Saving Despatch Advice To TImR")
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
-                processNextFacility()
+                return processNextFacility()
               })
             })
           })
@@ -515,6 +516,7 @@ function setupApp () {
       timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
         if(err) {
           winston.error("An error occured while getting access token from TImR")
+          return
         }
         winston.info("Received GS1 Access Token From TImR")
         var access_token = JSON.parse(body).access_token
@@ -533,6 +535,7 @@ function setupApp () {
     timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
       if(err) {
         winston.error("An error occured while getting access token from TImR")
+        return
       }
       var access_token = JSON.parse(body).access_token
       timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
@@ -554,7 +557,7 @@ function setupApp () {
     function getDistribution(vimsToFacilityId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
-          callback("",err)
+          return callback("",err)
         }
         var startDate = moment().startOf('month').format("YYYY-MM-DD")
         var endDate = moment().endOf('month').format("YYYY-MM-DD")
@@ -570,10 +573,10 @@ function setupApp () {
           orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
           if(distribution !== null) {
-            callback(distribution,err)
+            return callback(distribution,err)
           }
           else {
-            callback("",err,orchs)
+            return callback("",err,orchs)
           }
         })
       })
