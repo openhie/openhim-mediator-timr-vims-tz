@@ -38,11 +38,11 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         body: `grant_type=password&username=${oauthconfig.username}&password=${oauthconfig.password}&scope=${scope_url}`
       }
       request.post(options, (err, res, body) => {
-        orchestrations.push(utils.buildOrchestration('Getting Access Token From TImR', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           winston.error(err)
           return callback(err)
         }
+        orchestrations.push(utils.buildOrchestration('Getting Access Token From TImR', before, 'POST', url.toString(), options.body, res, body))
         if(!isJSON(body)) {
           winston.error("TImR has returned non JSON results while getting Access Token For " + scope_url)
           err = true

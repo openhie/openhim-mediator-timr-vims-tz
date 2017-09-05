@@ -56,6 +56,10 @@ module.exports = function (vimscnf,oimcnf) {
         var periods = []
         if(body.indexOf('error') == -1) {
           body = JSON.parse(body)
+          if(body.hasOwnProperty("periods") && body.periods.length < 1)
+          return callback(periods)
+          else if(!body.hasOwnProperty("periods"))
+          return callback(periods)
           body.periods.forEach ((period,index)=>{
             var systemMonth = moment(period.periodName, 'MMM YYYY','en').format('MM')
             var prevMonth = moment().subtract(1,'month').format('MM')
