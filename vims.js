@@ -434,7 +434,7 @@ module.exports = function (vimscnf,oimcnf) {
                 if(err || !report) {
                   return callback()
                 }
-                if(!report.report.coldChainLineItems.length == 0) {
+                if(report.report.coldChainLineItems.length == 0) {
                   winston.error("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending data to VIMS for this facility")
                   return callback()
                 }
