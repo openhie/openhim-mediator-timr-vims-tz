@@ -496,6 +496,24 @@ function setupApp () {
     })
   }),
 
+  app.get('/syncColdChain',(req,res)=>{
+    let orchestrations = []
+    const timr = TImR(config.timr,config.oauth2,config.vims,config.openinfoman)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+      if(err) {
+        winston.error("An error occured while getting access token from TImR")
+        return
+      }
+      var access_token = JSON.parse(body).access_token
+      winston.info("Processing Cold Chain Data")
+      timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
+        winston.error("Done Processing Cold Chain")
+      })
+    })
+  }),
+
   app.post('/despatchAdviceVims',(req,res)=>{
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
@@ -529,21 +547,6 @@ function setupApp () {
           winston.info("Saved Despatch Advice To TImR")
           winston.info(res)
         })
-      })
-    })
-  }),
-
-  app.get('/syncColdChain',(req,res)=>{
-    let orchestrations = []
-    const timr = TImR(config.timr,config.oauth2,config.vims,config.openinfoman)
-    timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
-      if(err) {
-        winston.error("An error occured while getting access token from TImR")
-        return
-      }
-      var access_token = JSON.parse(body).access_token
-      timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
-        winston.error("Done")
       })
     })
   }),

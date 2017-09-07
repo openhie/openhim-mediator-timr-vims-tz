@@ -309,13 +309,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                     .segment('fhir')
                     .segment('Location')
                     +'?_count=500&_format=json&'
-      /*
-      this is for testing
-      nexturl = URI(timrconfig.url)
-                    .segment('fhir')
-                    .segment('Location')
-                    +'?identifier=urn:uuid:274b1447-f120-35af-b82e-0f576c5c7c4e&_format=json&'
-      */
       var options = {
         url: nexturl.toString(),
         headers: {
@@ -326,7 +319,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       request.get(options, (err, res, body) => {
         orchestrations.push(utils.buildOrchestration('Getting Cold Chain Data', before, 'GET', nexturl.toString(), JSON.stringify(options.headers), res, body))
         if (err) {
+          winston.error()
           return callback(err)
+        }
+        if(!isJSON(body)) {
+          winston.error("TImR has returned non JSON data,stop processing")
+          return
         }
         body = JSON.parse(body)
         var entries = body.entry
@@ -342,10 +340,9 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                   var identifiers = entry.resource.identifier
                   for(var idCnt=0,totalId=identifiers.length;idCnt<totalId;idCnt++) {
                     if(identifiers[idCnt].system == "http://hfrportal.ehealth.go.tz/") {
-                      winston.error(identifiers[idCnt].value)
                       var uuid = identifiers[idCnt].value
                       vims.saveColdChain(data,uuid,orchestrations,(err,res)=>{
-                        nextExtension()
+                        return nextExtension()
                       })
                     }
                   }
