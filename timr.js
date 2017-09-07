@@ -308,7 +308,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       nexturl = URI(timrconfig.url)
                     .segment('fhir')
                     .segment('Location')
-                    +'?_count=500&_format=json&'
+                    +'?_count=500&_format=json'
       var options = {
         url: nexturl.toString(),
         headers: {
@@ -316,10 +316,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         }
       }
       let before = new Date()
+      winston.info("Processing data For " + nexturl)
       request.get(options, (err, res, body) => {
+        winston.info("Received data For " + nexturl)
         orchestrations.push(utils.buildOrchestration('Getting Cold Chain Data', before, 'GET', nexturl.toString(), JSON.stringify(options.headers), res, body))
         if (err) {
-          winston.error()
+          winston.error(err)
           return callback(err)
         }
         if(!isJSON(body)) {
@@ -335,7 +337,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             async.eachSeries(extensions,function(extension,nextExtension){
               if(extension.hasOwnProperty("url") && extension.url == "http://openiz.org/extensions/contrib/bid/ivdExtendedData") {
                 var data = new Buffer(extension.valueBase64Binary, 'base64').toString("ascii")
-                winston.error(data)
                 if(entry.resource.hasOwnProperty("identifier")) {
                   var identifiers = entry.resource.identifier
                   for(var idCnt=0,totalId=identifiers.length;idCnt<totalId;idCnt++) {
@@ -356,13 +357,15 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
               nextEntry()
             })
           }
+          else {
+            return nextEntry()
+          }
         },function(){
             nexturl = false
             for(var len=0,totalLinks=body.link.length;len<totalLinks;len++) {
               if(body.link[len].hasOwnProperty("relation") && body.link[len].relation=="next")
                 nexturl = body.link[len].url
             }
-            winston.error(nexturl)
             if(nexturl)
             me.processColdChain(access_token,nexturl,orchestrations,(err)=>{
               callback(err)

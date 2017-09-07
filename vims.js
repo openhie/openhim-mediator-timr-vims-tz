@@ -407,6 +407,7 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     saveColdChain: function(coldChain,uuid,orchestrations,callback) {
+      winston.info("Processing Cold Chain " + coldChain)
       var data = JSON.parse(coldChain)
       oim.getVimsFacilityId(uuid,orchestrations,(err,vimsid)=>{
         if(err) {
