@@ -438,7 +438,7 @@ module.exports = function (vimscnf,oimcnf) {
                   winston.error("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending data to VIMS for this facility")
                   return callback()
                 }
-                report.report.coldChainLineItems.forEach((coldChainLineItem,index) =>{
+                async.eachOfSeries(report.report.coldChainLineItems,(coldChainLineItem,index,nextColdChain) =>{
                   var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
                   if(data.hasOwnProperty(periodDate)) {
                     report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
