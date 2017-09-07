@@ -66,12 +66,12 @@ module.exports = function (vimscnf,oimcnf) {
             if(period.id > 0 && (period.status == "DRAFT" || period.status == "REJECTED"))
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
-              return callback(periods)
+              return callback(err,periods)
             }
           })
         }
         else {
-          return callback(periods)
+          return callback(err,periods)
         }
       })
     },
@@ -407,25 +407,25 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     saveColdChain: function(coldChain,uuid,orchestrations,callback) {
-      winston.info("Processing Cold Chain " + coldChain)
+      winston.info("Processing Cold Chain for timr facilityid " + uuid + " With Data " + coldChain)
       var data = JSON.parse(coldChain)
       oim.getVimsFacilityId(uuid,orchestrations,(err,vimsid)=>{
         if(err) {
           winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
-          return
+          return callback()
         }
-        if(vimsid==""){
+        if(vimsid=="" || vimsid == null || vimsid == undefined){
           winston.error(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
-          return callback("")
+          return callback()
         }
-        this.getPeriod(vimsid,orchestrations,(period,orchs)=>{
+        this.getPeriod(vimsid,orchestrations,(err,period)=>{
           if(period.length > 1 ) {
             winston.error("VIMS has returned two DRAFT reports,processng cold chain stoped!!!")
-            return callback("")
+            return callback()
           }
           else if(period.length == 0) {
             winston.error("Skip Processing Facility" + uuid + ", No Period Found")
-            callback("")
+            return callback()
           }
           else if(period.length == 1) {
             async.eachSeries(period,(period,nextPeriod)=>{
@@ -454,8 +454,12 @@ module.exports = function (vimscnf,oimcnf) {
                                                       "periodId":report.report.periodId,
                                                       "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions
                                                     }
+                                                    winston.error("Saving Cold Chain")
                     this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
+                      winston.error("Saved Cold Chain")
+                      winston.error("Saving Planned Outreach")
                       this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
+                        winston.error("Saved Planned Outreach")
                         if (err) {
                           winston.error(err)
                           return callback(err,res)
@@ -465,10 +469,12 @@ module.exports = function (vimscnf,oimcnf) {
                     })
                   }
                   else{
-                    callback("")
+                    return callback("")
                   }
                 })
               })
+            },function(){
+
             })
           }
         })

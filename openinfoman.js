@@ -112,12 +112,12 @@ module.exports = function (oimconf) {
         for(var counter=0;counter<facLength;counter++){
           if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
             facFound = true
-            callback (err,facility.eq(counter).find("csd:otherID").text())
+            return callback (err,facility.eq(counter).find("csd:otherID").text())
           }
           loopCntr--
         }
         if(loopCntr === 0 && facFound === false)
-        callback("")
+        return callback()
       })
     },
 

@@ -126,7 +126,7 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
-          vims.getPeriod(vimsFacilityId,orchestrations,(period)=>{
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
             winston.info("Done Getting Period")
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
@@ -211,7 +211,7 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
-          vims.getPeriod(vimsFacilityId,orchestrations,(period)=>{
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
               return processNextFacility()
@@ -284,11 +284,7 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
-          vims.getPeriod(vimsFacilityId,orchestrations,(period,orchs)=>{
-            if (orchs) {
-              orchestrations = orchestrations.concat(orchs)
-            }
-
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()
@@ -374,12 +370,7 @@ function setupApp () {
         var facilityName = facility.facilityName
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
-          vims.getPeriod(vimsFacilityId,orchestrations,(period,orchs)=>{
-            if (orchs) {
-              orchestrations = orchestrations.concat(orchs)
-            }
-
-
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()
@@ -583,7 +574,7 @@ function setupApp () {
             return callback(distribution,err)
           }
           else {
-            return callback("",err,orchs)
+            return callback("",err)
           }
         })
       })
