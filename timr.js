@@ -316,7 +316,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         }
       }
       let before = new Date()
-      winston.info("Processing data For " + nexturl)
       request.get(options, (err, res, body) => {
         winston.info("Received data For " + nexturl)
         orchestrations.push(utils.buildOrchestration('Getting Cold Chain Data', before, 'GET', nexturl.toString(), JSON.stringify(options.headers), res, body))
@@ -352,7 +351,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                 nextExtension()
               }
               else
-              nextExtension()
+              return nextExtension()
             },function(){
               nextEntry()
             })

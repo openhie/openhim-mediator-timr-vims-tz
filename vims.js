@@ -473,7 +473,7 @@ module.exports = function (vimscnf,oimcnf) {
                     })
                   }
                   else{
-                    return callback("")
+                    return callback()
                   }
                 })
               })
