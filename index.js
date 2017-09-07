@@ -191,7 +191,7 @@ function setupApp () {
     })
   }),
 
-  app.get('/syncAdverseEvents', (req, res) => {
+  app.get('/syncAdverseEffects', (req, res) => {
     let orchestrations = []
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
@@ -233,9 +233,13 @@ function setupApp () {
                   var access_token = JSON.parse(body).access_token
                   vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
                     async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextValSet) {
-                      winston.info("Getting New Data Element")
-                      timr.getAdverseEventData(access_token,vimsVaccCode.code,timrFacilityId,period,orchestrations,(err,values) => {
-                        vims.saveAdverseEventData(period,values,vimsVaccCode.code,orchestrations,(err) =>{
+                      winston.info("Getting Adverse Effect From TImR For " + vimsVaccCode.code)
+                      timr.getAdverseEffectData(access_token,vimsVaccCode.code,timrFacilityId,period,orchestrations,(err,values) => {
+                        if(values.length == 0) {
+                          winston.info("No Adverse Effect Found For " + facilityName + " Vaccine Code " + vimsVaccCode.code)
+                          return processNextValSet()
+                        }
+                        vims.saveAdverseEffectData(period,values,vimsVaccCode.code,orchestrations,(err) =>{
                           processNextValSet()
                         })
                       })

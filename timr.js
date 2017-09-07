@@ -105,6 +105,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           request.get(options, (err, res, body) => {
             orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
             if (err) {
+              winston.error(err)
               return callback(err)
             }
             var value = JSON.parse(body).total
@@ -119,41 +120,35 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
-    getAdverseEventData: function (access_token,vimsVaccCode,facilityid,period,orchestrations,callback) {
+    getAdverseEffectData: function (access_token,vimsVaccCode,facilityid,period,orchestrations,callback) {
       if(facilityid == "" || facilityid == null || facilityid == undefined){
         winston.error("TImR facility is empty,skip processing")
         return callback()
       }
       this.getTimrCode (vimsVaccCode,timrVimsImmConceptMap,(timrVaccCode)=> {
+        var values = []
         if(timrVaccCode == "") {
-          return callback()
+          return callback(false,values)
         }
         var totalValues = 0
         var queryPar = []
-        var values = {}
 
         var vaccineYearMonth = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
         var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
 
         var startDay = 1;
-        var values = []
         var totalDays = endDay
-        for(var day=startDay;day<=endDay;day++) {
+        var days = Array.from({length: totalDays}, (v, k) => k+1)
+        async.eachSeries(days,(day,nextDay)=>{
           if(day<10)
           var dateDay = '0' + day
           else
           var dateDay = day
           var vaccineDate = vaccineYearMonth + '-' + dateDay
-          var url = URI(timrconfig.url)
+          const url = URI(timrconfig.url)
           .segment('fhir')
           .segment('AdverseEvent')
-          +'?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&_format=json&_count=0'
-          .toString()
-
-          var url = URI(timrconfig.url)
-          .segment('fhir')
-          .segment('AdverseEvent')
-          +'?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|'+timrFacilityId + '&_format=json&_count=0'
+          +'?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
 
           var options = {
@@ -166,17 +161,26 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           request.get(options, (err, res, body) => {
             orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Adverse Events Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
             totalDays--
-            if (err) {
+            if (err && totalDays == 0) {
               winston.error(err)
-              return
+              return callback(err,values)
             }
-            value = value + JSON.parse(body).total
+            else if (err) {
+              winston.error(err)
+              return nextDay()
+            }
+            var value = JSON.parse(body).total
+            if(value < 1)
+            return nextDay()
             values.push({"date":vaccineDate,"value":value})
             if(totalDays == 0) {
-              return callback(values)
+              return callback(err,values)
             }
+            return nextDay()
           })
-        }
+        },function(){
+          return callback(false,values)
+        })
       })
     },
 

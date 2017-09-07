@@ -63,7 +63,7 @@ module.exports = function (vimscnf,oimcnf) {
           body.periods.forEach ((period,index)=>{
             var systemMonth = moment(period.periodName, 'MMM YYYY','en').format('MM')
             var prevMonth = moment().subtract(1,'month').format('MM')
-            if(period.id > 0 && period.status == "DRAFT")
+            if(period.id > 0 && (period.status == "DRAFT" || period.status == "REJECTED"))
             periods.push({'id':period.id,'periodName':period.periodName})
             if(index == body.periods.length-1) {
               return callback(periods)
@@ -113,11 +113,15 @@ module.exports = function (vimscnf,oimcnf) {
 
       let before = new Date()
       request.get(options, (err, res, body) => {
+        if(!isJSON(body)) {
+          winston.error("Invalid Report Returned By VIMS,stop processing")
+          return callback(true,false)
+        }
         orchestrations.push(utils.buildOrchestration('Get VIMS Report', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
         if (err) {
           return callback(err)
         }
-        return callback(JSON.parse(body))
+        return callback(err,JSON.parse(body))
       })
     },
 
@@ -156,7 +160,10 @@ module.exports = function (vimscnf,oimcnf) {
         }
         else
         var doseid = dose.vimsid
-        this.getReport (periodId,orchestrations,(report) => {
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
           var totalCoveLine = report.report.coverageLineItems.length
           var found = false
           winston.info('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
@@ -214,13 +221,15 @@ module.exports = function (vimscnf,oimcnf) {
     saveVitaminData: function (period,values,vimsVitCode,orchestrations,callback) {
       async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
-        this.getReport (periodId,orchestrations,(report) => {
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
           winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
           async.eachOfSeries(report.report.vitaminSupplementationLineItems,(vitaminSupplementationLineItems,index,nxtSupplmnt)=>{
             if(report.report.vitaminSupplementationLineItems[index].vaccineVitaminId == vimsVitCode) {
               var ageGroupID = report.report.vitaminSupplementationLineItems[index].vitaminAgeGroupId
               this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
-                winston.error(mergedValues)
                 var maleValue = mergedValues[0].maleValue
                 var femaleValue = mergedValues[0].femaleValue
                 report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
@@ -251,23 +260,42 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveAdverseEventData: function (period,values,vimsVaccCode,orchestrations,callback) {
+    saveAdverseEffectData: function (period,values,vimsVaccCode,orchestrations,callback) {
+      var me = this
       async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
-        this.getReport (periodId,orchestrations,(report) => {
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
           winston.info('Adding To VIMS AdverseEvent Details '+ JSON.stringify(values))
           //if no adverse effect reported
-          if(!report.report.adverseEffectLineItems[0].hasOwnProperty("id")) {
-            var reportIndex = 0
+          if(!report.report.adverseEffectLineItems.hasOwnProperty(0)) {
             async.eachSeries(values,(value,nxtValue)=>{
               if(value.value > 0) {
+                winston.error(value)
                 var date = value.date
                 var value = value.value
-                report.report.adverseEffectLineItems[reportIndex].productId = vimsVaccCode
-                report.report.adverseEffectLineItems[reportIndex].date = date
-                report.report.adverseEffectLineItems[reportIndex].cases = value
-                reportIndex++
-                nxtValue()
+                var updatedReport = {
+                                      "id":report.report.id,
+                                      "facilityId":report.report.facilityId,
+                                      "periodId":report.report.periodId,
+                                      "adverseEffectLineItems": [{
+                                                                  "productId": vimsVaccCode,
+                                                                  "date": date,
+                                                                  "cases": value,
+                                                                  "batch": "",
+                                                                  "isInvestigated": true
+                                                                }]
+                                    }
+                this.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                  if (err) {
+                    winston.error(err)
+                    return nxtValue()
+                  }
+                  winston.error(body)
+                  nxtValue()
+                })
               }
               else{
                 nxtValue()
@@ -284,27 +312,56 @@ module.exports = function (vimscnf,oimcnf) {
               async.eachOfSeries(report.report.adverseEffectLineItems,(adverseEffectLineItems,index,nxtAdvEff)=>{
                 if( adverseEffectLineItems.productId == vimsVaccCode &&
                     adverseEffectLineItems.date == value.date &&
-                    !adverseEffectLineItems.relatedLineItems[0].hasOwnProperty("id") &&
+                    !adverseEffectLineItems.relatedLineItems.hasOwnProperty(0) &&
                     value.value > 0
                   ) {
-                    report.report.adverseEffectLineItems[reportIndex].cases = value.value
-                    found = true
-                    nxtValue()
+                    report.report.adverseEffectLineItems[index].cases = value.value
+                    var updatedReport = {
+                                          "id":report.report.id,
+                                          "facilityId":report.report.facilityId,
+                                          "periodId":report.report.periodId,
+                                          "adverseEffectLineItems":[report.report.adverseEffectLineItems[index]]
+                                        }
+                    this.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                      found = true
+                      if (err) {
+                        winston.error(err)
+                        return nxtValue()
+                      }
+                      return nxtValue()
+                    })
                   }
                   else
-                  nxtAdvEff()
+                  return nxtAdvEff()
               },function(){
                 //if nothing found then it was not added,add it from scratch
                 if(found == false && value.value > 0) {
-                  var adverseEffectLineItems = report.report.adverseEffectLineItems
-                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].cases = value.value
-                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].date = value.date
-                  report.report.adverseEffectLineItems[adverseEffectLineItems.length].productId = vimsVaccCode
+                  var updatedReport = {
+                                        "id":report.report.id,
+                                        "facilityId":report.report.facilityId,
+                                        "periodId":report.report.periodId,
+                                        "adverseEffectLineItems": [{
+                                                                    "productId": vimsVaccCode,
+                                                                    "date": value.date,
+                                                                    "cases": value.value,
+                                                                    "batch": "",
+                                                                    "isInvestigated": true
+                                                                  }]
+                                      }
+                  me.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                    if (err) {
+                      winston.error(err)
+                      return nxtValue()
+                    }
+                    else
+                    return nxtValue()
+                  })
                 }
-                nxtValue()
+                else
+                return nxtValue()
               })
             },function(){
-                nextPeriod()
+                return nextPeriod()
             })
           }
         })
@@ -316,7 +373,10 @@ module.exports = function (vimscnf,oimcnf) {
     saveDiseaseData: function (period,values,orchestrations,callback) {
       async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
-        this.getReport (periodId,orchestrations,(report) => {
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
           winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
           winston.error(JSON.stringify(report))
           async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
@@ -369,8 +429,10 @@ module.exports = function (vimscnf,oimcnf) {
           else if(period.length == 1) {
             async.eachSeries(period,(period,nextPeriod)=>{
               var periodId = period.id
-              this.getReport (periodId,orchestrations,(report) => {
-                winston.error(JSON.stringify(report))
+              this.getReport (periodId,orchestrations,(err,report) => {
+                if(err || !report) {
+                  return callback()
+                }
                 report.report.coldChainLineItems.forEach((coldChainLineItem,index) =>{
                   var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
                   if(data.hasOwnProperty(periodDate)) {
@@ -419,7 +481,10 @@ module.exports = function (vimscnf,oimcnf) {
       var totalStockCodes = stockCodes.length
       period.forEach ((period) => {
         var periodId = period.id
-        this.getReport (periodId,(report,orchestrations) => {
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
           var totalLogLineItems = report.report.logisticsLineItems.length;
           var found = false
           report.report.logisticsLineItems.forEach((logisticsLineItems,index) =>{

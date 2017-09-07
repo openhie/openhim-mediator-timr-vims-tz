@@ -134,6 +134,138 @@
       "matchContentRegex": null
     },
     {
+      "urlPattern": "/syncAdverseEffects",
+      "pollingSchedule": "30 06 * * *",
+      "name": "TImR and VIMS Adverse Events Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Adverse Events Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncAdverseEffects",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncDiseases",
+      "pollingSchedule": "30 06 * * *",
+      "name": "TImR and VIMS Disease Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Disease Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncDiseases",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncColdChain",
+      "pollingSchedule": "30 06 * * *",
+      "name": "TImR and VIMS Cold Chain Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Cold Chain Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncColdChain",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
       "urlPattern": "/syncStock",
       "pollingSchedule": "30 06 * * *",
       "name": "TImR and VIMS Stock Sync",
