@@ -458,7 +458,6 @@ module.exports = function (vimscnf,oimcnf) {
                                                       "periodId":report.report.periodId,
                                                       "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions
                                                     }
-                                                    winston.error("Saving Cold Chain")
                     this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
                       this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
                         if (err) {

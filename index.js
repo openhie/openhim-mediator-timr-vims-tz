@@ -500,7 +500,7 @@ function setupApp () {
       var access_token = JSON.parse(body).access_token
       winston.info("Processing Cold Chain Data")
       timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
-        winston.error("Done Processing Cold Chain")
+        winston.info("Done Processing Cold Chain")
       })
     })
   }),
