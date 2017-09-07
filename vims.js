@@ -407,7 +407,7 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     saveColdChain: function(coldChain,uuid,orchestrations,callback) {
-      winston.info("Processing Cold Chain for timr facilityid " + uuid + " With Data " + coldChain)
+      winston.info("Sending to VIMS Cold Chain with timr facilityid " + uuid + " .sending Data " + coldChain)
       var data = JSON.parse(coldChain)
       oim.getVimsFacilityId(uuid,orchestrations,(err,vimsid)=>{
         if(err) {
@@ -460,10 +460,7 @@ module.exports = function (vimscnf,oimcnf) {
                                                     }
                                                     winston.error("Saving Cold Chain")
                     this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
-                      winston.error("Saved Cold Chain")
-                      winston.error("Saving Planned Outreach")
                       this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
-                        winston.error("Saved Planned Outreach")
                         if (err) {
                           winston.error(err)
                           return callback(err,res)
