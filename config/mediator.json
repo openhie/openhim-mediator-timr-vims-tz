@@ -311,7 +311,7 @@
     },
     {
       "urlPattern": "/despatchAdviceIL",
-      "pollingSchedule": "0 */1 * * *",
+      "pollingSchedule": "0 0/1 * * *",
       "name": "Get Despatch Advice from VIMS - IL Intiated",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,

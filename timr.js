@@ -410,6 +410,9 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       var items = {}
       var stockCodes = []
       var ensureProcessed = length-1
+      if(length == 0) {
+        return callback(items,stockCodes)
+      }
       for(var counter = 0;counter<=length-1;counter++) {
         if(logInvRepInvLoc.eq(counter).has("tradeItemInventoryStatus")){
           var tradeItmClassLength = logInvRepInvLoc.eq(counter).find("tradeItemClassification").children().length
