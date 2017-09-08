@@ -127,6 +127,10 @@ function setupApp () {
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return processNextFacility()
+            }
             winston.info("Done Getting Period")
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
@@ -212,6 +216,10 @@ function setupApp () {
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return processNextFacility()
+            }
             if(period.length > 1 ) {
               winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
               return processNextFacility()
@@ -285,6 +293,10 @@ function setupApp () {
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return processNextFacility()
+            }
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()
@@ -371,6 +383,10 @@ function setupApp () {
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return processNextFacility()
+            }
             if(period.length > 1 ) {
               winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()

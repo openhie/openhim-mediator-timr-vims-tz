@@ -280,7 +280,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             }
             let before = new Date()
             request.get(options, (err, res, body) => {
-              winston.error(body)
               orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
               if (err) {
                 winston.error(err)

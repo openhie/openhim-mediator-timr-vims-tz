@@ -378,11 +378,13 @@ module.exports = function (vimscnf,oimcnf) {
             return callback()
           }
           winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
-          winston.error(JSON.stringify(report))
           async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
             var diseaseID = report.report.diseaseLineItems[index].diseaseId
             var cases = values[diseaseID]["case"]
             var death = values[diseaseID]["death"]
+            if(cases == 0 && death == 0) {
+              return nxtDisLineItm()
+            }
             report.report.diseaseLineItems[index].cases = cases
             report.report.diseaseLineItems[index].death = death
             var updatedReport = {
