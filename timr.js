@@ -393,7 +393,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         }
         let before = new Date()
         request.post(options, function (err, res, body) {
-          orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, body))
+          orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, JSON.stringify(body)))
           if (err) {
             return callback(err)
           }
@@ -406,14 +406,13 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       const ast = XmlReader.parseSync(data);
       const logisticsInventoryReport = xmlQuery(ast).children().find("logisticsInventoryReport")
       const logInvRepInvLoc = logisticsInventoryReport.children().find("logisticsInventoryReportInventoryLocation").children()
-      var length = logInvRepInvLoc.size()
       var items = {}
       var stockCodes = []
-      var ensureProcessed = length-1
-      if(length == 0) {
+      if(logInvRepInvLoc.size() == 0) {
         return callback(items,stockCodes)
       }
-      for(var counter = 0;counter<=length-1;counter++) {
+      var total = Array.from({length: logInvRepInvLoc.size()}, (v, k) => k)
+      async.eachSeries(total,(counter,next)=>{
         if(logInvRepInvLoc.eq(counter).has("tradeItemInventoryStatus")){
           var tradeItmClassLength = logInvRepInvLoc.eq(counter).find("tradeItemClassification").children().length
           var tradeItmClass = logInvRepInvLoc.eq(counter).find("tradeItemClassification").children()
@@ -437,17 +436,22 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             stockCodes.push({"code":index})
             if(items[index] == undefined) {
               items[index] = {"id":vimsid,"code":code,"quantity":quantity}
+              return next()
             }
             else {
               items[index].quantity = Number(items[index].quantity) + Number(quantity)
+              return next()
             }
           }
-          ensureProcessed--
-          if(ensureProcessed ==0) {
-          return callback(items,stockCodes)
-          }
+          else
+          return next()
         }
-      }
+        else {
+          return next()
+        }
+      },function(){
+        return callback(items,stockCodes)
+      })
     },
 
     saveDistribution: function(despatchAdviceBaseMessage,access_token,orchestrations,callback) {

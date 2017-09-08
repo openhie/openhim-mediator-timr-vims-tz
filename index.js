@@ -380,6 +380,8 @@ function setupApp () {
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
         var facilityName = facility.facilityName
+        if(facilityName != "Boma")
+        return processNextFacility()
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{

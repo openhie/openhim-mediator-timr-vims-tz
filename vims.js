@@ -488,6 +488,9 @@ module.exports = function (vimscnf,oimcnf) {
         push stock report to VIMS
       */
       var totalStockCodes = stockCodes.length
+      if(totalStockCodes == 0) {
+        return callback()
+      }
       period.forEach ((period) => {
         var periodId = period.id
         this.getReport (periodId,orchestrations,(err,report) => {
