@@ -407,7 +407,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       const logisticsInventoryReport = xmlQuery(ast).children().find("logisticsInventoryReport")
       const logInvRepInvLoc = logisticsInventoryReport.children().find("logisticsInventoryReportInventoryLocation").children()
       var length = logInvRepInvLoc.size()
-      var items = []
+      var items = {}
       var stockCodes = []
       var ensureProcessed = length-1
       for(var counter = 0;counter<=length-1;counter++) {
@@ -423,7 +423,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           if(vimsid != 0) {
             //get quantity
             var quantity = logInvRepInvLoc.eq(counter).find("transactionalItemData").children().find("tradeItemQuantity").text()
-
             //get Code
             var code = logInvRepInvLoc.eq(counter).find("inventoryDispositionCode").text()
             var index = vimsid+code

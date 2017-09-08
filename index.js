@@ -406,21 +406,21 @@ function setupApp () {
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
                   winston.info("Fetching TImR Stock Data")
+                  winston.info("Processing Stock For " + facilityName + ", Period " + period[0].periodName)
                   timr.getStockData(access_token,timrFacilityId,period,orchestrations,(data) =>{
-                    winston.info("Done Fetching TImR Stock Data")
-                    winston.info("Extracting TImR Stock Data")
+                    winston.info("\tDone Fetching TImR Stock Data")
+                    winston.info("\tExtracting TImR Stock Data")
                     timr.extractStockData(data,timrFacilityId,(timrStockData,stockCodes) =>{
-                      winston.info("Done Extracting TImR Stock Data")
+                      winston.info("\tDone Extracting TImR Stock Data")
+                      winston.info("\tSending Stock Data In VIMS " + JSON.stringify(timrStockData))
                       vims.getValueSets (vimsItemsValueSets,(err,vimsItemsValSet) => {
                         async.eachSeries(vimsItemsValSet,function(vimsItemsDataElmnt,processNextDtElmnt) {
-                          winston.info("Processing Stock For " + facilityName +
-                                       ", ProductID " + vimsItemsDataElmnt.code +
-                                       ", Period " + period[0].periodName)
+                          winston.info("\tProcessing ProductID " + vimsItemsDataElmnt.code)
                           vims.saveStockData(period,timrStockData,stockCodes,vimsItemsDataElmnt.code,orchestrations,(res) =>{
                             processNextDtElmnt()
                           })
                         },function(){
-                            winston.info("Done Processing " + facilityName)
+                            winston.info("\tDone Processing " + facilityName)
                             processNextFacility()
                         })
                       })
