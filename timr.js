@@ -442,8 +442,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           }
           ensureProcessed--
           if(ensureProcessed ==0) {
-            winston.error(stockCodes)
-          callback(items,stockCodes)
+          return callback(items,stockCodes)
           }
         }
       }

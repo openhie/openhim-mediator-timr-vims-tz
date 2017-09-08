@@ -57,7 +57,7 @@ module.exports = function (vimscnf,oimcnf) {
         if(body.indexOf('error') == -1) {
           body = JSON.parse(body)
           if(body.hasOwnProperty("periods") && body.periods.length < 1)
-          return callback(periods)
+          return callback(err,periods)
           else if(!body.hasOwnProperty("periods"))
           return callback(periods)
           body.periods.forEach ((period,index)=>{
