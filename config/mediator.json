@@ -91,7 +91,7 @@
     },
     {
       "urlPattern": "/syncImmunizationCoverage",
-      "pollingSchedule": "30 5 * * 6",
+      "pollingSchedule": "00 22 * * 6",
       "name": "TImR and VIMS Immunization Coverage Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -135,7 +135,7 @@
     },
     {
       "urlPattern": "/syncAdverseEffects",
-      "pollingSchedule": "30 06 * * *",
+      "pollingSchedule": "00 04 * * 6",
       "name": "TImR and VIMS Adverse Events Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -179,7 +179,7 @@
     },
     {
       "urlPattern": "/syncDiseases",
-      "pollingSchedule": "30 12 * * 6",
+      "pollingSchedule": "00 2 * * 6",
       "name": "TImR and VIMS Disease Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -223,7 +223,7 @@
     },
     {
       "urlPattern": "/syncColdChain",
-      "pollingSchedule": "30 21 * * 5",
+      "pollingSchedule": "00 22 * * 5",
       "name": "TImR and VIMS Cold Chain Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -267,7 +267,7 @@
     },
     {
       "urlPattern": "/syncStock",
-      "pollingSchedule": "30 17 * * 6",
+      "pollingSchedule": "00 00 * * 6",
       "name": "TImR and VIMS Stock Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -311,7 +311,7 @@
     },
     {
       "urlPattern": "/despatchAdviceIL",
-      "pollingSchedule": "0 0/1 * * *",
+      "pollingSchedule": "0 */1 * * *",
       "name": "Get Despatch Advice from VIMS - IL Intiated",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,

@@ -140,7 +140,7 @@ module.exports = function (vimscnf,oimcnf) {
       }
       let before = new Date()
       request.put(options, function (err, res, body) {
-        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, body))
+        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, JSON.stringify(body)))
         if (err) {
           winston.error(err)
           return callback(err,res,body)

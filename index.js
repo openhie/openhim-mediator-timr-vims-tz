@@ -191,6 +191,7 @@ function setupApp () {
       },function(){
         winston.info('Done Synchronizing Immunization Coverage!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -265,6 +266,7 @@ function setupApp () {
       },function(){
         winston.info('Done Synchronizing Immunization Coverage!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -331,6 +333,7 @@ function setupApp () {
       },function(){
         winston.info('Done Synchronizing Disease Data!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -436,6 +439,7 @@ function setupApp () {
       },function(){
         winston.info('Done Synchronizing Stock Data!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -501,6 +505,7 @@ function setupApp () {
       },function(){
         winston.info('Done Getting Despatch Advice!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -519,6 +524,8 @@ function setupApp () {
       winston.info("Processing Cold Chain Data")
       timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
         winston.info("Done Processing Cold Chain")
+        updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
     })
   }),
@@ -555,6 +562,8 @@ function setupApp () {
         timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
           winston.info("Saved Despatch Advice To TImR")
           winston.info(res)
+          updateTransaction(req,"","Successful","200",orchestrations)
+          orchestrations = []
         })
       })
     })
@@ -673,6 +682,7 @@ function setupApp () {
               vims.sendReceivingAdvice(distribution,orchestrations,(res)=>{
                 winston.warn('Receiving Advice Submitted To VIMS!!!')
                 updateTransaction(req,"","Successful","200",orchestrations)
+                orchestrations = []
               })
             })
           }
