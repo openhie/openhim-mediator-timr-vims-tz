@@ -110,9 +110,9 @@ module.exports = function (oimconf) {
         var loopCntr = facLength
         var facFound = false
         for(var counter=0;counter<facLength;counter++){
-          if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
+          if(facility.eq(counter).find("otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("otherID").attr("code") == "id") {
             facFound = true
-            return callback (err,facility.eq(counter).find("csd:otherID").text())
+            return callback (err,facility.eq(counter).find("otherID").text())
           }
           loopCntr--
         }
