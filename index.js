@@ -659,10 +659,8 @@ function setupApp () {
       getDistribution(vimsToFacilityId,orchestrations,(distribution,err)=>{
         winston.info("Received Distribution From VIMS For Receiving Advice")
         if(!distribution) {
-          var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
-          var body = "No matching DespatchAdvice in VIMS"
           winston.warn('No matching DespatchAdvice in VIMS!!!')
-          updateTransaction(req,"","Completed","200",orchestrations)
+          updateTransaction(req,"No matching DespatchAdvice in VIMS!!!","Completed with error(s)","200",orchestrations)
         }
         if(distribution){
           if(distributionid == distribution.id) {
