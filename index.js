@@ -61,6 +61,29 @@ function setupApp () {
   }))
   app.use(bodyParser.json())
 
+  function getOpenHimTransationData(transactionId,callback) {
+    medUtils.authenticate(apiConf.api, function (err) {
+      if (err) {
+        return winston.error(err.stack);
+      }
+      var headers = medUtils.genAuthHeaders(apiConf.api)
+      var options = {
+        url: apiConf.api.apiURL + '/transactions/' + transactionId,
+        headers: headers
+      }
+      request.get(options, function(err, apiRes, body) {
+        if (err) {
+          return winston.error(err);
+        }
+        if (apiRes.statusCode !== 200) {
+          return winston.error(new Error('Unable to get transaction data from OpenHIM-core, received status code ' + apiRes.statusCode + ' with body ' + body).stack);
+        }
+        callback(body)
+      })
+
+    })
+  }
+
   function updateTransaction (req,body,statatusText,statusCode,orchestrations) {
     const transactionId = req.headers['x-openhim-transactionid']
     var update = {
@@ -348,29 +371,6 @@ function setupApp () {
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
 
-    function reportFailure (err, req) {
-      res.writeHead(500, { 'Content-Type': 'application/json+openhim' })
-      winston.error(err.stack)
-      winston.error('Something went wrong, relaying error to OpenHIM-core')
-      let response = JSON.stringify({
-        'x-mediator-urn': mediatorConfig.urn,
-        status: 'Failed',
-        request: {
-          method: req.method,
-          headers: req.headers,
-          timestamp: req.timestamp,
-          path: req.path
-        },
-        response: {
-          status: 500,
-          body: err.stack,
-          timestamp: new Date()
-        },
-        orchestrations: orchestrations
-      })
-      res.end(response)
-    }
-
     winston.info("Processing Stock Data")
     winston.info("Fetching Facilities")
     oim.getVimsFacilities(orchestrations,(err,facilities)=>{
@@ -383,8 +383,6 @@ function setupApp () {
         var vimsFacilityId = facility.vimsFacilityId
         var timrFacilityId = facility.timrFacilityId
         var facilityName = facility.facilityName
-        if(facilityName != "Boma")
-        return processNextFacility()
         if(vimsFacilityId > 0) {
           winston.info("Getting period")
           vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
@@ -578,7 +576,7 @@ function setupApp () {
 
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
-
+    winston.info("Received Receiving Advice From TImR")
     function getDistribution(vimsToFacilityId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
@@ -597,7 +595,7 @@ function setupApp () {
         request.get(options, (err, res, body) => {
           orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
           var distribution = JSON.parse(body).distribution
-          if(distribution !== null) {
+          if(distribution != null || distribution != "" || distribution != undefined) {
             return callback(distribution,err)
           }
           else {
@@ -608,6 +606,11 @@ function setupApp () {
     }
 
     var distr = req.rawBody
+    if(distr == "" || distr == null || distr == undefined) {
+      winston.error("TImR has sent empty receiving Advice,stop processing")
+      return updateTransaction (req,"TImR has sent empty receiving Advice","Failed","200","")
+    }
+
     var ast = XmlReader.parseSync(distr)
     var distributionid = xmlQuery(ast).find("receivingAdvice").children().
                                         find("despatchAdvice").children().
@@ -620,12 +623,22 @@ function setupApp () {
         toFacilityId = shipto.eq(counter).find("additionalPartyIdentification").text()
     }
 
+    if(toFacilityId == "" || toFacilityId == null || toFacilityId == undefined) {
+      winston.error("Empty Destination Facility found in TImR Receiving Advice,stop processing")
+      return updateTransaction (req,"Empty Destination Facility found in TImR Receiving Advice","Failed","200","")
+    }
+
     var shipfromLength = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children().size()
     var shipfrom = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children()
     var fromFacilityId = ""
     for(var counter=0;counter<shiptoLength;counter++) {
       if(shipfrom.eq(counter).attr("additionalPartyIdentificationTypeCode") == "GIIS_FACID")
         fromFacilityId = shipfrom.eq(counter).find("additionalPartyIdentification").text()
+    }
+
+    if(fromFacilityId == "" || fromFacilityId == null || fromFacilityId == undefined) {
+      winston.error("Empty Source Facility found in TImR Receiving Advice,stop processing")
+      return updateTransaction (req,"Empty Source Facility found in TImR Receiving Advice","Failed","200","")
     }
 
     var vimsToFacilityId = null
@@ -635,11 +648,16 @@ function setupApp () {
         winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
         return
       }
+      if(vimsFacId == "" || vimsFacId == null || vimsFacId == undefined) {
+        winston.error("No matching VIMS Facility ID for " + toFacilityId + " ,Stop Processing")
+        return updateTransaction (req,"No matching VIMS Facility ID for " + toFacilityId,"Failed","200","")
+      }
       winston.info("Received VIMS facility ID")
       vimsToFacilityId = vimsFacId
-      winston.info("Getting Distribution")
+      winston.info("Getting Distribution From VIMS For Receiving Advice")
       if(vimsToFacilityId)
       getDistribution(vimsToFacilityId,orchestrations,(distribution,err)=>{
+        winston.info("Received Distribution From VIMS For Receiving Advice")
         if(!distribution) {
           var himHeader = res.status(422).send("No Matching Despatch Advice in VIMS")
           var body = "No matching DespatchAdvice in VIMS"
@@ -679,12 +697,18 @@ function setupApp () {
               })
             },function(){
               //submit Receiving Advice To VIMS
+              winston.info("Sending Receiving Advice To VIMS")
               vims.sendReceivingAdvice(distribution,orchestrations,(res)=>{
-                winston.warn('Receiving Advice Submitted To VIMS!!!')
+                winston.info('Receiving Advice Submitted To VIMS!!!')
                 updateTransaction(req,"","Successful","200",orchestrations)
                 orchestrations = []
               })
             })
+          }
+          else {
+            winston.error("VIMS has responded with Despatch Advice ID " + distribution.id + " Which Does Not Match TImR Receiving Advice ID " + distributionid)
+            return updateTransaction(req,"VIMS has responded with Despatch Advice ID " + distribution.id + " Which Does Not Match TImR Receiving Advice ID " + distributionid,"Completed with error(s)","200",orchestrations)
+            orchestrations = []
           }
         }
       })

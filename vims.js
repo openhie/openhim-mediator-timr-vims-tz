@@ -273,7 +273,6 @@ module.exports = function (vimscnf,oimcnf) {
           if(!report.report.adverseEffectLineItems.hasOwnProperty(0)) {
             async.eachSeries(values,(value,nxtValue)=>{
               if(value.value > 0) {
-                winston.error(value)
                 var date = value.date
                 var value = value.value
                 var updatedReport = {
@@ -293,7 +292,6 @@ module.exports = function (vimscnf,oimcnf) {
                     winston.error(err)
                     return nxtValue()
                   }
-                  winston.error(body)
                   nxtValue()
                 })
               }
@@ -685,7 +683,6 @@ module.exports = function (vimscnf,oimcnf) {
           if (err) {
             return callback(err)
           }
-          winston.error(JSON.stringify(body))
           callback(err)
         })
       })
