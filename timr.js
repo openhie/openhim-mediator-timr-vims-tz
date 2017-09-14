@@ -360,6 +360,11 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           }
         },function(){
             nexturl = false
+            if(!body.hasOwnProperty("link")) {
+              winston.error("An error occured with cold chain results returned by TImR")
+              return callback(err)
+            }
+            winston.error(JSON.stringify(body.link))
             for(var len=0,totalLinks=body.link.length;len<totalLinks;len++) {
               if(body.link[len].hasOwnProperty("relation") && body.link[len].relation=="next")
                 nexturl = body.link[len].url
