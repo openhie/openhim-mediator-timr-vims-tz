@@ -4,6 +4,8 @@ const URI = require('urijs')
 
 exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent, res, body) => {
   let uri = new URI(url)
+return {}
+/*
   return {
     name: name,
     request: {
@@ -21,4 +23,5 @@ exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent
       timestamp: new Date()
     }
   }
+*/
 }
