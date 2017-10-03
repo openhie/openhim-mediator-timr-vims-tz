@@ -162,10 +162,10 @@ module.exports = function (vimscnf,oimcnf) {
           winston.error("Invalid data Submitted,ignoring processing data "+ JSON.stringify(values))
           return callback()
         }
-      if( values.regularMale == "" || values.regularMale == undefined || values.regularMale == null ||
-          values.regularFemale == "" || values.regularFemale == undefined || values.regularFemale == null ||
-          values.outreachMale == "" || values.outreachMale == undefined || values.outreachMale == null ||
-          values.outreachFemale == "" || values.outreachFemale == undefined || values.outreachFemale == null
+      if( values.regularMale === "" || values.regularMale === undefined || values.regularMale === null ||
+          values.regularFemale === "" || values.regularFemale === undefined || values.regularFemale === null ||
+          values.outreachMale === "" || values.outreachMale === undefined || values.outreachMale === null ||
+          values.outreachFemale === "" || values.outreachFemale === undefined || values.outreachFemale === null
         ) {
           winston.error("One of the required data is empty,ignoring processing data "+ JSON.stringify(values))
           return callback()
