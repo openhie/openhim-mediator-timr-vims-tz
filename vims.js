@@ -150,6 +150,26 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
+      if(values == "" || values == undefined || values == null) {
+        winston.error("Empty data Submitted,skip processing data of value "+ JSON.stringify(values))
+        return callback()
+      }
+      if( !values.hasOwnProperty("regularMale") ||
+          !values.hasOwnProperty("regularFemale") ||
+          !values.hasOwnProperty("outreachMale") ||
+          !values.hasOwnProperty("outreachFemale")
+        ) {
+          winston.error("Invalid data Submitted,ignoring processing data "+ JSON.stringify(values))
+          return callback()
+        }
+      if( values.regularMale == "" || values.regularMale == undefined || values.regularMale == null ||
+          values.regularFemale == "" || values.regularFemale == undefined || values.regularFemale == null ||
+          values.outreachMale == "" || values.outreachMale == undefined || values.outreachMale == null ||
+          values.outreachFemale == "" || values.outreachFemale == undefined || values.outreachFemale == null
+        ) {
+          winston.error("One of the required data is empty,ignoring processing data "+ JSON.stringify(values))
+          return callback()
+        }
       period.forEach ((period) => {
         var periodId = period.id
         if(vimsVaccCode == '2413')
