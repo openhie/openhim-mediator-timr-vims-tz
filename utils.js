@@ -4,8 +4,7 @@ const URI = require('urijs')
 
 exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent, res, body) => {
   let uri = new URI(url)
-return {}
-/*
+  var body = JSON.stringify({"response":"Response Disabled"})
   return {
     name: name,
     request: {
@@ -23,5 +22,4 @@ return {}
       timestamp: new Date()
     }
   }
-*/
 }
