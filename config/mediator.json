@@ -562,6 +562,51 @@
           "type": "password"
         }
       ]
+    },
+    {
+      "param": "email_notification",
+      "displayName": "Email Notification",
+      "description": "Email Notification",
+      "type": "struct",
+      "template": [
+        {
+          "param": "emails",
+          "displayName": "Emails",
+          "description": "Emails to send notifications as events happens inside the mediator like restart etc",
+          "type": "map"
+        },
+        {
+          "param": "smtp_host",
+          "displayName": "SMTP Host",
+          "description": "SMTP Host like like smtp.gmail.com",
+          "type": "string"
+        },
+        {
+          "param": "smtp_port",
+          "displayName": "SMTP Port",
+          "description": "SMTP Port like 587 (non secured) or 465 (secured)",
+          "type": "string"
+        },
+        {
+          "param": "smtp_secured",
+          "displayName": "SMTP Secured?",
+          "description": "SMTP Secured",
+          "type": "option",
+          "values": ["Yes","No"]
+        },
+        {
+          "param": "username",
+          "displayName": "Authentication User",
+          "description": "Authentication User",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Authentication Password",
+          "description": "Authentication Password",
+          "type": "password"
+        }
+      ]
     }
   ],
   "config": {
@@ -586,6 +631,15 @@
       "document": "BID",
       "username": "",
       "password": ""
+    },
+    "email_notification": {
+      "emails": {
+        "1":"allyshaban5@gmail.com",
+        "2":"ashaban@intrahealth.org"
+      },
+      "smtp_host":"smtp.gmail.com",
+      "smtp_port":"587",
+      "smtp_secured":"No"
     }
   }
 }

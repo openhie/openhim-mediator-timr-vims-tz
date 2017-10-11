@@ -577,7 +577,34 @@ function setupApp () {
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
     winston.info("Received Receiving Advice From TImR")
-    function getDistribution(vimsToFacilityId,orchestrations,callback) {
+    function getDistributionById(distributionId,orchestrations,callback) {
+      vims.j_spring_security_check(orchestrations,(err,header)=>{
+        if(err){
+          return callback("",err)
+        }
+        var startDate = moment().startOf('month').format("YYYY-MM-DD")
+        var endDate = moment().endOf('month').format("YYYY-MM-DD")
+        var url = URI(config.vims.url).segment("vaccine/orderRequisition/sendNotification/" + distributionId)
+        var options = {
+          url: url.toString(),
+          headers: {
+            Cookie:header["set-cookie"]
+          }
+        }
+        let before = new Date()
+        request.get(options, (err, res, body) => {
+          orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
+          var distribution = JSON.parse(body).message
+          if(distribution != null || distribution != "" || distribution != undefined) {
+            return callback(distribution,err)
+          }
+          else {
+            return callback("",err)
+          }
+        })
+      })
+    }
+    function getDistributionByFacilityId(vimsToFacilityId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
           return callback("",err)
@@ -656,7 +683,7 @@ function setupApp () {
       vimsToFacilityId = vimsFacId
       winston.info("Getting Distribution From VIMS For Receiving Advice")
       if(vimsToFacilityId)
-      getDistribution(vimsToFacilityId,orchestrations,(distribution,err)=>{
+      getDistributionByFacilityId(vimsToFacilityId,orchestrations,(distribution,err)=>{
         winston.info("Received Distribution From VIMS For Receiving Advice")
         if(!distribution) {
           winston.warn('No matching DespatchAdvice in VIMS!!!')
