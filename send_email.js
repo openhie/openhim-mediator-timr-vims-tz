@@ -52,7 +52,8 @@ module.exports = function () {
           console.log(mailOptions)
           transporter.sendMail(mailOptions, (error, info) => {
               if (error) {
-                  return console.log(error);
+                  console.log(error);
+                  return callback()
               }
               return callback()
           });

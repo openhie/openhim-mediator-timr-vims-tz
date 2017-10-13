@@ -577,6 +577,7 @@ function setupApp () {
     res.end()
     updateTransaction (req,"Still Processing","Processing","200","")
     winston.info("Received Receiving Advice From TImR")
+
     function getDistributionById(distributionId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
@@ -604,7 +605,8 @@ function setupApp () {
         })
       })
     }
-    function getDistributionByFacilityId(vimsToFacilityId,orchestrations,callback) {
+
+    function getDistributionByFacilityId(vimsToFacilityId,timr_distributionId,orchestrations,callback) {
       vims.j_spring_security_check(orchestrations,(err,header)=>{
         if(err){
           return callback("",err)
@@ -621,12 +623,29 @@ function setupApp () {
         let before = new Date()
         request.get(options, (err, res, body) => {
           orchestrations.push(utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body))
-          var distribution = JSON.parse(body).distribution
-          if(distribution != null || distribution != "" || distribution != undefined) {
+          if(isJSON(body)) {
+            var distribution = JSON.parse(body).distribution
+          }
+          else {
+            var distribution = null
+          }
+          if(distribution != null && distribution != "" && distribution != undefined) {
+            //in case we dont get the distribution id we expected then try fetching distr by id
+            if(timr_distributionId != distribution.id) {
+              winston.info("VIMS Distribution ID " + distribution.id + " Mismatch distribution ID " + timr_distributionId + ",that we are looking,trying fetching by distribution ID")
+              getDistributionById(timr_distributionId,orchestrations,(distribution,err)=>{
+                return callback(distribution,err)
+              })
+            }
+            else
             return callback(distribution,err)
           }
           else {
-            return callback("",err)
+            //in case we dont get any distribution then may be lets try fetching distr by id
+            winston.info("No distribution received from VIMS,try fetching by distribution ID")
+            getDistributionById(timr_distributionId,orchestrations,(distribution,err)=>{
+              return callback(distribution,err)
+            })
           }
         })
       })
@@ -676,14 +695,14 @@ function setupApp () {
         return
       }
       if(vimsFacId == "" || vimsFacId == null || vimsFacId == undefined) {
-        winston.error("No matching VIMS Facility ID for " + toFacilityId + " ,Stop Processing")
+        winston.error("No matching VIMS Facility ID for " + toFacilityId + ",Stop Processing")
         return updateTransaction (req,"No matching VIMS Facility ID for " + toFacilityId,"Failed","200","")
       }
       winston.info("Received VIMS facility ID")
       vimsToFacilityId = vimsFacId
       winston.info("Getting Distribution From VIMS For Receiving Advice")
       if(vimsToFacilityId)
-      getDistributionByFacilityId(vimsToFacilityId,orchestrations,(distribution,err)=>{
+      getDistributionByFacilityId(vimsToFacilityId,distributionid,orchestrations,(distribution,err)=>{
         winston.info("Received Distribution From VIMS For Receiving Advice")
         if(!distribution) {
           winston.warn('No matching DespatchAdvice in VIMS!!!')
@@ -724,6 +743,7 @@ function setupApp () {
               //submit Receiving Advice To VIMS
               winston.info("Sending Receiving Advice To VIMS")
               vims.sendReceivingAdvice(distribution,orchestrations,(res)=>{
+                winston.error(res)
                 winston.info('Receiving Advice Submitted To VIMS!!!')
                 updateTransaction(req,"","Successful","200",orchestrations)
                 orchestrations = []
