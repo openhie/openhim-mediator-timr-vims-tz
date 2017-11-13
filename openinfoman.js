@@ -89,6 +89,7 @@ module.exports = function (oimconf) {
       var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
                       <csd:id entityID="${uuid}"></csd:id>
                      </csd:requestParams>`
+                     winston.error(csd_msg)
       var options = {
         url: url.toString(),
         headers: {
@@ -104,15 +105,16 @@ module.exports = function (oimconf) {
           winston.error(err)
           return callback(err,"")
         }
+        winston.error(body)
         var ast = XmlReader.parseSync(body)
         var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
         var facility = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children()
         var loopCntr = facLength
         var facFound = false
         for(var counter=0;counter<facLength;counter++){
-          if(facility.eq(counter).find("otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("otherID").attr("code") == "id") {
+          if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
             facFound = true
-            return callback (err,facility.eq(counter).find("otherID").text())
+            return callback (err,facility.eq(counter).find("csd:otherID").text())
           }
           loopCntr--
         }
