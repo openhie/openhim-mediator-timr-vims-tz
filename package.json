@@ -11,6 +11,7 @@
     "express": "^4.14.0",
     "express-xml-bodyparser": "^0.3.0",
     "forever": "^0.15.3",
+    "forever-monitor": "^1.7.1",
     "http": "^0.0.0",
     "https": "^1.0.0",
     "humanize-age": "^1.0.0",

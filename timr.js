@@ -110,6 +110,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             }
             var value = JSON.parse(body).total
             var queryName = query.name
+            //winston.error(queryName+" "+value+" "+url.toString())
             values[queryName] = value
             totalLoop--
             if(totalLoop === 0) {

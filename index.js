@@ -677,8 +677,8 @@ function setupApp () {
     var shipfromLength = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children().size()
     var shipfrom = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children()
     var fromFacilityId = ""
-    for(var counter=0;counter<shiptoLength;counter++) {
-      if(shipfrom.eq(counter).attr("additionalPartyIdentificationTypeCode") == "GIIS_FACID")
+    for(var counter=0;counter<shipfromLength;counter++) {
+      if(shipfrom.eq(counter).attr("additionalPartyIdentificationTypeCode") == "HIE_FRID")
         fromFacilityId = shipfrom.eq(counter).find("additionalPartyIdentification").text()
     }
 

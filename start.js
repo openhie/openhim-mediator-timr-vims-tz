@@ -4,6 +4,7 @@ const send_email = SENDEMAIL()
 const moment = require('moment')
 
   var child = new (forever.Monitor)('index.js', {
+    append: true,
     silent: false,
     args: []
   });
