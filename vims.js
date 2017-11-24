@@ -703,7 +703,7 @@ module.exports = function (vimscnf,oimcnf) {
           if (err) {
             return callback(err)
           }
-          callback(err)
+          callback(body)
         })
       })
     }

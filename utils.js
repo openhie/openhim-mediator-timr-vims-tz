@@ -1,10 +1,20 @@
 'use strict'
 
 const URI = require('urijs')
+const SENDEMAIL = require('./send_email')
+const send_email = SENDEMAIL()
 
 exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent, res, body) => {
   let uri = new URI(url)
   var body = JSON.stringify({"response":"Response Disabled"})
+  if(res.hasOwnProperty('statusCode'))
+  var statusCode = res.statusCode
+  else {
+    var statusCode = 503
+    send_email.send("TImR-VIMS Mediator Restarted","Res===>" + res + "Body===>" + body + "Req===>"+requestContent+ "Time===>"+ time,()=>{
+
+    })
+  }
   return {
     name: name,
     request: {
@@ -16,7 +26,7 @@ exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent
 
     },
     response: {
-      status: res.statusCode,
+      status: statusCode,
       headers: res.headers,
       body: body,
       timestamp: new Date()

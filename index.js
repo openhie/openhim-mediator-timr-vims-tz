@@ -743,7 +743,7 @@ function setupApp () {
               //submit Receiving Advice To VIMS
               winston.info("Sending Receiving Advice To VIMS")
               vims.sendReceivingAdvice(distribution,orchestrations,(res)=>{
-                winston.error(res)
+                winston.info(res)
                 winston.info('Receiving Advice Submitted To VIMS!!!')
                 updateTransaction(req,"","Successful","200",orchestrations)
                 orchestrations = []
