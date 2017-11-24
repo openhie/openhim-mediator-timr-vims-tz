@@ -585,8 +585,9 @@ module.exports = function (vimscnf,oimcnf) {
               return callback(err,"")
             }
             if(facId == false) {
+              err = true
               winston.error("VIMS Facility with ID " + distribution.toFacilityId + " Was not found on the system,stop processing")
-              return callback()
+              return callback(err)
             }
             var toFacilityName = facName
             var timrToFacilityId = facId
@@ -596,8 +597,9 @@ module.exports = function (vimscnf,oimcnf) {
                 return callback(err,"")
               }
               if(facId1 == false || facId1 == null || facId1 == undefined) {
+                err = true
                 winston.error("VIMS Facility with ID " + distribution.fromFacilityId + " Was not found on the system,stop processing")
-                return callback()
+                return callback(err)
               }
               fromFacilityName = facName1
               timrFromFacilityId = facId1
@@ -638,6 +640,7 @@ module.exports = function (vimscnf,oimcnf) {
                 if(timrToFacilityId)
                 callback(err,despatchAdviceBaseMessage)
                 else {
+                  err = true
                   winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
                   callback(err,"")
                 }
