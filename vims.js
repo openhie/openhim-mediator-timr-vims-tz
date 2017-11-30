@@ -36,7 +36,28 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    getPeriod: function(vimsFacId,orchestrations,callback) {
+    initializeReport: function(vimsFacId,periodId,orchestrations,callback) {
+      var url = URI(vimsconfig.url).segment('rest-api/ivd/initialize/'+vimsFacId+'/82/'+periodId)
+      var username = vimsconfig.username
+      var password = vimsconfig.password
+      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: auth
+        }
+      }
+      let before = new Date()
+      request.get(options, (err, res, body) => {
+        orchestrations.push(utils.buildOrchestration('Initializing report', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+        if (err) {
+          return callback(err)
+        }
+        return callback(false,body)
+      })
+    },
+
+    getAllPeriods: function(vimsFacId,orchestrations,callback) {
       var url = URI(vimsconfig.url).segment('rest-api/ivd/periods/'+vimsFacId+'/82')
       var username = vimsconfig.username
       var password = vimsconfig.password
@@ -50,6 +71,15 @@ module.exports = function (vimscnf,oimcnf) {
       let before = new Date()
       request.get(options, (err, res, body) => {
         orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+        if (err) {
+          return callback(err)
+        }
+        return callback(false,body)
+      })
+    },
+
+    getPeriod: function(vimsFacId,orchestrations,callback) {
+      getAllPeriods(vimsFacId,orchestrations,(err,body)=>{
         if (err) {
           return callback(err)
         }

@@ -528,6 +528,61 @@ function setupApp () {
     })
   }),
 
+  app.get('/initializeReport',(req,res)=>{
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,config.openinfoman)
+    let orchestrations = []
+    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+      if(err) {
+        winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+        return
+      }
+      async.eachSeries(facilities,function(facility,processNextFacility){
+        var vimsFacilityId = facility.vimsFacilityId
+        var facilityName = facility.facilityName
+        //var vimsFacilityId = 19630
+        winston.info('Trying To Initilize Report For ' + facilityName)
+        vims.getAllPeriods(vimsFacilityId,orchestrations,(err,body)=>{
+          if (err) {
+            return processNextFacility()
+          }
+          var periods = []
+          if(body.indexOf('error') == -1) {
+            body = JSON.parse(body)
+            if(body.hasOwnProperty("periods") && body.periods.length < 1)
+            return processNextFacility()
+            else if(!body.hasOwnProperty("periods"))
+            return processNextFacility()
+            body.periods.forEach ((period,index)=>{
+              if(period.id == null && period.status == null){
+                //lets initialize only one report on index 0
+                if(index == 0)
+                vims.initializeReport(vimsFacilityId,period.periodId,orchestrations,(err,body)=>{
+                  if(err) {
+                    winston.error(err)
+                    return processNextFacility()
+                  }
+                  winston.info("Report for " + period.periodName + " Facility " + facilityName + " Initialized")
+                  return processNextFacility()
+                })
+              }
+              if(index == body.periods.length-1) {
+                return processNextFacility()
+              }
+            })
+          }
+          else {
+            return processNextFacility()
+          }
+        })
+      })
+    },function(){
+      winston.info('Done Initilizing Reports To Facilities!!!')
+      updateTransaction(req,"","Successful","200",orchestrations)
+      orchestrations = []
+    })
+  }),
+
   app.post('/despatchAdviceVims',(req,res)=>{
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
