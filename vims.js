@@ -79,7 +79,7 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     getPeriod: function(vimsFacId,orchestrations,callback) {
-      getAllPeriods(vimsFacId,orchestrations,(err,body)=>{
+      this.getAllPeriods(vimsFacId,orchestrations,(err,body)=>{
         if (err) {
           return callback(err)
         }
