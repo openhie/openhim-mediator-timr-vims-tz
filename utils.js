@@ -7,7 +7,7 @@ const send_email = SENDEMAIL()
 exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent, res, body) => {
   let uri = new URI(url)
   var body = JSON.stringify({"response":"Response Disabled"})
-  if(res.hasOwnProperty('statusCode'))
+  if('statusCode' in res)
   var statusCode = res.statusCode
   else {
     var statusCode = 503

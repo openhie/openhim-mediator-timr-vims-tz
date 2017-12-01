@@ -90,6 +90,50 @@
       "type": "http"
     },
     {
+      "urlPattern": "/initializeReport",
+      "pollingSchedule": "00 21 * * 6",
+      "name": "Initialize Report In VIMS Facilities",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Immunization Coverage Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/initializeReport",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
       "urlPattern": "/syncImmunizationCoverage",
       "pollingSchedule": "00 22 * * 6",
       "name": "TImR and VIMS Immunization Coverage Sync",
