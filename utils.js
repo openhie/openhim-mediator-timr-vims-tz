@@ -18,7 +18,6 @@ exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent
     var statusCode = res.statusCode
     var header = res.headers
   }
-  console.log(header)
   return {
     name: name,
     request: {
