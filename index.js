@@ -560,10 +560,8 @@ function setupApp () {
                 vims.initializeReport(vimsFacilityId,period.periodId,orchestrations,(err,body)=>{
                   if(err) {
                     winston.error(err)
-                    return processNextFacility()
                   }
                   winston.info("Report for " + period.periodName + " Facility " + facilityName + " Initialized")
-                  return processNextFacility()
                 })
               }
               if(index == body.periods.length-1) {
