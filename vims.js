@@ -53,6 +53,7 @@ module.exports = function (vimscnf,oimcnf) {
         if (err) {
           return callback(err)
         }
+        else
         return callback(false,body)
       })
     },
@@ -74,6 +75,7 @@ module.exports = function (vimscnf,oimcnf) {
         if (err) {
           return callback(err)
         }
+        else
         return callback(false,body)
       })
     },
@@ -151,6 +153,7 @@ module.exports = function (vimscnf,oimcnf) {
         if (err) {
           return callback(err)
         }
+        else
         return callback(err,JSON.parse(body))
       })
     },
@@ -175,6 +178,7 @@ module.exports = function (vimscnf,oimcnf) {
           winston.error(err)
           return callback(err,res,body)
         }
+        else
         return callback(err,res,body)
       })
     },
@@ -236,7 +240,8 @@ module.exports = function (vimscnf,oimcnf) {
                   winston.error(err)
                   return callback(err)
                 }
-                callback()
+                else
+                return callback()
               })
             }
             else {
@@ -342,6 +347,7 @@ module.exports = function (vimscnf,oimcnf) {
                     winston.error(err)
                     return nxtValue()
                   }
+                  else
                   nxtValue()
                 })
               }
@@ -376,6 +382,7 @@ module.exports = function (vimscnf,oimcnf) {
                         winston.error(err)
                         return nxtValue()
                       }
+                      else
                       return nxtValue()
                     })
                   }
@@ -445,6 +452,7 @@ module.exports = function (vimscnf,oimcnf) {
               if (err) {
                 winston.error(err)
               }
+              else
               nxtDisLineItm()
             })
           },function(){
@@ -514,6 +522,7 @@ module.exports = function (vimscnf,oimcnf) {
                           winston.error(err)
                           return callback(err,res)
                         }
+                        else
                         return callback(err,res)
                       })
                     })
@@ -555,34 +564,34 @@ module.exports = function (vimscnf,oimcnf) {
               currently vims combines quantityExpired,quantityWastedOther,quantityFreezed and quantityVvmAlerted
               into quantityDiscardedUnopened,so we are also combining them until when vims accepts them separately
               */
-              var discaded = 0
+              var discarded = 0
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"ON_HAND" }) != undefined) {
                 report.report.logisticsLineItems[index].closingBalance = timrStockData[(vimsItemCode+"ON_HAND")].quantity
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"EXPIRED" }) != undefined) {
                 //report.report.logisticsLineItems[index].quantityExpired = timrStockData[(vimsItemCode+"EXPIRED")].quantity
-                discaded = Number(discaded) + Number(timrStockData[(vimsItemCode+"EXPIRED")].quantity)
+                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"EXPIRED")].quantity)
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"DAMAGED" }) != undefined) {
                 //report.report.logisticsLineItems[index].quantityDiscardedUnopened = timrStockData[(vimsItemCode+"DAMAGED")].quantity
-                discaded = Number(discaded) + Number(timrStockData[(vimsItemCode+"DAMAGED")].quantity)
+                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"DAMAGED")].quantity)
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"WASTED" }) != undefined) {
                 //report.report.logisticsLineItems[index].quantityWastedOther = timrStockData[(vimsItemCode+"WASTED")].quantity
-                discaded = Number(discaded) + Number(timrStockData[(vimsItemCode+"WASTED")].quantity)
+                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"WASTED")].quantity)
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-VVM" }) != undefined) {
                 //report.report.logisticsLineItems[index].quantityVvmAlerted = timrStockData[(vimsItemCode+"REASON-VVM")].quantity
-                discaded = Number(discaded) + Number(timrStockData[(vimsItemCode+"REASON-VVM")].quantity)
+                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"REASON-VVM")].quantity)
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-FROZEN" }) != undefined) {
                 //report.report.logisticsLineItems[index].quantityFreezed = timrStockData[(vimsItemCode+"REASON-FROZEN")].quantity
-                discaded = Number(discaded) + Number(timrStockData[(vimsItemCode+"REASON-FROZEN")].quantity)
+                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"REASON-FROZEN")].quantity)
               }
               if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-OPENWASTE" }) != undefined) {
                 report.report.logisticsLineItems[index].quantityDiscardedOpened = timrStockData[(vimsItemCode+"REASON-OPENWASTE")].quantity
               }
-              report.report.logisticsLineItems[index].quantityDiscardedUnopened = discaded
+              report.report.logisticsLineItems[index].quantityDiscardedUnopened = discarded
               var updatedReport = {
                                     "id":report.report.id,
                                     "facilityId":report.report.facilityId,
@@ -593,7 +602,7 @@ module.exports = function (vimscnf,oimcnf) {
                 if (err) {
                   return callback(err)
                 }
-
+                else
                 return callback(err)
               })
             }
@@ -601,6 +610,7 @@ module.exports = function (vimscnf,oimcnf) {
               totalLogLineItems--
             }
             if(totalLogLineItems == 0 && found == false) {
+              process.exit()
               callback('')
             }
           })
@@ -747,6 +757,7 @@ module.exports = function (vimscnf,oimcnf) {
           if (err) {
             return callback(err)
           }
+          else
           callback(body)
         })
       })

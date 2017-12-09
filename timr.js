@@ -303,6 +303,24 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
 
     },
 
+    /*
+    The IVD data has been updated to allow for outreach and session data... Basically you are looking for an extension : http://openiz.org/extensions/contrib/bid/ivdExtendedData
+the format of this extension is like this:
+
+{
+    "2017-10": {
+        "status": "1",
+        "outreachPlan": 6,
+        "coldStoreMin": 3,
+        "coldStoreMax": 15,
+        "coldStoreLow": 2,
+        "coldStoreHigh": 16,
+        "sessions": 11,
+        "outreach": 0,
+        "outreachCancel": 6,
+        "_write": true
+    }
+    */
     processColdChain: function (access_token,nexturl,orchestrations,callback) {
       if(!nexturl)
       nexturl = URI(timrconfig.url)
@@ -403,6 +421,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           if (err) {
             return callback(err)
           }
+          else
           callback(body)
         })
       })
@@ -479,6 +498,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         if (err) {
           return callback(err)
         }
+        else
         callback(body)
       })
     }
