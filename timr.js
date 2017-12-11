@@ -356,17 +356,24 @@ the format of this extension is like this:
                 var data = new Buffer(extension.valueBase64Binary, 'base64').toString("ascii")
                 if(entry.resource.hasOwnProperty("identifier")) {
                   var identifiers = entry.resource.identifier
-                  for(var idCnt=0,totalId=identifiers.length;idCnt<totalId;idCnt++) {
-                    if(identifiers[idCnt].system == "http://hfrportal.ehealth.go.tz/") {
-                      var uuid = identifiers[idCnt].value
+                  async.eachSeries(identifiers,(identifier,nxtIdentifier)=>{
+                    if(identifier.system == "http://hfrportal.ehealth.go.tz/") {
+                      var uuid = identifier.value
                       vims.saveColdChain(data,uuid,orchestrations,(err,res)=>{
+                        if(err){
+                          return nxtIdentifier()
+                        }
                         return nextExtension()
                       })
                     }
-                  }
+                    else
+                    return nxtIdentifier()
+                  },function(){
+                    return nextExtension()
+                  })
                 }
                 else
-                nextExtension()
+                return nextExtension()
               }
               else
               return nextExtension()

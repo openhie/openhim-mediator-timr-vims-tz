@@ -474,7 +474,8 @@ module.exports = function (vimscnf,oimcnf) {
         }
         if(vimsid=="" || vimsid == null || vimsid == undefined){
           winston.error(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
-          return callback()
+          var err = true
+          return callback(err)
         }
         this.getPeriod(vimsid,orchestrations,(err,period)=>{
           if(period.length > 1 ) {
