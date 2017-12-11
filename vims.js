@@ -508,6 +508,7 @@ module.exports = function (vimscnf,oimcnf) {
                     report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
                     report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
                     report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
+                    report.report.coldChainLineItems[index].operationalStatusId = data[periodDate].status
                     var coldChainUpdatedReport = {
                                           "id":report.report.id,
                                           "facilityId":report.report.facilityId,

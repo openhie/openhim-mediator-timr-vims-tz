@@ -531,6 +531,9 @@ function setupApp () {
   app.get('/initializeReport',(req,res)=>{
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims,config.openinfoman)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+
     let orchestrations = []
     oim.getVimsFacilities(orchestrations,(err,facilities)=>{
       if(err) {
@@ -573,11 +576,11 @@ function setupApp () {
             return processNextFacility()
           }
         })
+      },function(){
+        winston.info('Done Initilizing Reports To Facilities!!!')
+        updateTransaction(req,"","Successful","200",orchestrations)
+        orchestrations = []
       })
-    },function(){
-      winston.info('Done Initilizing Reports To Facilities!!!')
-      updateTransaction(req,"","Successful","200",orchestrations)
-      orchestrations = []
     })
   }),
 
