@@ -814,7 +814,7 @@ function setupApp () {
   }),
 
   app.post('/orderRequest', (req, res) => {
-    res.end(200)
+    res.end()
   })
   return app
 }

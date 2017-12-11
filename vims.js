@@ -501,6 +501,9 @@ module.exports = function (vimscnf,oimcnf) {
                   var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
                   if(data.hasOwnProperty(periodDate)) {
                     report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
+                    report.report.outreachImmunizationSessions = data[periodDate].outreach
+                    report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
+                    report.report.fixedImmunizationSessions = data[periodDate].sessions
                     report.report.coldChainLineItems[index].minTemp = data[periodDate].coldStoreMin
                     report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
                     report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
@@ -517,14 +520,40 @@ module.exports = function (vimscnf,oimcnf) {
                                                       "periodId":report.report.periodId,
                                                       "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions
                                                     }
+                    var outrImmSessUpdatedReport = {
+                                                      "id":report.report.id,
+                                                      "facilityId":report.report.facilityId,
+                                                      "periodId":report.report.periodId,
+                                                      "outreachImmunizationSessions":report.report.outreachImmunizationSessions
+                                                    }
+                    var outrImmSessCancUpdatedReport = {
+                                                        "id":report.report.id,
+                                                        "facilityId":report.report.facilityId,
+                                                        "periodId":report.report.periodId,
+                                                        "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled
+                                                       }
+                     var fixedImmSessUpdatedReport = {
+                                                       "id":report.report.id,
+                                                       "facilityId":report.report.facilityId,
+                                                       "periodId":report.report.periodId,
+                                                       "fixedImmunizationSessions":report.report.fixedImmunizationSessions
+                                                      }
                     this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
                       this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
-                        if (err) {
-                          winston.error(err)
-                          return callback(err,res)
-                        }
-                        else
-                        return callback(err,res)
+                        this.saveVIMSReport (outrImmSessUpdatedReport,"Outreach Immunization Sessions",orchestrations,(err,res,body)=>{
+                          this.saveVIMSReport (outrImmSessCancUpdatedReport,"Outreach Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
+                            this.saveVIMSReport (outrImmSessCancUpdatedReport,"Outreach Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
+                              this.saveVIMSReport (fixedImmSessUpdatedReport,"Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
+                                if (err) {
+                                  winston.error(err)
+                                  return callback(err,res)
+                                }
+                                else
+                                return callback(err,res)
+                              })
+                            })
+                          })
+                        })
                       })
                     })
                   }
@@ -611,7 +640,6 @@ module.exports = function (vimscnf,oimcnf) {
               totalLogLineItems--
             }
             if(totalLogLineItems == 0 && found == false) {
-              process.exit()
               callback('')
             }
           })
