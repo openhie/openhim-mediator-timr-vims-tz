@@ -710,7 +710,7 @@ function setupApp () {
     var distr = req.rawBody
     if(distr == "" || distr == null || distr == undefined) {
       winston.error("TImR has sent empty receiving Advice,stop processing")
-      return updateTransaction (req,"TImR has sent empty receiving Advice","Failed","200","")
+      return updateTransaction (req,"TImR has sent empty receiving Advice","Completed","200","")
     }
 
     var ast = XmlReader.parseSync(distr)
@@ -727,7 +727,7 @@ function setupApp () {
 
     if(toFacilityId == "" || toFacilityId == null || toFacilityId == undefined) {
       winston.error("Empty Destination Facility found in TImR Receiving Advice,stop processing")
-      return updateTransaction (req,"Empty Destination Facility found in TImR Receiving Advice","Failed","200","")
+      return updateTransaction (req,"Empty Destination Facility found in TImR Receiving Advice","Completed","200","")
     }
 
     var shipfromLength = xmlQuery(ast).find("receivingAdvice").children().find("shipper").children().size()
@@ -740,7 +740,7 @@ function setupApp () {
 
     if(fromFacilityId == "" || fromFacilityId == null || fromFacilityId == undefined) {
       winston.error("Empty Source Facility found in TImR Receiving Advice,stop processing")
-      return updateTransaction (req,"Empty Source Facility found in TImR Receiving Advice","Failed","200","")
+      return updateTransaction (req,"Empty Source Facility found in TImR Receiving Advice","Completed","200","")
     }
 
     var vimsToFacilityId = null
@@ -752,7 +752,7 @@ function setupApp () {
       }
       if(vimsFacId == "" || vimsFacId == null || vimsFacId == undefined) {
         winston.error("No matching VIMS Facility ID for " + toFacilityId + ",Stop Processing")
-        return updateTransaction (req,"No matching VIMS Facility ID for " + toFacilityId,"Failed","200","")
+        return updateTransaction (req,"No matching VIMS Facility ID for " + toFacilityId,"Completed","200","")
       }
       winston.info("Received VIMS facility ID")
       vimsToFacilityId = vimsFacId
@@ -762,7 +762,7 @@ function setupApp () {
         winston.info("Received Distribution From VIMS For Receiving Advice")
         if(!distribution) {
           winston.warn('No matching DespatchAdvice in VIMS!!!')
-          updateTransaction(req,"No matching DespatchAdvice in VIMS!!!","Completed with error(s)","200",orchestrations)
+          updateTransaction(req,"No matching DespatchAdvice in VIMS!!!","Completed","200",orchestrations)
         }
         if(distribution){
           if(distributionid == distribution.id) {
@@ -808,7 +808,7 @@ function setupApp () {
           }
           else {
             winston.error("VIMS has responded with Despatch Advice ID " + distribution.id + " Which Does Not Match TImR Receiving Advice ID " + distributionid)
-            return updateTransaction(req,"VIMS has responded with Despatch Advice ID " + distribution.id + " Which Does Not Match TImR Receiving Advice ID " + distributionid,"Completed with error(s)","200",orchestrations)
+            return updateTransaction(req,"VIMS has responded with Despatch Advice ID " + distribution.id + " Which Does Not Match TImR Receiving Advice ID " + distributionid,"Completed","200",orchestrations)
             orchestrations = []
           }
         }
