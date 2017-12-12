@@ -395,7 +395,7 @@ function setupApp () {
               return processNextFacility()
             }
             else if(period.length == 0) {
-              winston.error("Skip Processing " + facilityName + ", No Period Found")
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
               return processNextFacility()
             }
             else {
@@ -709,7 +709,7 @@ function setupApp () {
 
     var distr = req.rawBody
     if(distr == "" || distr == null || distr == undefined) {
-      winston.error("TImR has sent empty receiving Advice,stop processing")
+      winston.warn("TImR has sent empty receiving Advice,stop processing")
       return updateTransaction (req,"TImR has sent empty receiving Advice","Completed","200","")
     }
 

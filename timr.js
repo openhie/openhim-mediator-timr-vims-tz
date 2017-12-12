@@ -110,7 +110,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             }
             var value = JSON.parse(body).total
             var queryName = query.name
-            //winston.error(queryName+" "+value+" "+url.toString())
             values[queryName] = value
             totalLoop--
             if(totalLoop === 0) {
@@ -387,10 +386,9 @@ the format of this extension is like this:
         },function(){
             nexturl = false
             if(!body.hasOwnProperty("link")) {
-              winston.error("An error occured with cold chain results returned by TImR")
+              winston.error("An expected results returned from TImR")
               return callback(err)
             }
-            winston.error(JSON.stringify(body.link))
             for(var len=0,totalLinks=body.link.length;len<totalLinks;len++) {
               if(body.link[len].hasOwnProperty("relation") && body.link[len].relation=="next")
                 nexturl = body.link[len].url

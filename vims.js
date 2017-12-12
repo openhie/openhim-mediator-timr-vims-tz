@@ -16,30 +16,60 @@ module.exports = function (vimscnf,oimcnf) {
   const oimconfig = oimcnf
   const oim = OIM(oimcnf)
 
-  function saveSessionsData(report,data) {
-    report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
-    report.report.outreachImmunizationSessions = data[periodDate].outreach
-    report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
-    report.report.fixedImmunizationSessions = data[periodDate].sessions
-    var sessionsUpdatedReport = {
-                                  "id":report.report.id,
-                                  "facilityId":report.report.facilityId,
-                                  "periodId":report.report.periodId,
-                                  "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions,
-                                  "outreachImmunizationSessions":report.report.outreachImmunizationSessions,
-                                  "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled,
-                                  "fixedImmunizationSessions":report.report.fixedImmunizationSessions
-                                }
-    this.saveVIMSReport (sessionsUpdatedReport,"Sending Sessions Data",orchestrations,(err,res,body)=>{
-      if(err) {
+  function saveSessionsData(period,report,data,orchestrations,callback) {
+    var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
+    if(data.hasOwnProperty(periodDate)) {
+      report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
+      report.report.outreachImmunizationSessions = data[periodDate].outreach
+      report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
+      report.report.fixedImmunizationSessions = data[periodDate].sessions
+      var sessionsUpdatedReport = {
+                                    "id":report.report.id,
+                                    "facilityId":report.report.facilityId,
+                                    "periodId":report.report.periodId,
+                                    "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions,
+                                    "outreachImmunizationSessions":report.report.outreachImmunizationSessions,
+                                    "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled,
+                                    "fixedImmunizationSessions":report.report.fixedImmunizationSessions
+                                  }
+      saveVIMSReport (sessionsUpdatedReport,"Sending Sessions Data",orchestrations,(err,res,body)=>{
+        if(err) {
+          winston.error(err)
+          return callback(err)
+        }
+        else
+        return callback(err,res,body)
+      })
+    }
+    else
+    return callback()
+  }
+
+  function saveVIMSReport (updatedReport,name,orchestrations,callback) {
+    var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
+    var username = vimsconfig.username
+    var password = vimsconfig.password
+    var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+    var options = {
+      url: url.toString(),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: auth
+      },
+      json:updatedReport
+    }
+    let before = new Date()
+    request.put(options, function (err, res, body) {
+      orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, JSON.stringify(body)))
+      if (err) {
         winston.error(err)
-        return callback(err)
+        return callback(err,res,body)
       }
       else
-      return callback(err,res)
+      return callback(err,res,body)
     })
   }
-  
+
   return {
     j_spring_security_check: function(orchestrations,callback) {
       var url = URI(vimsconfig.url).segment('j_spring_security_check')
@@ -183,31 +213,6 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveVIMSReport: function(updatedReport,name,orchestrations,callback) {
-      var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
-      var username = vimsconfig.username
-      var password = vimsconfig.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
-      var options = {
-        url: url.toString(),
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: auth
-        },
-        json:updatedReport
-      }
-      let before = new Date()
-      request.put(options, function (err, res, body) {
-        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, JSON.stringify(body)))
-        if (err) {
-          winston.error(err)
-          return callback(err,res,body)
-        }
-        else
-        return callback(err,res,body)
-      })
-    },
-
     saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
       if(values == "" || values == undefined || values == null) {
         winston.error("Empty data Submitted,skip processing data of value "+ JSON.stringify(values))
@@ -260,7 +265,7 @@ module.exports = function (vimscnf,oimcnf) {
                                     "periodId":report.report.periodId,
                                     "coverageLineItems":[report.report.coverageLineItems[index]]
                                   }
-              this.saveVIMSReport(updatedReport,"Immunization Coverage",orchestrations,(err,res,body)=>{
+              saveVIMSReport(updatedReport,"Immunization Coverage",orchestrations,(err,res,body)=>{
                 if (err) {
                   winston.error(err)
                   return callback(err)
@@ -320,7 +325,7 @@ module.exports = function (vimscnf,oimcnf) {
                                       "periodId":report.report.periodId,
                                       "vitaminSupplementationLineItems":[report.report.vitaminSupplementationLineItems[index]]
                                     }
-                this.saveVIMSReport(updatedReport,"Supplements",orchestrations,(err,res,body)=>{
+                saveVIMSReport(updatedReport,"Supplements",orchestrations,(err,res,body)=>{
                   if (err) {
                     winston.error(err)
                   }
@@ -367,7 +372,7 @@ module.exports = function (vimscnf,oimcnf) {
                                                                   "isInvestigated": true
                                                                 }]
                                     }
-                this.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
                   if (err) {
                     winston.error(err)
                     return nxtValue()
@@ -401,7 +406,7 @@ module.exports = function (vimscnf,oimcnf) {
                                           "periodId":report.report.periodId,
                                           "adverseEffectLineItems":[report.report.adverseEffectLineItems[index]]
                                         }
-                    this.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                    saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
                       found = true
                       if (err) {
                         winston.error(err)
@@ -473,7 +478,7 @@ module.exports = function (vimscnf,oimcnf) {
                                   "periodId":report.report.periodId,
                                   "diseaseLineItems":[report.report.diseaseLineItems[index]]
                                 }
-            this.saveVIMSReport(updatedReport,"diseaseLineItems",orchestrations,(err,res,body)=>{
+            saveVIMSReport(updatedReport,"diseaseLineItems",orchestrations,(err,res,body)=>{
               if (err) {
                 winston.error(err)
               }
@@ -498,7 +503,7 @@ module.exports = function (vimscnf,oimcnf) {
           return callback()
         }
         if(vimsid=="" || vimsid == null || vimsid == undefined){
-          winston.error(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
+          winston.warn(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
           var err = true
           return callback(err)
         }
@@ -508,7 +513,7 @@ module.exports = function (vimscnf,oimcnf) {
             return callback()
           }
           else if(period.length == 0) {
-            winston.error("Skip Processing Facility" + uuid + ", No Period Found")
+            winston.warn("Skip Processing Facility" + uuid + ", No Period Found")
             return callback()
           }
           else if(period.length == 1) {
@@ -518,10 +523,11 @@ module.exports = function (vimscnf,oimcnf) {
                 if(err || !report) {
                   return callback()
                 }
-                saveSessionsData(report,data)
                 if(report.report.coldChainLineItems.length == 0) {
-                  winston.error("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending data to VIMS for this facility")
-                  return callback()
+                  saveSessionsData(period,report,data,orchestrations,(err,res,body)=>{
+                    winston.warn("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending Cold Chain data to VIMS for this facility")
+                    return callback()
+                  })
                 }
                 async.eachOfSeries(report.report.coldChainLineItems,(coldChainLineItem,index,nextColdChain) =>{
                   var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
@@ -537,8 +543,10 @@ module.exports = function (vimscnf,oimcnf) {
                                                     "periodId":report.report.periodId,
                                                     "coldChainLineItems":[report.report.coldChainLineItems[index]]
                                                   }
-                    this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
-
+                    saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
+                      saveSessionsData(period,report,data,orchestrations,(err,res,body)=>{
+                        return callback(err,res)
+                      })
                     })
                   }
                   else{
@@ -612,7 +620,7 @@ module.exports = function (vimscnf,oimcnf) {
                                     "periodId":report.report.periodId,
                                     "logisticsLineItems":[report.report.logisticsLineItems[index]]
                                   }
-              this.saveVIMSReport (updatedReport,"Stock",orchestrations,(err,res,body)=>{
+              saveVIMSReport (updatedReport,"Stock",orchestrations,(err,res,body)=>{
                 if (err) {
                   return callback(err)
                 }
