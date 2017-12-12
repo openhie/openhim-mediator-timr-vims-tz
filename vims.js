@@ -15,6 +15,31 @@ module.exports = function (vimscnf,oimcnf) {
   const vimsconfig = vimscnf
   const oimconfig = oimcnf
   const oim = OIM(oimcnf)
+
+  function saveSessionsData(report,data) {
+    report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
+    report.report.outreachImmunizationSessions = data[periodDate].outreach
+    report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
+    report.report.fixedImmunizationSessions = data[periodDate].sessions
+    var sessionsUpdatedReport = {
+                                  "id":report.report.id,
+                                  "facilityId":report.report.facilityId,
+                                  "periodId":report.report.periodId,
+                                  "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions,
+                                  "outreachImmunizationSessions":report.report.outreachImmunizationSessions,
+                                  "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled,
+                                  "fixedImmunizationSessions":report.report.fixedImmunizationSessions
+                                }
+    this.saveVIMSReport (sessionsUpdatedReport,"Sending Sessions Data",orchestrations,(err,res,body)=>{
+      if(err) {
+        winston.error(err)
+        return callback(err)
+      }
+      else
+      return callback(err,res)
+    })
+  }
+  
   return {
     j_spring_security_check: function(orchestrations,callback) {
       var url = URI(vimsconfig.url).segment('j_spring_security_check')
@@ -493,6 +518,7 @@ module.exports = function (vimscnf,oimcnf) {
                 if(err || !report) {
                   return callback()
                 }
+                saveSessionsData(report,data)
                 if(report.report.coldChainLineItems.length == 0) {
                   winston.error("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending data to VIMS for this facility")
                   return callback()
@@ -500,62 +526,19 @@ module.exports = function (vimscnf,oimcnf) {
                 async.eachOfSeries(report.report.coldChainLineItems,(coldChainLineItem,index,nextColdChain) =>{
                   var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
                   if(data.hasOwnProperty(periodDate)) {
-                    report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
-                    report.report.outreachImmunizationSessions = data[periodDate].outreach
-                    report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
-                    report.report.fixedImmunizationSessions = data[periodDate].sessions
                     report.report.coldChainLineItems[index].minTemp = data[periodDate].coldStoreMin
                     report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
                     report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
                     report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
                     report.report.coldChainLineItems[index].operationalStatusId = data[periodDate].status
                     var coldChainUpdatedReport = {
-                                          "id":report.report.id,
-                                          "facilityId":report.report.facilityId,
-                                          "periodId":report.report.periodId,
-                                          "coldChainLineItems":[report.report.coldChainLineItems[index]]
-                                        }
-                    var outreachPlanUpdatedReport = {
-                                                      "id":report.report.id,
-                                                      "facilityId":report.report.facilityId,
-                                                      "periodId":report.report.periodId,
-                                                      "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions
-                                                    }
-                    var outrImmSessUpdatedReport = {
-                                                      "id":report.report.id,
-                                                      "facilityId":report.report.facilityId,
-                                                      "periodId":report.report.periodId,
-                                                      "outreachImmunizationSessions":report.report.outreachImmunizationSessions
-                                                    }
-                    var outrImmSessCancUpdatedReport = {
-                                                        "id":report.report.id,
-                                                        "facilityId":report.report.facilityId,
-                                                        "periodId":report.report.periodId,
-                                                        "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled
-                                                       }
-                     var fixedImmSessUpdatedReport = {
-                                                       "id":report.report.id,
-                                                       "facilityId":report.report.facilityId,
-                                                       "periodId":report.report.periodId,
-                                                       "fixedImmunizationSessions":report.report.fixedImmunizationSessions
-                                                      }
+                                                    "id":report.report.id,
+                                                    "facilityId":report.report.facilityId,
+                                                    "periodId":report.report.periodId,
+                                                    "coldChainLineItems":[report.report.coldChainLineItems[index]]
+                                                  }
                     this.saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
-                      this.saveVIMSReport (outreachPlanUpdatedReport,"Planned Outreach",orchestrations,(err,res,body)=>{
-                        this.saveVIMSReport (outrImmSessUpdatedReport,"Outreach Immunization Sessions",orchestrations,(err,res,body)=>{
-                          this.saveVIMSReport (outrImmSessCancUpdatedReport,"Outreach Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
-                            this.saveVIMSReport (outrImmSessCancUpdatedReport,"Outreach Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
-                              this.saveVIMSReport (fixedImmSessUpdatedReport,"Immunization Sessions Cancelled",orchestrations,(err,res,body)=>{
-                                if (err) {
-                                  winston.error(err)
-                                  return callback(err,res)
-                                }
-                                else
-                                return callback(err,res)
-                              })
-                            })
-                          })
-                        })
-                      })
+
                     })
                   }
                   else{
