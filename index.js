@@ -136,6 +136,8 @@ function setupApp () {
       dosesMapping.push({'name': 'Dose 1','timrid': '1','vimsid': '1','vimsid1': '2'})
       dosesMapping.push({'name': 'Dose 2','timrid': '2','vimsid': '2','vimsid1': '3'})
       dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
+      dosesMapping.push({'name': 'Dose 4','timrid': '4','vimsid': '4','vimsid1': '5'})
+      dosesMapping.push({'name': 'Dose 5','timrid': '5','vimsid': '5','vimsid1': '6'})
       callback(dosesMapping)
     }
     oim.getVimsFacilities(orchestrations,(err,facilities)=>{

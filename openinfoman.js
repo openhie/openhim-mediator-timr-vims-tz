@@ -49,11 +49,15 @@ module.exports = function (oimconf) {
           var detailsLoopControl = totalDetails
           var vimsFacilityId = 0
           var DVS = false
+          var multiplevimsid = false
           for(var detailsCount = 0;detailsCount<totalDetails;detailsCount++) {
             if( facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "https://vims.moh.go.tz" &&
                 facilityDetails.eq(detailsCount).attr("code") == "id"
-              )
-              vimsFacilityId = facilityDetails.eq(detailsCount).text()
+              ) {
+                if(vimsFacilityId)
+                multiplevimsid = true
+                vimsFacilityId = facilityDetails.eq(detailsCount).text()
+            }
             if(facilityDetails.eq(detailsCount).has("csd:primaryName"))
               var facilityName = facilityDetails.eq(detailsCount).find("csd:primaryName").text()
             if( facilityDetails.eq(detailsCount).has("csd:extension") &&
@@ -64,7 +68,12 @@ module.exports = function (oimconf) {
               DVS = true
           }
           if(DVS === false) {
-            facilities.push({"timrFacilityId":timrFacilityId,"vimsFacilityId":vimsFacilityId,"facilityName":facilityName})
+            facilities.push({
+                              "timrFacilityId":timrFacilityId,
+                              "vimsFacilityId":vimsFacilityId,
+                              "facilityName":facilityName,
+                              "multiplevimsid":multiplevimsid
+                            })
             loopCntr--
           }
           else {

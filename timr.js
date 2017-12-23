@@ -82,10 +82,19 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         var totalValues = 0
         var queryPar = []
         var values = {}
-        queryPar.push({'name': 'regularMale','fhirQuery':'patient.gender=male&in-catchment=True&dose-sequence='+dose.timrid})
-        queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=True&dose-sequence='+dose.timrid})
-        queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=False&dose-sequence='+dose.timrid})
-        queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=False&dose-sequence='+dose.timrid})
+        //TT does not have catchment data,lets treat it differently
+        if(timrVaccCode == 112) {
+          queryPar.push({'name': 'regularMale','fhirQuery':'patient.gender=male&dose-sequence='+dose.timrid})
+          queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&dose-sequence='+dose.timrid})
+          values["outreachMale"] = 0
+          values["outreachFemale"] = 0
+        }
+        else {
+          queryPar.push({'name': 'regularMale','fhirQuery':'patient.gender=male&in-catchment=True&dose-sequence='+dose.timrid})
+          queryPar.push({'name': 'regularFemale','fhirQuery':'patient.gender=female&in-catchment=True&dose-sequence='+dose.timrid})
+          queryPar.push({'name': 'outreachMale','fhirQuery':'patient.gender=male&in-catchment=False&dose-sequence='+dose.timrid})
+          queryPar.push({'name': 'outreachFemale','fhirQuery':'patient.gender=female&in-catchment=False&dose-sequence='+dose.timrid})
+        }
         var vaccineStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
         var vaccineEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var totalLoop = queryPar.length
@@ -109,6 +118,8 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
               return callback(err)
             }
             var value = JSON.parse(body).total
+            if(timrVaccCode == 112)
+              winston.error(url+"===>"+value)
             var queryName = query.name
             values[queryName] = value
             totalLoop--
@@ -150,7 +161,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           .segment('AdverseEvent')
           +'?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
-
+          winston.error(url)
           var options = {
             url: url.toString(),
             headers: {
@@ -285,7 +296,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                 winston.error(err)
               }
               var value = JSON.parse(body).total
-
               if(vimsDiseaseCode in values)
                 Object.assign(values[vimsDiseaseCode],{[conditionName]:value})
               else
@@ -305,20 +315,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
     /*
     The IVD data has been updated to allow for outreach and session data... Basically you are looking for an extension : http://openiz.org/extensions/contrib/bid/ivdExtendedData
 the format of this extension is like this:
-
-{
-    "2017-10": {
-        "status": "1",
-        "outreachPlan": 6,
-        "coldStoreMin": 3,
-        "coldStoreMax": 15,
-        "coldStoreLow": 2,
-        "coldStoreHigh": 16,
-        "sessions": 11,
-        "outreach": 0,
-        "outreachCancel": 6,
-        "_write": true
-    }
     */
     processColdChain: function (access_token,nexturl,orchestrations,callback) {
       if(!nexturl)
@@ -408,6 +404,8 @@ the format of this extension is like this:
         var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
         var endDate = moment(period[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
+        winston.error(gs1RequestMessage)
+        process.exit()
         let url = URI(timrconfig.url)
         .segment('gs1')
         .segment('inventoryReport')
@@ -422,6 +420,7 @@ the format of this extension is like this:
         }
         let before = new Date()
         request.post(options, function (err, res, body) {
+          winston.error(body)
           orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, JSON.stringify(body)))
           if (err) {
             return callback(err)

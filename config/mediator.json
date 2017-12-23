@@ -1,5 +1,5 @@
 {
-  "urn": "urn:uuid:7078b8b7-16b9-48cd-b8ad-38be64733d75",
+  "urn": "staging",
   "version": "0.0.1",
   "name": "TImR-VIMS Trigger",
   "description": "This mediator synchronises data between TImR and VIMS",
