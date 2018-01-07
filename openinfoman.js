@@ -98,7 +98,6 @@ module.exports = function (oimconf) {
       var csd_msg = `<csd:requestParams xmlns:csd="urn:ihe:iti:csd:2013">
                       <csd:id entityID="${uuid}"></csd:id>
                      </csd:requestParams>`
-                     winston.error(csd_msg)
       var options = {
         url: url.toString(),
         headers: {
@@ -114,7 +113,6 @@ module.exports = function (oimconf) {
           winston.error(err)
           return callback(err,"")
         }
-        winston.error(body)
         var ast = XmlReader.parseSync(body)
         var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
         var facility = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children()

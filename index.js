@@ -325,11 +325,11 @@ function setupApp () {
               return processNextFacility()
             }
             if(period.length > 1 ) {
-              winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()
             }
             else if(period.length == 0) {
-              winston.error("Skip Processing " + facilityName + ", No Period Found")
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
               return processNextFacility()
             }
             else {
@@ -393,7 +393,7 @@ function setupApp () {
               return processNextFacility()
             }
             if(period.length > 1 ) {
-              winston.error("VIMS has returned two DRAFT reports,processng stoped!!!")
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
               return processNextFacility()
             }
             else if(period.length == 0) {

@@ -73,8 +73,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
     getImmunizationData: function (access_token,vimsVaccCode,dose,facilityid,period,orchestrations,callback) {
       this.getTimrCode (vimsVaccCode,timrVimsImmConceptMap,(timrVaccCode)=> {
         if(timrVaccCode == "") {
-          callback()
-          return
+          return callback()
         }
         if(vimsVaccCode == '2412')
         dose.timrid = 0
@@ -118,8 +117,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
               return callback(err)
             }
             var value = JSON.parse(body).total
-            if(timrVaccCode == 112)
-              winston.error(url+"===>"+value)
             var queryName = query.name
             values[queryName] = value
             totalLoop--
@@ -161,7 +158,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           .segment('AdverseEvent')
           +'?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
-          winston.error(url)
           var options = {
             url: url.toString(),
             headers: {
@@ -382,7 +378,7 @@ the format of this extension is like this:
         },function(){
             nexturl = false
             if(!body.hasOwnProperty("link")) {
-              winston.error("An expected results returned from TImR")
+              winston.error("Un expected results returned from TImR")
               return callback(err)
             }
             for(var len=0,totalLinks=body.link.length;len<totalLinks;len++) {
@@ -404,8 +400,6 @@ the format of this extension is like this:
         var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
         var endDate = moment(period[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
-        winston.error(gs1RequestMessage)
-        process.exit()
         let url = URI(timrconfig.url)
         .segment('gs1')
         .segment('inventoryReport')
@@ -420,7 +414,6 @@ the format of this extension is like this:
         }
         let before = new Date()
         request.post(options, function (err, res, body) {
-          winston.error(body)
           orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, JSON.stringify(body)))
           if (err) {
             return callback(err)
