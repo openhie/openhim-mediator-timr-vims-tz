@@ -851,6 +851,10 @@ function start (callback) {
           let app = setupApp()
           const server = app.listen(9000, () => {
             let configEmitter = medUtils.activateHeartbeat(apiConf.api)
+            configEmitter.on('error',(error) => {
+            	winston.error(error)
+              winston.error("an error occured while trying to activate heartbeat")
+            })
             configEmitter.on('config', (newConfig) => {
               winston.info('Received updated config:', newConfig)
               // set new config for mediator
