@@ -213,7 +213,7 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
+    saveImmunizationData: function (period,values,vimsVaccCode,dose,facilityName,orchestrations,callback) {
       if(values == "" || values == undefined || values == null) {
         winston.error("Empty data Submitted,skip processing data of value "+ JSON.stringify(values))
         return callback()
@@ -250,7 +250,7 @@ module.exports = function (vimscnf,oimcnf) {
           }
           var totalCoveLine = report.report.coverageLineItems.length
           var found = false
-          winston.info('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
+          winston.info('Processing ' + facilityName + ' Vacc Code ' + vimsVaccCode  + ' ' + dose.name + JSON.stringify(values))
           report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
             if(coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
               found = true
