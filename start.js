@@ -5,7 +5,9 @@ const moment = require('moment')
 
   var child = new (forever.Monitor)('index.js', {
     append: true,
-    silent: false,
+    silent: false,    
+    node_args: ["--max_old_space_size=2000"],
+    command: 'node --max_old_space_size=2000',
     args: []
   });
 

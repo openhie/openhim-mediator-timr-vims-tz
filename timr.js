@@ -114,7 +114,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
             if (err) {
               winston.error(err)
-              return callback(err)
+              totalLoop--
+              if(totalLoop === 0) {
+                return callback('',values)
+              }
+              else
+              return
             }
             var value = JSON.parse(body).total
             var queryName = query.name

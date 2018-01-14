@@ -182,12 +182,15 @@ function setupApp () {
                     vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
                       winston.info("Done Getting All VIMS Immunization Data Elements")
                       async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
+                      //const immValPromise
+                      //for(var immValSetKey in vimsImmValueSet) {
+                        //var vimsVaccCode = vimsImmValueSet[immValSetKey]
                         winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
                         getDosesMapping((doses) =>{
                           async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
                             timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,period,orchestrations,(err,values) => {
                               vims.saveImmunizationData(period,values,vimsVaccCode.code,dose,facilityName,orchestrations,(err) =>{
-                                processNextDose()
+                                return processNextDose()
                               })
                             })
                           },function() {
@@ -195,7 +198,7 @@ function setupApp () {
                           })
                         })
                       },function() {
-                          //before fetching new facility,lets process vitaminA for this facility first
+                          //before fetching new facility,lets process supplements for this facility first
                           winston.info("Processing Supplements")
                           vims.getValueSets (vimsVitaminValueSets,(err,vimsVitValueSet) => {
                             async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
