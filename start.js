@@ -6,7 +6,9 @@ const moment = require('moment')
   var child = new (forever.Monitor)('index.js', {
     append: true,
     silent: false,    
-    node_args: ["--max_old_space_size=2000"],
+    logFile:"/home/ubuntu/timr_vims_forever.log",
+    outFile: "/home/ubuntu/timr_vims.log",
+    errFile: "/home/ubuntu/timr_vims_error.log",
     command: 'node --max_old_space_size=2000',
     args: []
   });
