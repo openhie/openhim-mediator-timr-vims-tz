@@ -608,6 +608,26 @@
       ]
     },
     {
+      "param": "rapidpro",
+      "displayName": "Rapidpro",
+      "description": "Communication App",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. http://52.32.67.173:8000)",
+          "type": "string"
+        },
+        {
+          "param": "token",
+          "displayName": "Token",
+          "description": "Token",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "param": "email_notification",
       "displayName": "Email Notification",
       "description": "Email Notification",

@@ -611,15 +611,18 @@ function setupApp () {
     vims.convertDistributionToGS1(distribution,orchestrations,(err,despatchAdviceBaseMessage)=>{
       if(err) {
         winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
+        updateTransaction(req,"","Completed","200",orchestrations)
         return
       }
       if(despatchAdviceBaseMessage == false) {
         winston.info("Failed to convert VIMS Distribution to GS1")
+        updateTransaction(req,"","Completed","200",orchestrations)
         return
       }
       timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
         if(err) {
           winston.error("An error occured while getting access token from TImR")
+          updateTransaction(req,"","Completed","200",orchestrations)
           return
         }
         winston.info("Received GS1 Access Token From TImR")
