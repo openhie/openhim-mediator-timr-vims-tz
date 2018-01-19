@@ -598,6 +598,8 @@ function setupApp () {
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
     winston.info("Received Despactch Advise From VIMS")
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims,config.openinfoman)
