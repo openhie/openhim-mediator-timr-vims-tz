@@ -1,0 +1,9 @@
+{
+	"02" : ["Dose 0","Dose 1","Dose 2","Dose 3"],
+	"122" : ["Dose 1","Dose 2"],
+	"19" : ["Dose 0"],
+	"133" : ["Dose 0","Dose 1","Dose 2","Dose 3","Dose 4","Dose 5"],
+	"102" : ["Dose 1","Dose 2","Dose 3"],
+	"04" : ["Dose 1","Dose 2"],
+	"112" : ["Dose 1","Dose 2","Dose 3","Dose 4","Dose 5"]
+}

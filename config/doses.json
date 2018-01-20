@@ -1,0 +1,8 @@
+{
+	"Dose 0" : {"name": "Dose 0","timrid": "0","vimsid": "0","vimsid1": "1"},
+	"Dose 1" : {"name": "Dose 1","timrid": "1","vimsid": "1","vimsid1": "2"},
+	"Dose 2" : {"name": "Dose 2","timrid": "2","vimsid": "2","vimsid1": "3"},
+	"Dose 3" : {"name": "Dose 3","timrid": "3","vimsid": "3","vimsid1": "4"},
+	"Dose 4" : {"name": "Dose 4","timrid": "4","vimsid": "4","vimsid1": "5"},
+	"Dose 5" : {"name": "Dose 5","timrid": "5","vimsid": "5","vimsid1": "6"}
+}

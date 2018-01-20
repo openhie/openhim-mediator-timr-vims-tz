@@ -23,6 +23,9 @@ const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.jso
 const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
 const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
 const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
+const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const imm_doses = require("./config/doses.json")
+const vacc_doses_mapping = require("./config/vaccine-doses-mapping.json")
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -131,16 +134,27 @@ function setupApp () {
     updateTransaction (req,"Still Processing","Processing","200","")
     //process immunization coverage
     //need to put this inside terminology service
-    function getDosesMapping (callback) {
-      var dosesMapping = []
-      dosesMapping.push({'name': 'Dose 0','timrid': '0','vimsid': '0','vimsid1': '1'})
-      dosesMapping.push({'name': 'Dose 1','timrid': '1','vimsid': '1','vimsid1': '2'})
-      dosesMapping.push({'name': 'Dose 2','timrid': '2','vimsid': '2','vimsid1': '3'})
-      dosesMapping.push({'name': 'Dose 3','timrid': '3','vimsid': '3','vimsid1': '4'})
-      dosesMapping.push({'name': 'Dose 4','timrid': '4','vimsid': '4','vimsid1': '5'})
-      dosesMapping.push({'name': 'Dose 5','timrid': '5','vimsid': '5','vimsid1': '6'})
-      callback(dosesMapping)
+    function getDosesMapping (vimsVaccCode,callback) {
+      timr.getTimrCode (vimsVaccCode,timrVimsImmConceptMap,(timrVaccCode)=> {
+        var dosesMapping = []
+        async.eachOfSeries(vacc_doses_mapping,(vacc_doses,vacc_doses_key,nxtVaccDoses)=>{
+        if(vacc_doses_key == timrVaccCode) {
+          async.eachSeries(vacc_doses,(dose,nxtDose)=>{
+           dosesMapping.push(imm_doses[dose])
+           return nxtDose()
+          },function(){
+            return nxtVaccDoses()
+          })
+        }
+        else {
+          return nxtVaccDoses()
+        }
+        },function(){
+          return callback(dosesMapping)
+        })
+      })
     }
+
     oim.getVimsFacilities(orchestrations,(err,facilities)=>{
       if(err) {
         winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
@@ -187,7 +201,7 @@ function setupApp () {
                       promises.push(new Promise((resolve, reject) => {
                         var vimsVaccCode = vimsImmValueSet[immValSetKey]
                         winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
-                        getDosesMapping((doses) =>{
+                        getDosesMapping(vimsVaccCode.code,(doses) =>{
                           async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
                             timr.getImmunizationData(access_token,vimsVaccCode.code,dose,timrFacilityId,period,orchestrations,(err,values) => {
                               vims.saveImmunizationData(period,values,vimsVaccCode.code,dose,facilityName,orchestrations,(err) =>{
