@@ -503,6 +503,34 @@ the format of this extension is like this:
         else
         callback(body)
       })
+    },
+
+    getDefaulters: function(access_token,orchestrations,callback) {
+      var defDate = moment().subtract(10,'days').format('YYYY-MM-DD')
+      let url = URI(timrconfig.url)
+      .segment('risi')
+      .segment('datamart')
+      .segment('7a057b9f-bb11-4822-8a89-60a9012b3163')
+      .segment('query')
+      .segment('defaulters')
+      + "?act_date=" + defDate + "&_count=2"
+      .toString()
+      var options = {
+        url: url.toString(),
+        headers: {
+          Authorization: `BEARER ${access_token}`,
+          Accept: "application/json"
+          }
+      }
+      let before = new Date()
+      request.get(options, function (err, res, body) {
+        orchestrations.push(utils.buildOrchestration('Getting Defaulters', before, 'GET', url.toString(), options.body, res, body))
+        if (err) {
+          return callback("",err)
+        }
+        else
+          return callback(body,err)
+      })
     }
 
   }

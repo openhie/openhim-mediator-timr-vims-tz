@@ -14,6 +14,7 @@ const xmlQuery = require('xml-query')
 const TImR = require('./timr')
 const VIMS = require('./vims')
 const OIM = require('./openinfoman')
+const RP = require('./rapidpro')
 const async = require('async')
 const bodyParser = require('body-parser')
 var xmlparser = require('express-xml-bodyparser')
@@ -26,7 +27,7 @@ const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
-const mediatorConfig = require('./config/mediator')
+const mediatorConfig = require('./config/mediator_staging')
 
 // socket config - large documents can cause machine to max files open
 const https = require('https')
@@ -146,45 +147,45 @@ function setupApp () {
         return
       }
       const promises = []
-      for(var fackey in facilities){
-        promises.push(new Promise((resolve, reject) => {
-          var vimsFacilityId = facilities[fackey].vimsFacilityId
-          var timrFacilityId = facilities[fackey].timrFacilityId
-          var facilityName = facilities[fackey].facilityName
-          if(vimsFacilityId > 0) {
-            winston.info("Getting period for " + facilityName)
-            vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
-              if(err) {
-                winston.error(err)
-                return resolve()
-              }
-              winston.info("Done Getting Period")
-              if(period.length > 1 ) {
-                winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
-                return resolve()
-              }
-              else if(period.length == 0) {
-                winston.warn("Skip Processing " + facilityName + ", No Period Found")
-                return resolve()
-              }
-              else {
-                winston.info("Getting Access Token from TImR")
-                if(period.length == 1) {
-                  timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
-                    if(err) {
-                      winston.error("An error occured while getting access token from TImR")
-                      return resolve()
-                    }
-                    winston.info("Done Getting Access Token")
-                    winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
-                    var access_token = JSON.parse(body).access_token
-                    winston.info("Getting All VIMS Immunization Data Elements")
-                    vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
-                      winston.info("Done Getting All VIMS Immunization Data Elements")
-                      async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
-                      //const immValPromise
-                      //for(var immValSetKey in vimsImmValueSet) {
-                        //var vimsVaccCode = vimsImmValueSet[immValSetKey]
+      async.eachSeries(facilities,function(facility,processNextFacility){
+        var vimsFacilityId = facility.vimsFacilityId
+        var timrFacilityId = facility.timrFacilityId
+        var facilityName = facility.facilityName
+        if(vimsFacilityId > 0) {
+          winston.info("Getting period for " + facilityName)
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return processNextFacility()
+            }
+            winston.info("Done Getting Period")
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports for " + facilityName + ",processng stoped!!!")
+              return processNextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return processNextFacility()
+            }
+            else {
+              winston.info("Getting Access Token from TImR")
+              if(period.length == 1) {
+                timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                  if(err) {
+                    winston.error("An error occured while getting access token from TImR")
+                    return processNextFacility()
+                  }
+                  winston.info("Done Getting Access Token")
+                  winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
+                  var access_token = JSON.parse(body).access_token
+                  winston.info("Getting All VIMS Immunization Data Elements")
+                  vims.getValueSets (vimsImmValueSets,(err,vimsImmValueSet) => {
+                    winston.info("Done Getting All VIMS Immunization Data Elements")
+                    const immValPromise = []
+                    //async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
+                    for(var immValSetKey in vimsImmValueSet) {
+                      promises.push(new Promise((resolve, reject) => {
+                        var vimsVaccCode = vimsImmValueSet[immValSetKey]
                         winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
                         getDosesMapping((doses) =>{
                           async.eachOfSeries(doses,function(dose,doseInd,processNextDose) {
@@ -194,34 +195,34 @@ function setupApp () {
                               })
                             })
                           },function() {
-                            processNextDtElmnt()
+                            return resolve()
                           })
                         })
-                      },function() {
-                          //before fetching new facility,lets process supplements for this facility first
-                          winston.info("Processing Supplements")
-                          vims.getValueSets (vimsVitaminValueSets,(err,vimsVitValueSet) => {
-                            async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
-                              winston.info("Processing Supplement Id "+vimsVitCode.code)
-                              timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
-                                vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
-                                  winston.info("Done processing vacc coverage for " + facilityName)
-                                  return resolve()
-                                })
-                              })
+                      }))
+                    }
+
+                    Promise.all(promises).then(() => {
+                      //before fetching new facility,lets process supplements for this facility first
+                      winston.info("Processing Supplements")
+                      vims.getValueSets (vimsVitaminValueSets,(err,vimsVitValueSet) => {
+                        async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
+                          winston.info("Processing Supplement Id "+vimsVitCode.code)
+                          timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
+                            vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
+                              winston.info("Done processing vacc coverage for " + facilityName)
+                              return processNextFacility()
                             })
                           })
+                        })
                       })
                     })
                   })
-                }
+                })
               }
-            })
-          }
-        }))
-      }
-
-      Promise.all(promises).then(() => {
+            }
+          })
+        }
+      },function(){
         winston.info('Done Synchronizing Immunization Coverage!!!')
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
@@ -834,6 +835,50 @@ function setupApp () {
   app.post('/orderRequest', (req, res) => {
     res.end()
   })
+
+  app.get('/remindDefaulters',(req,res)=>{
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    let orchestrations = []
+    const timr = TImR(config.timr,config.oauth2)
+    const rapidpro = RP(config.rapidpro)
+    timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+      if(err) {
+        winston.error("An error occured while getting access token from TImR")
+        updateTransaction (req,"","Completed","200",orchestrations)
+        return
+      }
+      winston.info("Received Access Token From TImR")
+      var access_token = JSON.parse(body).access_token
+      timr.getDefaulters(access_token,orchestrations,(defaulters,err)=>{
+        if(err) {
+          winston.warn("An error occured while getting defaulters")
+          return updateTransaction (req,"","Completed","200",orchestrations)
+        }
+        if(!isJSON(defaulters)) {
+          winston.warn("Non JSON defaulter's list have been received")
+          return updateTransaction (req,"","Completed","200",orchestrations)
+        }
+        //removing any whitespace
+        var defaulters = defaulters.replace(/\s/g,'')
+        var defaulters = JSON.parse(defaulters).item
+        const promises = []
+        for(var def_id in defaulters) {
+          promises.push(new Promise((resolve, reject) => {
+            winston.error(defaulters[def_id])
+            resolve()
+          }))
+        }
+
+        Promise.all(promises).then(() => {
+          winston.error("done")
+        })
+
+
+      })
+    })
+  })
+
   return app
 }
 

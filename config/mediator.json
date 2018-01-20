@@ -696,6 +696,10 @@
       "username": "",
       "password": ""
     },
+    "rapidpro": {
+      "url": "http://54.148.103.198:8000",
+      "token": "XXXX-YYYY-ZZZZ"
+    },
     "email_notification": {
       "emails": {
         "1":"allyshaban5@gmail.com",
