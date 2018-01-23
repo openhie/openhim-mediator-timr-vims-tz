@@ -524,7 +524,7 @@ function setupApp () {
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
                 if(res == "" || res == null || res == undefined) {
-                  send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage+ time,()=>{
+                  send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
                     return processNextFacility()
                   })
                 }
