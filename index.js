@@ -8,6 +8,8 @@ const winston = require('winston')
 const moment = require("moment")
 const request = require('request')
 const isJSON = require('is-json')
+const SENDEMAIL = require('./send_email')
+const send_email = SENDEMAIL()
 const URI = require('urijs')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
@@ -26,11 +28,12 @@ const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
 const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
 const imm_doses = require("./config/doses.json")
 const vacc_doses_mapping = require("./config/vaccine-doses-mapping.json")
+const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
-const mediatorConfig = require('./config/mediator_staging')
+const mediatorConfig = require('./config/mediator')
 
 // socket config - large documents can cause machine to max files open
 const https = require('https')
@@ -520,6 +523,12 @@ function setupApp () {
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
+                if(res == "" || res == null || res == undefined) {
+                  send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage+ time,()=>{
+                    return processNextFacility()
+                  })
+                }
+                else
                 return processNextFacility()
               })
             })
@@ -856,6 +865,30 @@ function setupApp () {
     let orchestrations = []
     const timr = TImR(config.timr,config.oauth2)
     const rapidpro = RP(config.rapidpro)
+
+    function getVaccDiseaseMapping (vacc,callback) {
+      var diseases = []
+      var vacc_arr = vacc.split(",")
+      async.eachSeries(vacc_arr,(vacc,nxtVacc)=>{
+        async.eachOfSeries(vacc_diseases_mapping,(vacc_diseases,vacc_diseases_key,nxtVaccDiseases)=>{
+        if(vacc_diseases_key == vacc) {
+          diseases.push(vacc_diseases)
+          return nxtVaccDiseases()
+        }
+        else {
+          return nxtVaccDiseases()
+        }
+      },function(){
+        return nxtVacc()
+        })
+      },function(){
+        var last_vacc = diseases.pop()
+        var diseases_string = diseases.join(",")
+        diseases_string = diseases_string + " & " + last_vacc
+        return callback(diseases_string)
+      })
+    }
+
     timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
       if(err) {
         winston.error("An error occured while getting access token from TImR")
@@ -874,13 +907,63 @@ function setupApp () {
           return updateTransaction (req,"","Completed","200",orchestrations)
         }
         //removing any whitespace
+        defaulters = '{"item":[{"p":[{"Name":"patient_id","Value":"04dad77d-1f0c-44b6-ad67-7c8b687a3460"},{"Name":"days_overdue","Value":"5.00:00:00"},{"Name":"act_date","Value":"2018-01-11T00:00:00"},{"Name":"missed_doses","Value":"DTP-Hib-HepB,OPV,PCV13,rotavirus"},{"Name":"gender_mnemonic","Value":"Female"},{"Name":"dob","Value":"2017-10-05T00:00:00"},{"Name":"family","Value":"Saruni"},{"Name":"given","Value":"Lotoishe sinyati"},{"Name":"tel","Value":null},{"Name":"mth_family","Value":"Lotoishe"},{"Name":"mth_given","Value":"Neshayi"},{"Name":"mth_tel","Value":"0755654543"},{"Name":"nok_family","Value":null},{"Name":"nok_given","Value":null},{"Name":"nok_tel","Value":null}]}],"size":69}'
         var defaulters = defaulters.replace(/\s/g,'')
         var defaulters = JSON.parse(defaulters).item
         const promises = []
+        var child_tel
+        var mth_tel
+        var nok_tel
+        var missed_doses
+        var days
         for(var def_id in defaulters) {
           promises.push(new Promise((resolve, reject) => {
-            winston.error(defaulters[def_id])
-            resolve()
+            async.eachSeries(defaulters[def_id].p,(defDet,nxtDefDet)=>{
+              if(defDet.Name == "days_overdue")
+                days = defDet.Value
+              if(defDet.Name == "missed_doses")
+                missed_doses = defDet.Value
+              if(defDet.Name == "tel")
+                child_tel = defDet.Value
+              if(defDet.Name == "mth_tel")
+                mth_tel = defDet.Value
+              if(defDet.Name == "nok_tel")
+                nok_tel = defDet.Value
+              return nxtDefDet()
+            },function(){
+              var phone = null
+              if(child_tel != null)
+                phone = child_tel
+              else if(mth_tel != null)
+                phone = mth_tel
+              else if(nok_tel != null)
+                phone = nok_tel
+
+              if(phone == null){
+                resolve()
+              }
+              else {
+                if(phone.indexOf("0") === 0) {
+                  phone = phone.replace("0","tel:+255")
+                }
+                else {
+                 phone = "tel:" + phone
+                }
+                getVaccDiseaseMapping(missed_doses,(diseases)=>{
+                  var day_name = moment().format("dddd")
+                  if(day_name == "Saturday" || day_name == "Sunday")
+                    var day = "Jumatatu"
+                  else
+                    var day = "leo"
+
+                  var msg = "Ulikua unatakiwa kuhudhuria clinic kwa ajili ya chanjo ya/za " + missed_doses + 
+                            " . Mtoto wako asipopata hizi chanjo anaweza kupatwa na magonjwa kama " + diseases + " Tembelea kituo cha afya " + day +" ili kupata chanjo"
+                  var rp_req = '{"urns":["' + phone + '"],"text":"' + msg + '"}'
+                  rapidpro.broadcast(rp_req)
+                  resolve()
+                })
+              }
+            })
           }))
         }
 

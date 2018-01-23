@@ -506,14 +506,14 @@ the format of this extension is like this:
     },
 
     getDefaulters: function(access_token,orchestrations,callback) {
-      var defDate = moment().subtract(10,'days').format('YYYY-MM-DD')
+      var defDate = moment().subtract(12,'days').format('YYYY-MM-DD')
       let url = URI(timrconfig.url)
       .segment('risi')
       .segment('datamart')
       .segment('7a057b9f-bb11-4822-8a89-60a9012b3163')
       .segment('query')
       .segment('defaulters')
-      + "?act_date=" + defDate + "&_count=2"
+      + "?act_date=" + defDate + "&_count=1"
       .toString()
       var options = {
         url: url.toString(),

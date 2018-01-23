@@ -10,56 +10,22 @@ module.exports = function (rpconf) {
   const config = rpconf
   return {
 
-    getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
-      let url = contactsURL()
-      if(contact.hasOwnProperty("uuid"))
-      url = url + "?uuid=" + contact.uuid
+    broadcast: function (rp_req,callback) {
+      rp_req = JSON.parse(rp_req)
+      let url = URI(config.url)
+      .segment("api/v2/broadcasts.json")
       let before = new Date()
 
       let options = {
-        url: url,
+        url: url.toString(),
         headers: {
-          Authorization: `Token ${config.authtoken}`
+          Authorization: `Token ${config.token}`
         },
-        body: contact,
+        body: rp_req,
         json: true
       }
-      request.post(options, (err, res, newContact) => {
-        if (err) {
-          winston.error(err)
-          return callback(err)
-        }
-        isThrottled(newContact,(wasThrottled)=>{
-          if(wasThrottled) {
-            //reprocess this contact
-            addContact(contact, (err, newContact, orchs) => {
-              return callback(err,newContact,orchs)
-            })
-          }
-          else {
-            if(!newContact.hasOwnProperty("uuid")) {
-              winston.error("An error occured while adding contact " + JSON.stringify(contact) + JSON.stringify(newContact))
-              fs.appendFile('unprocessed.csv', JSON.stringify(contact) + "," + JSON.stringify(newContact) + "\n", (err) => {
-                if (err) throw err;
-                return ""
-              })
-            }
-
-            let orchestrations = []
-            if (config.logDetailedOrch) {
-              orchestrations.push(utils.buildOrchestration('Add/Update RapidPro Contact', before, 'POST', options.url, JSON.stringify(contact), res, JSON.stringify(newContact)))
-            }
-            if (newContact) {
-              if (newContact.uuid) {
-                callback(null, newContact, orchestrations)
-              } else {
-              callback(null, newContact, orchestrations)
-              }
-            } else {
-              callback(new Error('No body returned, the contact probably didn\'t get saved in RapidPro'), null, orchestrations)
-            }
-          }
-        })
+      request.post(options, (err, res, body) => {
+        winston.error(body)
       })
     }
   }
