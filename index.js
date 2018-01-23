@@ -523,7 +523,7 @@ function setupApp () {
               timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
-                if(res == "" || res == null || res == undefined) {
+                if(res != "") {
                   send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
                     return processNextFacility()
                   })
