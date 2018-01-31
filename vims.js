@@ -678,21 +678,58 @@ module.exports = function (vimscnf,oimcnf) {
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
               async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-                async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                if(lineItems.lots >0) {
+                  async.eachSeries(lineItems.lots,function(lot,nextLot) {
+                    fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
+                      var lotQuantity = lot.quantity
+                      var lotId = lot.lotId
+                      var gtin = lineItems.product.gtin
+                      var vims_item_id = lineItems.product.id
+                      var item_name = lineItems.product.fullName
+                      if(item_name == null)
+                      var item_name = lineItems.product.primaryName
+                      var timr_item_id = 0
+                      me.getTimrItemCode(vims_item_id,id=>{
+                        timr_item_id = id
+                      })
+                      var lotCode = lot.lot.lotCode
+                      var expirationDate = lot.lot.expirationDate
+                      var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
+                      if(isNaN(timr_item_id)) {
+                        var codeListVersion = "OpenIZ-MaterialType"
+                      }
+                      else {
+                        var codeListVersion = "CVX"
+                      }
+                      var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                      despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
+                      nextLot()
+                    })
+                  },function(){
+                    return nextlineItems()
+                  })
+                }
+                else {
                   fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
-                    var lotQuantity = lot.quantity
-                    var lotId = lot.lotId
-                    var gtin = lineItems.product.gtin
+                    var lotQuantity = lineItems.quantity
+                    var lotId = "UNKNOWN"
+                    if(lineItems.product.hasOwnProperty("gtin"))
+                      var gtin = lineItems.product.gtin
+                    else
+                      var gtin = "UNKNOWN"
                     var vims_item_id = lineItems.product.id
-                    var item_name = lineItems.product.fullName
-                    if(item_name == null)
-                    var item_name = lineItems.product.primaryName
+                    if(lineItems.product.hasOwnProperty("fullName"))
+                      var item_name = lineItems.product.fullName
+                    else if(lineItems.product.hasOwnProperty("primaryName"))
+                      var item_name = lineItems.product.primaryName
+                    else
+                      var item_name = ""
                     var timr_item_id = 0
-                    me.getTimrItemCode(vims_item_id,id=>{
+                    me.getTimrItemCode(vims_item_id,(id)=>{
                       timr_item_id = id
                     })
-                    var lotCode = lot.lot.lotCode
-                    var expirationDate = lot.lot.expirationDate
+                    var lotCode = "UNKNOWN"
+                    var expirationDate = "2018-02-02"
                     var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
                     if(isNaN(timr_item_id)) {
                       var codeListVersion = "OpenIZ-MaterialType"
@@ -702,11 +739,9 @@ module.exports = function (vimscnf,oimcnf) {
                     }
                     var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
                     despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
-                    nextLot()
+                    return nextlineItems()
                   })
-                },function(){
-                  nextlineItems()
-                })
+                }
               },function(){
                 despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
                 winston.info(despatchAdviceBaseMessage)
