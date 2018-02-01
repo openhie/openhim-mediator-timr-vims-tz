@@ -729,7 +729,8 @@ module.exports = function (vimscnf,oimcnf) {
                       timr_item_id = id
                     })
                     var lotCode = "UNKNOWN"
-                    var expirationDate = "2018-02-02"
+                    //create a fake expire date
+                    var expirationDate = moment().month(4).format("YYYY-MM-DD")
                     var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
                     if(isNaN(timr_item_id)) {
                       var codeListVersion = "OpenIZ-MaterialType"
