@@ -678,7 +678,7 @@ module.exports = function (vimscnf,oimcnf) {
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
               async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
-                if(lineItems.lots >0) {
+                if(lineItems.lots.length >0) {
                   async.eachSeries(lineItems.lots,function(lot,nextLot) {
                     fs.readFile( './despatchAdviceLineItem.xml', 'utf8', function(err, data) {
                       var lotQuantity = lot.quantity
