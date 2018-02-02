@@ -247,6 +247,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                 winston.error(err)
                 return
               }
+              winston.error(body)
               value = value + JSON.parse(body).total
               if(totalDays == 0) {
                 values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})

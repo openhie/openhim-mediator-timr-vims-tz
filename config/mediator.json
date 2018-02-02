@@ -178,6 +178,50 @@
       "matchContentRegex": null
     },
     {
+      "urlPattern": "/syncSupplements",
+      "pollingSchedule": "30 23 * * 5",
+      "name": "TImR and VIMS Supplements Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Supplements Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncSupplements",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
       "urlPattern": "/syncAdverseEffects",
       "pollingSchedule": "30 22 * * 6,7",
       "name": "TImR and VIMS Adverse Events Sync",
