@@ -101,7 +101,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
           let url = URI(timrconfig.url)
           .segment('fhir')
           .segment('Immunization')
-          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
+          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&patient.location.identifier=HIE_FRID|' + facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
           var options = {
             url: url.toString(),
