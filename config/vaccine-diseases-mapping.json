@@ -1,9 +1,9 @@
 {
-	"MR" : ["Measels","Rubela"],
-	"DTP-Hib-HepB" : ["Pepopunda"],
-	"OPV" : [],
-	"PCV13" : [],
-	"rotavirus" : [],
-	"BCG" : [],
-	"TT" : ["Tetenus"]
+	"MR" : ["Surua"],
+	"DTP-Hib-HepB" : ["Homa Ya Ini","Donda Koo"],
+	"OPV" : ["Polio"],
+	"PCV13" : ["Neumoni"],
+	"rotavirus" : ["Kuhara"],
+	"BCG" : ["Kifua Kikuu"],
+	"TT" : ["Pepopunda"]
 }

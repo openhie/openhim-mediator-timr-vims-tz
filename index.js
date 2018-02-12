@@ -235,7 +235,7 @@ function setupApp () {
       })
     })
   }),
-  
+
   app.get('/syncSupplements', (req, res) => {
     let orchestrations = []
     const oim = OIM(config.openinfoman)
@@ -933,8 +933,18 @@ function setupApp () {
       async.eachSeries(vacc_arr,(vacc,nxtVacc)=>{
         async.eachOfSeries(vacc_diseases_mapping,(vacc_diseases,vacc_diseases_key,nxtVaccDiseases)=>{
         if(vacc_diseases_key == vacc && vacc_diseases!="") {
-          diseases.push(vacc_diseases)
-          return nxtVaccDiseases()
+          if(vacc_diseases.length) {
+            async.eachSeries(vacc_diseases,(dis,nxt)=> {
+              diseases.push(dis)
+              nxt()
+            },function(){
+              return nxtVaccDiseases()
+            })
+          }
+          else {
+            diseases.push(vacc_diseases)
+            return nxtVaccDiseases()
+          }
         }
         else {
           return nxtVaccDiseases()
@@ -971,7 +981,7 @@ function setupApp () {
           return updateTransaction (req,"","Completed","200",orchestrations)
         }
         //removing any whitespace
-        //defaulters = '{"item":[{"p":[{"Name":"patient_id","Value":"04dad77d-1f0c-44b6-ad67-7c8b687a3460"},{"Name":"days_overdue","Value":"5.00:00:00"},{"Name":"act_date","Value":"2018-01-11T00:00:00"},{"Name":"missed_doses","Value":"DTP-Hib-HepB,OPV,PCV13,rotavirus"},{"Name":"gender_mnemonic","Value":"Female"},{"Name":"dob","Value":"2017-10-05T00:00:00"},{"Name":"family","Value":"Saruni"},{"Name":"given","Value":"Lotoishe sinyati"},{"Name":"tel","Value":null},{"Name":"mth_family","Value":"Lotoishe"},{"Name":"mth_given","Value":"Neshayi"},{"Name":"mth_tel","Value":"+255756982044"},{"Name":"nok_family","Value":null},{"Name":"nok_given","Value":null},{"Name":"nok_tel","Value":null}]}],"size":69}'
+        defaulters = '{"item":[{"p":[{"Name":"patient_id","Value":"04dad77d-1f0c-44b6-ad67-7c8b687a3460"},{"Name":"days_overdue","Value":"5.00:00:00"},{"Name":"act_date","Value":"2018-01-11T00:00:00"},{"Name":"missed_doses","Value":"OPV,PCV13,rotavirus,DTP-Hib-HepB"},{"Name":"gender_mnemonic","Value":"Female"},{"Name":"dob","Value":"2017-10-05T00:00:00"},{"Name":"family","Value":"Saruni"},{"Name":"given","Value":"Lotoishe sinyati"},{"Name":"tel","Value":null},{"Name":"mth_family","Value":"Lotoishe"},{"Name":"mth_given","Value":"Neshayi"},{"Name":"mth_tel","Value":"+255756982044"},{"Name":"nok_family","Value":null},{"Name":"nok_given","Value":null},{"Name":"nok_tel","Value":null}]}],"size":69}'
         var defaulters = defaulters.replace(/\s/g,'')
         var defaulters = JSON.parse(defaulters).item
         const promises = []
@@ -1020,7 +1030,7 @@ function setupApp () {
                   else
                     var day = "LEO"
 
-                  var msg = "MTOTO WAKO HAKUPATA CHANJO YA " + missed_doses + 
+                  var msg = "MTOTO WAKO HAKUPATA CHANJO YA " + missed_doses +
                             " . INAYOKINGA DHIDI YA MAGONJWA YA " + diseases + ". TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI"
                   var rp_req = '{"urns":["' + phone + '"],"text":"' + msg + '"}'
 

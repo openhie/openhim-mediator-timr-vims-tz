@@ -402,8 +402,8 @@ the format of this extension is like this:
 
     getStockData: function (access_token,facilityUUID,period,orchestrations,callback) {
       fs.readFile( './gs1RequestMessage.xml', 'utf8', function(err, data) {
-        var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD") + 'T00:00'
-        var endDate = moment(period[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD') + 'T23:59'
+        var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(period[0].periodName,"MMM YYYY").endOf('month').format('YYYY-MM-DD')
         var gs1RequestMessage = util.format(data,startDate,endDate,facilityUUID)
         let url = URI(timrconfig.url)
         .segment('gs1')
