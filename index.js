@@ -33,7 +33,7 @@ const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
-const mediatorConfig = require('./config/mediator_staging')
+const mediatorConfig = require('./config/mediator')
 
 // socket config - large documents can cause machine to max files open
 const https = require('https')
