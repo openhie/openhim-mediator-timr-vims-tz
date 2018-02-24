@@ -283,7 +283,7 @@ function setupApp () {
                   vims.getValueSets (vimsVitaminValueSets,(err,vimsVitValueSet) => {
                     async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
                       winston.info("Processing Supplement Id "+vimsVitCode.code)
-                      timr.getVitaminData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
+                      timr.getSupplementsData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
                         winston.error("TIMR Sent Response")
                         vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
                           winston.error("VIMS Sent Response")

@@ -400,7 +400,7 @@ module.exports = function (vimscnf,oimcnf) {
                     !adverseEffectLineItems.relatedLineItems.hasOwnProperty(0) &&
                     value.value > 0
                   ) {
-                    report.report.adverseEffectLineItems[index].cases = value.value
+                    report.report.adverseEffectLineItems[index].cases = 100//value.value
                     var updatedReport = {
                                           "id":report.report.id,
                                           "facilityId":report.report.facilityId,
@@ -434,7 +434,7 @@ module.exports = function (vimscnf,oimcnf) {
                                                                     "isInvestigated": true
                                                                   }]
                                       }
-                  me.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
+                  saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
                     if (err) {
                       winston.error(err)
                       return nxtValue()

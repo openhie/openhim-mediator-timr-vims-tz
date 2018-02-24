@@ -196,7 +196,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       })
     },
 
-    getVitaminData: function (access_token,vimsVitCode,timrFacilityId,period,orchestrations,callback) {
+    getSupplementsData: function (access_token,vimsVitCode,timrFacilityId,period,orchestrations,callback) {
       var genderTerminologies = [
                       {"fhirgender":"male","vimsgender":"maleValue"},
                       {"fhirgender":"female","vimsgender":"femaleValue"}
@@ -213,53 +213,62 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       var startDay = 1;
       var values = []
       this.getTimrCode (vimsVitCode,timrVimsVitaConceptMap,(timrVitCode)=> {
-        async.eachOfSeries(ageGroups,(age,ageGrpIndex,nxtAge)=>{
-          var genderRef = null
-          async.eachSeries(genderTerminologies,(gender,nxtGender)=>{
-            var value = 0
-            genderRef = gender
-            var totalDays = endDay
-          for(var day=startDay;day<=endDay;day++) {
-            var birthDatePar = ''
-            var countAges = 0
-            if(day<10)
-            var dateDay = '0' + day
-            else
-            var dateDay = day
-            var vaccineDate = vaccineYearMonth + '-' + dateDay
-            var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
-            let url = URI(timrconfig.url)
-            .segment('fhir')
-            .segment('MedicationAdministration')
-            +'?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&patient.birthDate=eq' + birthDate + '&_format=json&_count=0'
-            .toString()
-            var options = {
-              url: url.toString(),
-              headers: {
-                Authorization: `BEARER ${access_token}`
-              }
-            }
-            let before = new Date()
-            request.get(options, (err, res, body) => {
-              orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-              totalDays--
-              if (err) {
-                winston.error(err)
-                return
-              }
-              value = value + JSON.parse(body).total
-              if(totalDays == 0) {
+        const promises = []
+        for(var ageIndex in ageGroups) {
+          promises.push(new Promise((resolve, reject) => {
+            var age = ageGroups[ageIndex]
+            var genderRef = null
+            async.eachSeries(genderTerminologies,(gender,nxtGender)=>{
+              var value = 0
+              genderRef = gender
+              var totalDays = endDay
+              var daysArray = Array.from({length: endDay}, (x,i) => i+1)
+              async.eachSeries(daysArray,(day,nxtDay)=>{
+                var birthDatePar = ''
+                var countAges = 0
+                if(day<10)
+                var dateDay = '0' + day
+                else
+                var dateDay = day
+                var vaccineDate = vaccineYearMonth + '-' + dateDay
+                var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
+                let url = URI(timrconfig.url)
+                .segment('fhir')
+                .segment('MedicationAdministration')
+                +'?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&patient.birthDate=eq' + birthDate + '&_format=json&_count=0'
+                .toString()
+                var options = {
+                  url: url.toString(),
+                  headers: {
+                    Authorization: `BEARER ${access_token}`
+                  }
+                }
+                let before = new Date()
+                request.get(options, (err, res, body) => {
+                  orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+                  if (err) {
+                    winston.error(err)
+                    return nxtDay()
+                  }
+                  value = value + JSON.parse(body).total
+                  return nxtDay()
+                })
+              },function(){
                 values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
                 nxtGender()
-              }
+              })
+            },function(){
+              winston.error(values)
+              resolve()
             })
-          }
-        },function(){
-          nxtAge()
+          }))
+        }
+
+        Promise.all(promises).then(() => {
+          winston.error(JSON.stringify(values))
+          return callback("",values)
         })
-        },function(){
-            return callback("",values)
-        })
+
       })
     },
 
@@ -313,10 +322,6 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
 
     },
 
-    /*
-    The IVD data has been updated to allow for outreach and session data... Basically you are looking for an extension : http://openiz.org/extensions/contrib/bid/ivdExtendedData
-the format of this extension is like this:
-    */
     processColdChain: function (access_token,nexturl,orchestrations,callback) {
       if(!nexturl)
       nexturl = URI(timrconfig.url)
