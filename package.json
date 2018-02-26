@@ -1,8 +1,8 @@
 {
   "name": "openhim-mediator-timr-vims-tz",
-  "version": "6.0.1",
-  "description": "This mediator synchronises data between Tanzania Immunization Registry and Vaccine Immunization Registry.",
-  "main": "index.js",
+  "version": "1.0.0",
+  "description": "Data Synchronization between Tanzania Immunization Registry and Vaccine Information Management System",
+  "main": "start.js",
   "dependencies": {
     "async": "^2.4.1",
     "body-parser": "^1.17.2",
@@ -37,13 +37,11 @@
     "xml2js": "^0.4.17",
     "xml2json": "^0.11.0",
     "xmldom": "^0.1.22",
-    "xpath": "^0.0.23"
-  },
-  "devDependencies": {
-    "tap": "^5.8.0"
+    "xpath": "^0.0.23",
+    "forever-monitor": "^1.7.1"
   },
   "scripts": {
-    "test": "tap test/*.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -51,10 +49,12 @@
   },
   "keywords": [
     "timr",
-    "vimz"
+    "vaccine",
+    "mediator",
+    "openhim"
   ],
   "author": "Ally Shaban",
-  "license": "MPL-2.0",
+  "license": "ISC",
   "bugs": {
     "url": "https://github.com/openhie/openhim-mediator-timr-vims-tz/issues"
   },
