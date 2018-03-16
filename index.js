@@ -284,9 +284,7 @@ function setupApp () {
                     async.eachSeries(vimsVitValueSet,function(vimsVitCode,processNextDtElmnt) {
                       winston.info("Processing Supplement Id "+vimsVitCode.code)
                       timr.getSupplementsData(access_token,vimsVitCode.code,timrFacilityId,period,orchestrations,(err,values) => {
-                        winston.error("TIMR Sent Response")
                         vims.saveVitaminData(period,values,vimsVitCode.code,orchestrations,(err) =>{
-                          winston.error("VIMS Sent Response")
                           return processNextDtElmnt()
                         })
                       })
@@ -585,6 +583,7 @@ function setupApp () {
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
                 if(res != "") {
+                	winston.error(JSON.parse(distribution).fromFacility.id)
                   send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
                     return processNextFacility()
                   })
@@ -976,6 +975,7 @@ function setupApp () {
           winston.warn("An error occured while getting defaulters")
           return updateTransaction (req,"","Completed","200",orchestrations)
         }
+        winston.error(defaulters)
         if(!isJSON(defaulters)) {
           winston.warn("Non JSON defaulter's list have been received")
           return updateTransaction (req,"","Completed","200",orchestrations)

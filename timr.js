@@ -206,9 +206,11 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                         {"2":15},
                         {"3":18}
                       ]
-
-      var vaccineYearMonth = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
-      var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
+      //commenting below line so that we take vaccination by date range instead of individual vacc date
+      var vaccineDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
+      var vaccinationStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+      var vaccinationEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format("YYYY-MM-DD")
+      //var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
 
       var startDay = 1;
       var values = []
@@ -221,21 +223,14 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
             async.eachSeries(genderTerminologies,(gender,nxtGender)=>{
               var value = 0
               genderRef = gender
-              var totalDays = endDay
-              var daysArray = Array.from({length: endDay}, (x,i) => i+1)
-              async.eachSeries(daysArray,(day,nxtDay)=>{
                 var birthDatePar = ''
                 var countAges = 0
-                if(day<10)
-                var dateDay = '0' + day
-                else
-                var dateDay = day
-                var vaccineDate = vaccineYearMonth + '-' + dateDay
-                var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
+                //var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
+                var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM')
                 let url = URI(timrconfig.url)
                 .segment('fhir')
                 .segment('MedicationAdministration')
-                +'?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + '&patient.birthDate=eq' + birthDate + '&_format=json&_count=0'
+                +'?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|'+timrFacilityId + '&date=ge' + vaccinationStartDate + 'T00:00'+ '&date=le' + vaccinationEndDate + 'T23:59' + '&patient.birthDate=ap' + birthDate + '&_format=json&_count=0'
                 .toString()
                 var options = {
                   url: url.toString(),
@@ -248,24 +243,19 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
                   orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
                   if (err) {
                     winston.error(err)
-                    return nxtDay()
+                    return nxtGender()
                   }
                   value = value + JSON.parse(body).total
-                  return nxtDay()
+                  values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
+                  return nxtGender()
                 })
-              },function(){
-                values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
-                nxtGender()
-              })
             },function(){
-              winston.error(values)
               resolve()
             })
           }))
         }
 
         Promise.all(promises).then(() => {
-          winston.error(JSON.stringify(values))
           return callback("",values)
         })
 
@@ -529,6 +519,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
       }
       let before = new Date()
       request.get(options, function (err, res, body) {
+        winston.error(res.statusCode)
         orchestrations.push(utils.buildOrchestration('Getting Defaulters', before, 'GET', url.toString(), options.body, res, body))
         if (err) {
           return callback("",err)
