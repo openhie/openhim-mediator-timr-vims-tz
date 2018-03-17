@@ -122,6 +122,9 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               return
             }
             var value = JSON.parse(body).total
+            if(!Number.isInteger(value)) {
+              winston.error("Immunization Coverage Sync " + body)
+            }
             var queryName = query.name
             values[queryName] = value
             totalLoop--
@@ -182,12 +185,11 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               return nextDay()
             }
             var value = JSON.parse(body).total
-            if(value >=0) {
-              winston.error(body)
+            if(!Number.isInteger(value)) {
+              winston.error("Adverse Event Sync " + body)
             }
             if(value < 1 || value == null || value == undefined)
             return nextDay()
-            winston.error("Here")
             values.push({"date":vaccineDate,"value":value})
             if(totalDays == 0) {
               return callback(err,values)
@@ -250,6 +252,9 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
                     return nxtGender()
                   }
                   value = value + JSON.parse(body).total
+                  if(!Number.isInteger(value)) {
+                    winston.error("Supplements Sync " + body)
+                  }
                   values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
                   return nxtGender()
                 })
@@ -300,6 +305,9 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
                 winston.error(err)
               }
               var value = JSON.parse(body).total
+              if(!Number.isInteger(value)) {
+                winston.error("Diseases Sync " + body)
+              }
               if(vimsDiseaseCode in values)
                 Object.assign(values[vimsDiseaseCode],{[conditionName]:value})
               else
