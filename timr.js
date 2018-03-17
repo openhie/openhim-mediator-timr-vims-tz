@@ -182,8 +182,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               return nextDay()
             }
             var value = JSON.parse(body).total
-            if(value < 1)
+            if(value >=0) {
+              winston.error(body)
+            }
+            if(value < 1 || value == null || value == undefined)
             return nextDay()
+            winston.error("Here")
             values.push({"date":vaccineDate,"value":value})
             if(totalDays == 0) {
               return callback(err,values)

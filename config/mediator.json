@@ -179,7 +179,7 @@
     },
     {
       "urlPattern": "/syncSupplements",
-      "pollingSchedule": "30 23 * * 5",
+      "pollingSchedule": "30 17 * * 6,7",
       "name": "TImR and VIMS Supplements Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,
@@ -267,7 +267,7 @@
     },
     {
       "urlPattern": "/syncDiseases",
-      "pollingSchedule": "30 17 * * 6,7",
+      "pollingSchedule": "30 23 * * 5",
       "name": "TImR and VIMS Disease Sync",
       "autoRetryPeriodMinutes": 60,
       "autoRetryEnabled": false,

@@ -35,7 +35,7 @@ const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
-const mediatorConfig = require('./config/mediator_staging')
+const mediatorConfig = require('./config/mediator')
 
 // socket config - large documents can cause machine to max files open
 const https = require('https')
@@ -521,6 +521,7 @@ function setupApp () {
                       winston.info("\tDone Extracting TImR Stock Data")
                       if((Object.keys(timrStockData).length == 0)) {
                         winston.warn("\tNo stock data to process for " + facilityName)
+                        return
                       }
                       winston.info("\tSending Stock Data In VIMS " + JSON.stringify(timrStockData))
                       vims.getValueSets (vimsItemsValueSets,(err,vimsItemsValSet) => {
