@@ -16,7 +16,7 @@ const util = require('util');
 const utils = require('./utils')
 const VIMS = require('./vims')
 
-module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
+module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
   const timrconfig = timrcnf
   const oauthconfig = oauthcnf
   const vimsconfig = vimscnf
@@ -414,6 +414,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf) {
         }
         let before = new Date()
         request.post(options, function (err, res, body) {
+          eventEmitter.emit('received_timr_stock');
           orchestrations.push(utils.buildOrchestration('Fetching TImR GS1 Stock Data', before, 'POST', url.toString(), options.body, res, JSON.stringify(body)))
           if (err) {
             return callback(err)

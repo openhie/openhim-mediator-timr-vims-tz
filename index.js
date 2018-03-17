@@ -20,6 +20,8 @@ const RP = require('./rapidpro')
 const async = require('async')
 const bodyParser = require('body-parser')
 const xmlparser = require('express-xml-bodyparser')
+var events = require('events');
+var eventEmitter = new events.EventEmitter();
 
 const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
 const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
@@ -451,7 +453,7 @@ function setupApp () {
   app.get('/syncStock', (req, res) => {
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
-    const timr = TImR(config.timr,config.oauth2)
+    const timr = TImR(config.timr,config.oauth2,"","",eventEmitter)
     req.timestamp = new Date()
     let orchestrations = []
 
@@ -495,13 +497,19 @@ function setupApp () {
                   }
                   winston.info("Received Access Token")
                   var access_token = JSON.parse(body).access_token
-                  winston.info("Fetching TImR Stock Data")
                   winston.info("Processing Stock For " + facilityName + ", Period " + period[0].periodName)
+                  winston.info("Fetching TImR Stock Data For " + facilityName + ", Period " + period[0].periodName)
+                  eventEmitter.once('received_timr_stock', function(){
+                    processNextFacility()
+                  });
                   timr.getStockData(access_token,timrFacilityId,period,orchestrations,(data) =>{
                     winston.info("\tDone Fetching TImR Stock Data")
                     winston.info("\tExtracting TImR Stock Data")
                     timr.extractStockData(data,timrFacilityId,(timrStockData,stockCodes) =>{
                       winston.info("\tDone Extracting TImR Stock Data")
+                      if((Object.keys(timrStockData).length == 0)) {
+                        winston.warn("\tNo stock data to process for " + facilityName)
+                      }
                       winston.info("\tSending Stock Data In VIMS " + JSON.stringify(timrStockData))
                       vims.getValueSets (vimsItemsValueSets,(err,vimsItemsValSet) => {
                         async.eachSeries(vimsItemsValSet,function(vimsItemsDataElmnt,processNextDtElmnt) {
@@ -511,7 +519,6 @@ function setupApp () {
                           })
                         },function(){
                             winston.info("\tDone Processing " + facilityName)
-                            processNextFacility()
                         })
                       })
                     })
