@@ -35,7 +35,7 @@ const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
 const apiConf = require('./config/config')
-const mediatorConfig = require('./config/mediator')
+const mediatorConfig = require('./config/mediator_staging')
 
 // socket config - large documents can cause machine to max files open
 const https = require('https')
@@ -232,6 +232,9 @@ function setupApp () {
         }
       },function(){
         winston.info('Done Synchronizing Immunization Coverage!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -302,6 +305,9 @@ function setupApp () {
         }
       },function(){
         winston.info('Done Synchronizing Supplements Data!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -377,6 +383,9 @@ function setupApp () {
         }
       },function(){
         winston.info('Done Synchronizing Adverse Effect!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -444,6 +453,9 @@ function setupApp () {
         }
       },function(){
         winston.info('Done Synchronizing Disease Data!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -530,6 +542,9 @@ function setupApp () {
         }
       },function(){
         winston.info('Done Synchronizing Stock Data!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -590,10 +605,9 @@ function setupApp () {
                 winston.info("Saved Despatch Advice To TImR")
                 winston.info(res)
                 if(res != "") {
-                	winston.error(JSON.parse(distribution).fromFacility.id)
-                  send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
+                  //send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
                     return processNextFacility()
-                  })
+                  //})
                 }
                 else
                 return processNextFacility()
@@ -603,6 +617,9 @@ function setupApp () {
         })
       },function(){
         winston.info('Done Getting Despatch Advice!!!')
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
@@ -623,6 +640,9 @@ function setupApp () {
       winston.info("Processing Cold Chain Data")
       timr.processColdChain(access_token,'',orchestrations,(err,res)=>{
         winston.info("Done Processing Cold Chain")
+        //first update transaction without orchestrations
+        updateTransaction (req,"","Successful","200","")
+        //update transaction with orchestration data
         updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
       })
