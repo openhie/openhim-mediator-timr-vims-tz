@@ -122,6 +122,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               return
             }
             if(!isJSON(body)) {
+              totalLoop--
               winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
               if(totalLoop === 0) {
                 return callback('',values)
@@ -365,12 +366,8 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
           return callback(err)
         }
         if(!isJSON(body)) {
-          winston.error("TImR has returned non JSON data,stop processing")
-          return
-        }
-        if(!isJSON(body)) {
           winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
-          return
+          return callback(err)
         }
         body = JSON.parse(body)
         var entries = body.entry

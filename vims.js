@@ -316,10 +316,14 @@ module.exports = function (vimscnf,oimcnf) {
             if(report.report.vitaminSupplementationLineItems[index].vaccineVitaminId == vimsVitCode) {
               var ageGroupID = report.report.vitaminSupplementationLineItems[index].vitaminAgeGroupId
               this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
-                var maleValue = mergedValues[0].maleValue
-                var femaleValue = mergedValues[0].femaleValue
-                report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
-                report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
+                if(mergedValues.hasOwnProperty("maleValue"))
+                  var maleValue = mergedValues[0].maleValue
+                if(mergedValues.hasOwnProperty("femaleValue"))
+                  var femaleValue = mergedValues[0].femaleValue
+                if(maleValue)
+                  report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
+                if(femaleValue)
+                  report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
                 var updatedReport = {
                                       "id":report.report.id,
                                       "facilityId":report.report.facilityId,
@@ -358,6 +362,9 @@ module.exports = function (vimscnf,oimcnf) {
           //if no adverse effect reported
           if(!report.report.adverseEffectLineItems.hasOwnProperty(0)) {
             async.eachSeries(values,(value,nxtValue)=>{
+              if(!value.hasOwnProperty("value"))
+                return nxtValue()
+
               if(value.value > 0) {
                 var date = value.date
                 var value = value.value
@@ -394,13 +401,15 @@ module.exports = function (vimscnf,oimcnf) {
             async.eachSeries(values,(value,nxtValue)=>{
               //makesure we dont update Adverse Effect associated with multiple products
               var found = false
+              if(!value.hasOwnProperty("value"))
+                return nxtValue()
               async.eachOfSeries(report.report.adverseEffectLineItems,(adverseEffectLineItems,index,nxtAdvEff)=>{
                 if( adverseEffectLineItems.productId == vimsVaccCode &&
                     adverseEffectLineItems.date == value.date &&
                     !adverseEffectLineItems.relatedLineItems.hasOwnProperty(0) &&
                     value.value > 0
                   ) {
-                    report.report.adverseEffectLineItems[index].cases = 100//value.value
+                    report.report.adverseEffectLineItems[index].cases = value.value
                     var updatedReport = {
                                           "id":report.report.id,
                                           "facilityId":report.report.facilityId,
@@ -457,6 +466,9 @@ module.exports = function (vimscnf,oimcnf) {
     },
 
     saveDiseaseData: function (period,values,orchestrations,callback) {
+      if(Object.keys(values).length == 0) {
+        return callback()
+      }
       async.eachSeries(period,(period,nextPeriod)=>{
         var periodId = period.id
         this.getReport (periodId,orchestrations,(err,report) => {
@@ -466,8 +478,13 @@ module.exports = function (vimscnf,oimcnf) {
           winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
           async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
             var diseaseID = report.report.diseaseLineItems[index].diseaseId
-            var cases = values[diseaseID]["case"]
-            var death = values[diseaseID]["death"]
+            var cases
+            var death
+            if(values[diseaseID].hasOwnProperty("case"))
+              cases = values[diseaseID]["case"]
+            if(values[diseaseID].hasOwnProperty("death"))
+              death = values[diseaseID]["death"]
+
             if(cases == 0 && death == 0) {
               return nxtDisLineItm()
             }
