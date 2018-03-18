@@ -121,9 +121,22 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               else
               return
             }
+            if(!isJSON(body)) {
+              winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
+              if(totalLoop === 0) {
+                return callback('',values)
+              }
+              else
+                return
+            }
             var value = JSON.parse(body).total
             if(!Number.isInteger(value)) {
               winston.error("Immunization Coverage Sync " + body)
+              if(totalLoop === 0) {
+                return callback('',values)
+              }
+              else
+                return
             }
             var queryName = query.name
             values[queryName] = value
@@ -152,9 +165,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
         var vaccineYearMonth = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
         var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
 
-        var startDay = 1;
-        var totalDays = endDay
-        var days = Array.from({length: totalDays}, (v, k) => k+1)
+        var days = Array.from({length: endDay}, (v, k) => k+1)
         async.eachSeries(days,(day,nextDay)=>{
           if(day<10)
           var dateDay = '0' + day
@@ -175,25 +186,24 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
           let before = new Date()
           request.get(options, (err, res, body) => {
             orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Adverse Events Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-            totalDays--
-            if (err && totalDays == 0) {
+            if (err) {
               winston.error(err)
-              return callback(err,values)
+              return nextDay()
             }
-            else if (err) {
-              winston.error(err)
+            if(!isJSON(body)) {
+              winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
               return nextDay()
             }
             var value = JSON.parse(body).total
             if(!Number.isInteger(value)) {
               winston.error("Adverse Event Sync " + body)
             }
-            if(value < 1 || value == null || value == undefined)
-            return nextDay()
-            values.push({"date":vaccineDate,"value":value})
-            if(totalDays == 0) {
-              return callback(err,values)
+
+            if(value < 1 || value == null || value == undefined){
+              return nextDay()
             }
+
+            values.push({"date":vaccineDate,"value":value})
             return nextDay()
           })
         },function(){
@@ -251,9 +261,14 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
                     winston.error(err)
                     return nxtGender()
                   }
+                  if(!isJSON(body)) {
+                    winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
+                    return nxtGender()
+                  }
                   value = value + JSON.parse(body).total
                   if(!Number.isInteger(value)) {
                     winston.error("Supplements Sync " + body)
+                    return nxtGender()
                   }
                   values.push({[Object.keys(age)[0]]:{"gender":gender.vimsgender,"value":value}})
                   return nxtGender()
@@ -304,9 +319,14 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
               if (err) {
                 winston.error(err)
               }
+              if(!isJSON(body)) {
+                winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
+                return nxtCndtn()
+              }
               var value = JSON.parse(body).total
               if(!Number.isInteger(value)) {
                 winston.error("Diseases Sync " + body)
+                return nxtCndtn()
               }
               if(vimsDiseaseCode in values)
                 Object.assign(values[vimsDiseaseCode],{[conditionName]:value})
@@ -346,6 +366,10 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
         }
         if(!isJSON(body)) {
           winston.error("TImR has returned non JSON data,stop processing")
+          return
+        }
+        if(!isJSON(body)) {
+          winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
           return
         }
         body = JSON.parse(body)
