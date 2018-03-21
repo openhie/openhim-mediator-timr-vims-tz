@@ -23,6 +23,7 @@ const xmlparser = require('express-xml-bodyparser')
 var events = require('events');
 var eventEmitter = new events.EventEmitter();
 
+const port = 9000
 const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
 const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
 const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
@@ -1107,7 +1108,7 @@ function start (callback) {
         } else {
           winston.info('Successfully registered mediator!')
           let app = setupApp()
-          const server = app.listen(9000, () => {
+          const server = app.listen(port, () => {
             let configEmitter = medUtils.activateHeartbeat(apiConf.api)
             configEmitter.on('error',(error) => {
             	winston.error(error)
@@ -1127,12 +1128,12 @@ function start (callback) {
     // default to config from mediator registration
     config = mediatorConfig.config
     let app = setupApp()
-    const server = app.listen(9000, () => callback(server))
+    const server = app.listen(port, () => callback(server))
   }
 }
 exports.start = start
 
 if (!module.parent) {
   // if this script is run directly, start the server
-  start(() => winston.info('Listening on 9000...'))
+  start(() => winston.info('Listening on ' + port + '...'))
 }

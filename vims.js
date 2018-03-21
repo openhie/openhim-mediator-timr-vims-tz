@@ -488,6 +488,7 @@ module.exports = function (vimscnf,oimcnf) {
             if(cases == 0 && death == 0) {
               return nxtDisLineItm()
             }
+            
             report.report.diseaseLineItems[index].cases = cases
             report.report.diseaseLineItems[index].death = death
             var updatedReport = {
