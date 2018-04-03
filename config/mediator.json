@@ -652,9 +652,9 @@
       ]
     },
     {
-      "param": "rapidpro",
-      "displayName": "Rapidpro",
-      "description": "Communication App",
+      "param": "smsAggregator",
+      "displayName": "SMS Aggregator",
+      "description": "Connection Details To SMS Aggregator",
       "type": "struct",
       "template": [
         {
@@ -664,10 +664,16 @@
           "type": "string"
         },
         {
-          "param": "token",
-          "displayName": "Token",
-          "description": "Token",
+          "param": "username",
+          "displayName": "User Name",
+          "description": "User Name",
           "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Password",
+          "description": "Password",
+          "type": "password"
         }
       ]
     },
@@ -721,7 +727,7 @@
     "oauth2": {
       "url": "http://timr.marc-hi.ca:8080/auth/oauth2_token",
       "fhirScope": "http://timr.marc-hi.ca:8080/fhir",
-      "gs1Scope": "http://timr.marc-hi.ca:8080/fhir",
+      "gs1Scope": "http://timr.marc-hi.ca:8080/gs1",
       "token": "aWxfbWVkaWF0b3I6QE1lZGlhdG9yU291cmNlMTIz",
       "username": "il_mediator",
       "password": "@MediatorSource123"
@@ -740,9 +746,10 @@
       "username": "",
       "password": ""
     },
-    "rapidpro": {
-      "url": "http://54.148.103.198:8000",
-      "token": "XXXX-YYYY-ZZZZ"
+    "smsAggregator": {
+      "url": "http://154.72.79.86",
+      "username": "username",
+      "password": "password"
     },
     "email_notification": {
       "emails": {

@@ -1004,13 +1004,11 @@ function setupApp () {
           winston.warn("An error occured while getting defaulters")
           return updateTransaction (req,"","Completed","200",orchestrations)
         }
-        winston.error(defaulters)
         if(!isJSON(defaulters)) {
           winston.warn("Non JSON defaulter's list have been received")
           return updateTransaction (req,"","Completed","200",orchestrations)
         }
-        //removing any whitespace
-        defaulters = '{"item":[{"p":[{"Name":"patient_id","Value":"04dad77d-1f0c-44b6-ad67-7c8b687a3460"},{"Name":"days_overdue","Value":"5.00:00:00"},{"Name":"act_date","Value":"2018-01-11T00:00:00"},{"Name":"missed_doses","Value":"OPV,PCV13,rotavirus,DTP-Hib-HepB"},{"Name":"gender_mnemonic","Value":"Female"},{"Name":"dob","Value":"2017-10-05T00:00:00"},{"Name":"family","Value":"Saruni"},{"Name":"given","Value":"Lotoishe sinyati"},{"Name":"tel","Value":null},{"Name":"mth_family","Value":"Lotoishe"},{"Name":"mth_given","Value":"Neshayi"},{"Name":"mth_tel","Value":"+255756982044"},{"Name":"nok_family","Value":null},{"Name":"nok_given","Value":null},{"Name":"nok_tel","Value":null}]}],"size":69}'
+        
         var defaulters = defaulters.replace(/\s/g,'')
         var defaulters = JSON.parse(defaulters).item
         const promises = []
@@ -1047,11 +1045,16 @@ function setupApp () {
               }
               else {
                 if(phone.indexOf("0") === 0) {
-                  phone = phone.replace("0","tel:+255")
+                  phone = phone.replace("0","255")
+                }
+                else if(phone.indexOf("0") !== 0 && phone.indexOf("255") !== 0 && phone.indexOf("+255") !== 0) {
+                  if(phone.length == 9)
+                    phone = "255" + phone
                 }
                 else {
-                 phone = "tel:" + phone
+                 return resolve()
                 }
+
                 getVaccDiseaseMapping(missed_doses,(diseases)=>{
                   var day_name = moment().format("dddd")
                   if(day_name == "Saturday" || day_name == "Sunday")
@@ -1060,10 +1063,11 @@ function setupApp () {
                     var day = "LEO"
 
                   var msg = "MTOTO WAKO HAKUPATA CHANJO YA " + missed_doses +
-                            " . INAYOKINGA DHIDI YA MAGONJWA YA " + diseases + ". TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI"
+                            ".INAYOKINGA DHIDI YA MAGONJWA YA " + diseases + ".TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI"
                   var rp_req = '{"urns":["' + phone + '"],"text":"' + msg + '"}'
 
-                  rapidpro.broadcast(rp_req)
+                  winston.error(phone)
+                  //rapidpro.broadcast(rp_req)
                   resolve()
                 })
               }

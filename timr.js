@@ -15,6 +15,7 @@ const async = require('async')
 const util = require('util');
 const utils = require('./utils')
 const VIMS = require('./vims')
+var Spinner = require('cli-spinner').Spinner;
 
 module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
   const timrconfig = timrcnf
@@ -101,7 +102,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
           let url = URI(timrconfig.url)
           .segment('fhir')
           .segment('Immunization')
-          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&location.identifier=HIE_FRID|'+facilityid + '&patient.location.identifier=HIE_FRID|' + facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
+          +'?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&patient.location.identifier=HIE_FRID|' + facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
           .toString()
           var options = {
             url: url.toString(),
@@ -539,10 +540,10 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
       let url = URI(timrconfig.url)
       .segment('risi')
       .segment('datamart')
-      .segment('7a057b9f-bb11-4822-8a89-60a9012b3163')
+      .segment('9896a202-ddd0-45c8-8820-04fa30c3bc9e')
       .segment('query')
       .segment('defaulters')
-      + "?act_date=" + defDate + "&_count=1"
+      + "?act_date=" + defDate + "&_count=200"
       .toString()
       var options = {
         url: url.toString(),
@@ -552,8 +553,12 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
           }
       }
       let before = new Date()
+      winston.info("Getting Defaulters List")
+      var spinner = new Spinner("Waiting for defaulters List")
+      spinner.setSpinnerString(8);
+      spinner.start()
       request.get(options, function (err, res, body) {
-        winston.error(res.statusCode)
+        spinner.stop()
         orchestrations.push(utils.buildOrchestration('Getting Defaulters', before, 'GET', url.toString(), options.body, res, body))
         if (err) {
           return callback("",err)
