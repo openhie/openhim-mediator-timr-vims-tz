@@ -16,12 +16,13 @@ const xmlQuery = require('xml-query')
 const TImR = require('./timr')
 const VIMS = require('./vims')
 const OIM = require('./openinfoman')
-const RP = require('./rapidpro')
+const SMSAGGREGATOR = require('./smsAggregator')
 const async = require('async')
 const bodyParser = require('body-parser')
 const xmlparser = require('express-xml-bodyparser')
 var events = require('events');
 var eventEmitter = new events.EventEmitter();
+var Spinner = require('cli-spinner').Spinner
 
 const port = 9000
 const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
@@ -953,7 +954,7 @@ function setupApp () {
     updateTransaction (req,"Still Processing","Processing","200","")
     let orchestrations = []
     const timr = TImR(config.timr,config.oauth2)
-    const rapidpro = RP(config.rapidpro)
+    const smsAggregator = SMSAGGREGATOR(config.smsAggregator)
 
     function getVaccDiseaseMapping (vacc,callback) {
       var diseases = []
@@ -991,7 +992,11 @@ function setupApp () {
       })
     }
 
+    var spinner = new Spinner("Waiting for timr access token")
+    spinner.setSpinnerString(8);
+    spinner.start()
     timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+      spinner.stop()
       if(err) {
         winston.error("An error occured while getting access token from TImR")
         updateTransaction (req,"","Completed","200",orchestrations)
@@ -1040,6 +1045,8 @@ function setupApp () {
               else if(nok_tel != null)
                 phone = nok_tel
 
+              phone = "255713088393"
+
               if(phone == null){
                 resolve()
               }
@@ -1064,10 +1071,8 @@ function setupApp () {
 
                   var msg = "MTOTO WAKO HAKUPATA CHANJO YA " + missed_doses +
                             ".INAYOKINGA DHIDI YA MAGONJWA YA " + diseases + ".TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI"
-                  var rp_req = '{"urns":["' + phone + '"],"text":"' + msg + '"}'
 
-                  winston.error(phone)
-                  //rapidpro.broadcast(rp_req)
+                  smsAggregator.broadcast(phone,msg)
                   resolve()
                 })
               }

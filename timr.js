@@ -543,7 +543,7 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
       .segment('9896a202-ddd0-45c8-8820-04fa30c3bc9e')
       .segment('query')
       .segment('defaulters')
-      + "?act_date=" + defDate + "&_count=200"
+      + "?act_date=" + defDate + "&_count=1"
       .toString()
       var options = {
         url: url.toString(),
