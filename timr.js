@@ -15,7 +15,7 @@ const async = require('async')
 const util = require('util');
 const utils = require('./utils')
 const VIMS = require('./vims')
-var Spinner = require('cli-spinner').Spinner;
+var Spinner = require('cli-spinner').Spinner
 
 module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
   const timrconfig = timrcnf
@@ -536,14 +536,14 @@ module.exports = function (timrcnf,oauthcnf,vimscnf,oimcnf,eventEmitter) {
     },
 
     getDefaulters: function(access_token,orchestrations,callback) {
-      var defDate = moment().subtract(12,'days').format('YYYY-MM-DD')
+      var defDate = moment().subtract(8,'days').format('YYYY-MM-DD')
       let url = URI(timrconfig.url)
       .segment('risi')
       .segment('datamart')
       .segment('9896a202-ddd0-45c8-8820-04fa30c3bc9e')
       .segment('query')
       .segment('defaulters')
-      + "?act_date=" + defDate + "&_count=1"
+      + "?act_date=" + defDate
       .toString()
       var options = {
         url: url.toString(),

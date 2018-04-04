@@ -7,6 +7,7 @@
     "async": "^2.4.1",
     "body-parser": "^1.17.2",
     "circular-json": "^0.3.1",
+    "cli-spinner": "^0.2.8",
     "exec-php": "^0.0.3",
     "express": "^4.14.0",
     "express-xml-bodyparser": "^0.3.0",
@@ -37,8 +38,7 @@
     "xml2js": "^0.4.17",
     "xml2json": "^0.11.0",
     "xmldom": "^0.1.22",
-    "xpath": "^0.0.23",
-    "forever-monitor": "^1.7.1"
+    "xpath": "^0.0.23"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

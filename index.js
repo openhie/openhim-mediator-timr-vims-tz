@@ -1045,8 +1045,6 @@ function setupApp () {
               else if(nok_tel != null)
                 phone = nok_tel
 
-              phone = "255713088393"
-
               if(phone == null){
                 resolve()
               }
@@ -1058,9 +1056,6 @@ function setupApp () {
                   if(phone.length == 9)
                     phone = "255" + phone
                 }
-                else {
-                 return resolve()
-                }
 
                 getVaccDiseaseMapping(missed_doses,(diseases)=>{
                   var day_name = moment().format("dddd")
@@ -1071,8 +1066,7 @@ function setupApp () {
 
                   var msg = "MTOTO WAKO HAKUPATA CHANJO YA " + missed_doses +
                             ".INAYOKINGA DHIDI YA MAGONJWA YA " + diseases + ".TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI"
-
-                  smsAggregator.broadcast(phone,msg)
+                  smsAggregator.broadcast(phone,msg,orchestrations)
                   resolve()
                 })
               }
@@ -1081,7 +1075,8 @@ function setupApp () {
         }
 
         Promise.all(promises).then(() => {
-          winston.error("done")
+          winston.info("Done alerting defaulters")
+          updateTransaction (req,"","Completed","200",orchestrations)
         })
 
 
