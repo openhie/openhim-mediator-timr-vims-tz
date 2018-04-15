@@ -1076,7 +1076,7 @@ function setupApp () {
 
         Promise.all(promises).then(() => {
           winston.info("Done alerting defaulters")
-          updateTransaction (req,"","Completed","200",orchestrations)
+          updateTransaction(req,"","Successful","200",orchestrations)
         })
 
 
