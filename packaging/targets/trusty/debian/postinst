@@ -10,6 +10,7 @@ source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
 #bypass npm https
 npm config set strict-ssl false
 
+chown -R openhim:openhim /usr/share/openhim-mediator-timr-vims-tz
 cd /usr/share/openhim-mediator-timr-vims-tz
 npm install
 
