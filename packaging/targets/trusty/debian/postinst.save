@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+# make sure OpenHIM service is started
+sleep 10
+
+cd /usr/share/openhim-mediator-timr-vims-tz
+chown -R openhim:openhim /usr/share/openhim-mediator-timr-vims-tz
+npm install
+chown -R openhim:openhim /usr/share/openhim-mediator-timr-vims-tz
+touch /var/log/timr_vims_forever.log
+touch /var/log/timr_vims_info.log
+touch /var/log/timr_vims_error.log
+chown openhim:openhim /var/log/timr_vims_forever.log
+chown openhim:openhim /var/log/timr_vims_info.log
+chown openhim:openhim /var/log/timr_vims_error.log
+
+service openhim-mediator-timr-vims-tz start || true
