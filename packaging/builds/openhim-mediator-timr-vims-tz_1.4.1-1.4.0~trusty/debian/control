@@ -1,0 +1,15 @@
+Source: openhim-mediator-timr-vims-tz
+Maintainer: Ally Shaban <allyshaban5@gmail.com>
+Section: web
+Priority: optional
+Standards-Version: 3.9.1
+Build-Depends: debhelper (>= 7)
+Homepage: https://github.com/openhie/openhim-mediator-timr-vims-tz
+
+
+Package: openhim-mediator-timr-vims-tz
+Architecture: amd64
+Depends: openhim-core-js
+Recommends:
+Description: OpenHIM mediator for BID TZ
+ An BID mediator for data synchronisation between TImR and VIMS.
