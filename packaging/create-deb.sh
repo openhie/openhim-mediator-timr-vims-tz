@@ -125,19 +125,6 @@ fi
 cd /home/$USERNAME
 $CURL -o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | $SH > /dev/null
 source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
-for TARGET in "${TARGETS[@]}"
-do
-    TARGETDIR=$HOME/targets/$TARGET
-    RLS=`$HEAD -1 $TARGETDIR/debian/changelog | $AWK '{print $2}' | $AWK -F~ '{print $1}' | $AWK -F\( '{print $2}'`
-    PKG=`$HEAD -1 $TARGETDIR/debian/changelog | $AWK '{print $1}'`
-    PKGDIR=${BUILD}/${PKG}-${RLS}~${TARGET}
-    SRCDIR=${PKGDIR}/tmp-src
-    MEDDIR=$PKGDIR/usr/share/openhim-mediator-timr-vims-tz
-    chown -R $WHOAMI:$WHOAMI $MEDDIR
-    cd $MEDDIR
-    npm install
-done
-
 
 for TARGET in "${TARGETS[@]}"
 do
@@ -169,6 +156,10 @@ do
       cp  $SRCDIR/$CPFILE $MEDDIR
   fi
     done
+
+    chown -R $WHOAMI:$WHOAMI $MEDDIR
+    cd $MEDDIR
+    npm install
 
     cp  -R $TARGETDIR/* $PKGDIR
 
