@@ -133,7 +133,7 @@ do
     done
 
     #install node packages
-    curl -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.0/install.sh | bash
+    curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.0/install.sh | bash
     source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
     cd $MEDDIR
     npm install
