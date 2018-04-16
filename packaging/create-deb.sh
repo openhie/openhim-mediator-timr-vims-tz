@@ -29,6 +29,7 @@ cd $HOME
 
 LASTVERS=`$GIT tag -l '1.*.*' | $SORT -rV | $HEAD -1`
 VERS="${LASTVERS%.*}.$((${LASTVERS##*.}+1))"
+VERS=1.4.7
 echo Current tagged verison is $LASTVERS.  
 $GIT status
 #echo Should we update changelogs, commit under packacing everything and increment to $VERS? [y/n]
