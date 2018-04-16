@@ -20,6 +20,32 @@ SED=/bin/sed
 FMT=/usr/bin/fmt
 PR=/usr/bin/pr
 XARGS=/usr/bin/xargs
+SH=/bin/bash
+CURL=/usr/bin/curl
+USERNAME=openhim
+USERADD=/usr/sbin/useradd
+ADDGROUP=/usr/sbin/addgroup
+ADDUSER=/usr/sbin/adduser
+
+#create openhim user and group
+if ! getent group $USERNAME >/dev/null; then
+  echo "group $USERNAME does not exits,add it with command $ADDGROUP --quiet --system $USERNAME"
+  exit 1
+fi
+
+
+if id -u $USERNAME >/dev/null 2>&1; then
+  echo "user $USERNAME found"
+else
+  echo "user $USERNAME does not exist. add with command $USERADD  $USERNAME -g $USERNAME -m -s /bin/bash"
+  exit 1
+fi
+#install node packages
+cd /home/$USERNAME
+$CURL -o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | $SH > /dev/null
+source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
+cd $MEDDIR
+npm install
 
 cd $HOME/targets
 TARGETS=(*)
@@ -131,12 +157,6 @@ do
       cp  $SRCDIR/$CPFILE $MEDDIR
   fi
     done
-
-    #install node packages
-    curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.0/install.sh | bash
-    source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
-    cd $MEDDIR
-    npm install
 
     cp  -R $TARGETDIR/* $PKGDIR
 
