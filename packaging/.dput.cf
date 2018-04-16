@@ -1,5 +1,0 @@
-[ppa-sftp]
-fqdn = ppa.launchpad.net
-method = sftp
-incoming = ~%(ppa-sftp)s/ubuntu
-login = rg-crichton
