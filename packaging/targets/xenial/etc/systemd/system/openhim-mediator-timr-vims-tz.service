@@ -1,0 +1,10 @@
+[Unit]
+Description = openhim-mediator-timr-vims-tz daemon
+
+[Service]
+WorkingDirectory = /usr/share/openhim-mediator-timr-vims-tz
+Type =simple
+ExecStart = node /usr/share/openhim-mediator-timr-vims-tz/start.js
+
+[Install]
+WantedBy = multi-user.target

@@ -1,4 +1,4 @@
-openhim-mediator-timr-vims-tz (1.4.10~trusty) trusty; urgency=medium
+openhim-mediator-timr-vims-tz (1.4.10~xenial) xenial; urgency=medium
 
   * Release Version 1.4.10
     -5ee8d8d minor changes
