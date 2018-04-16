@@ -1,3 +1,11 @@
+openhim-mediator-timr-vims-tz (1.4.16~trusty) trusty; urgency=medium
+
+  * Release Version 1.4.16
+    -cf992a9 minor changes
+    --https://github.com/openhie/openhim-mediator-timr-vims-tz/commmit/
+
+ -- Ally Shaban <allyshaban5@gmail.com>  Mon, 16 Apr 2018 17:00:13 +0000
+
 openhim-mediator-timr-vims-tz (1.4.15~trusty) trusty; urgency=medium
 
   * Release Version 1.4.15
