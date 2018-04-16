@@ -10,6 +10,7 @@ CPFILES=("README.md" "despatchAdviceBaseMessage.xml" "despatchAdviceLineItem.xml
 #Don't edit below
 
 HOME=`pwd`
+BUILD=$HOME/builds
 AWK=/usr/bin/awk
 HEAD=/usr/bin/head
 GIT=/usr/bin/git
@@ -27,6 +28,9 @@ USERADD=/usr/sbin/useradd
 ADDGROUP=/usr/sbin/addgroup
 ADDUSER=/usr/sbin/adduser
 
+#get a user who is running this script
+WHOAMI=`who am i | awk '{print $1}'`
+
 #create openhim user and group
 if ! getent group $USERNAME >/dev/null; then
   echo "group $USERNAME does not exits,add it with command $ADDGROUP --quiet --system $USERNAME"
@@ -40,12 +44,6 @@ else
   echo "user $USERNAME does not exist. add with command $USERADD  $USERNAME -g $USERNAME -m -s /bin/bash"
   exit 1
 fi
-#install node packages
-cd /home/$USERNAME
-$CURL -o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | $SH > /dev/null
-source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
-cd $MEDDIR
-npm install
 
 cd $HOME/targets
 TARGETS=(*)
@@ -123,8 +121,22 @@ else
   echo "Use gpg --list-keys to see the available keys"
 fi
 
-
-BUILD=$HOME/builds
+#install node packages
+cd /home/$USERNAME
+$CURL -o- https://raw.githubusercontent.com/creationix/nvm/v0.32.1/install.sh | $SH > /dev/null
+source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
+for TARGET in "${TARGETS[@]}"
+do
+    TARGETDIR=$HOME/targets/$TARGET
+    RLS=`$HEAD -1 $TARGETDIR/debian/changelog | $AWK '{print $2}' | $AWK -F~ '{print $1}' | $AWK -F\( '{print $2}'`
+    PKG=`$HEAD -1 $TARGETDIR/debian/changelog | $AWK '{print $1}'`
+    PKGDIR=${BUILD}/${PKG}-${RLS}~${TARGET}
+    SRCDIR=${PKGDIR}/tmp-src
+    MEDDIR=$PKGDIR/usr/share/openhim-mediator-timr-vims-tz
+    chown -R $WHOAMI:$WHOAMI $MEDDIR
+    cd $MEDDIR
+    npm install
+done
 
 
 for TARGET in "${TARGETS[@]}"
