@@ -10,11 +10,11 @@ source /home/openhim/.nvm/nvm.sh && nvm install --lts && nvm use --lts
 #bypass npm https
 npm config set strict-ssl false
 
-chown -R openhim:openhim /usr/share/openhim-mediator-timr-vims-tz
+chown -R `whoami`:`whoami` /usr/share/openhim-mediator-timr-vims-tz
 cd /usr/share/openhim-mediator-timr-vims-tz
 npm install
 
-chown -R openhim:openhim /usr/share/openhim-mediator-timr-vims-tz
+chown -R `whoami`:`whoami` /usr/share/openhim-mediator-timr-vims-tz
 touch /var/log/timr_vims_forever.log
 touch /var/log/timr_vims_info.log
 touch /var/log/timr_vims_error.log
