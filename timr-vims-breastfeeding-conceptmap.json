@@ -1,0 +1,44 @@
+{
+  "resourceType": "ConceptMap",
+  "id": "timr-breastfeeding-to-DHIS2-breastfeeding-conceptmap",
+  "url": "http://localhost/fhir/ConceptMap/timr-breastfeeding-to-DHIS2-breastfeeding-conceptmap",
+  "version": "1.0.0",
+  "name": "timr-breastfeeding-to-vims-breastfeeding-conceptmap",
+  "status": "draft",
+  "experimental": true,
+  "publisher": "Ally Shaban",
+  "date": "2017-08-12",
+  "description": "A mapping between the timr breast feeding dataelements and VIMS disease Data Elements",
+  "sourceReference": {
+    "reference": "ValueSet/dhis-breastfeeding-valuesets.json"
+  },
+  "targetReference": {
+    "reference": "ValueSet/timr-breastfeeding-valuesets.json"
+  },
+  "group": [
+    {
+      "source": "http://dhis.moh.go.tz/api/ValueSet",
+      "target": "http://timr.marc-hi.ca:8080/fhir/api/ValueSets",
+      "element": [
+        {
+          "code": "EBF",
+          "target": [
+            {
+              "code": "1",
+              "equivalence":"wider"
+            }
+          ]
+        },
+        {
+          "code": "RF",
+          "target": [
+            {
+              "code": "2",
+              "equivalence":"wider"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

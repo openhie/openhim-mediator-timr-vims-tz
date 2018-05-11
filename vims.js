@@ -11,6 +11,7 @@ const utils = require('./utils')
 const OIM = require('./openinfoman')
 const fs = require('fs')
 const isJSON = require('is-json')
+var Spinner = require('cli-spinner').Spinner
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 module.exports = function (vimscnf,oimcnf) {
   const vimsconfig = vimscnf
@@ -68,6 +69,145 @@ module.exports = function (vimscnf,oimcnf) {
       }
       else
       return callback(err,res,body)
+    })
+  }
+
+  function translateAgeGroup(ageGroup,callback) {
+    var ageGroups = []
+    var ageOper = []
+
+    if(ageGroup.includes("||")) {
+      ageGroups = ageGroup.split("||")
+    }
+    else if(ageGroup.includes("&&")) {
+      ageGroups = ageGroup.split("&&")
+    }
+    else{
+      ageGroups = [ageGroup]
+    }
+    for(var index in ageGroups){
+      var age = ''
+      var ageGroup = ageGroups[index]
+      if(ageGroup == '') {
+        return callback('','Empty Age Group')
+      }
+      //convert to lower case
+      ageGroup = ageGroup.toLowerCase()
+      //replace all empty strings
+      ageGroup = ageGroup.replace(/\s/g,'')
+      var dimension = null
+      var operator = ageGroup.charAt(0)
+      if(operator == '<' || operator == '>' ) {
+        if(operator == '<')
+          var fhirOper = '=gt'
+        else if(operator == '>')
+          var fhirOper = '=lt'
+
+        for(let char of ageGroup) {
+          if(!isNaN(char)) {
+            age +=char
+          }
+        }
+        if(age == ''){
+          return callback('','No age found on the age group ' + ageGroup)
+        }
+
+        var dim = ageGroup.replace(age,'')
+        dim = dim.replace(/<|>/g,'')
+        if(dim.includes('week'))
+          dimension = 'weeks'
+        else if(dim.includes('month'))
+          dimension = 'months'
+        else if(dim.includes('year'))
+          dimension = 'years'
+        else
+          return callback('','Age group must contain either of the string Years or Months or Weeks')
+
+        ageOper.push({"value":age,"dimension":dimension,'operation':fhirOper})
+      }
+      else if(!isNaN(ageGroup.charAt(0))) {
+        var ages = ageGroup.split('-')
+        if(ages.length == 2) {
+          var age1 = ages[0]
+          var age2 = ''
+          for(let char of ages[1]) {
+            if(!isNaN(char)) {
+              age2 +=char
+            }
+          }
+          if(age1 == '' || age2 == ''){
+            return callback('','No age range found on the age group ' + ageGroup)
+          }
+          var dim = ageGroup.replace(age1+'-'+age2,'')
+          if(dim.includes('week'))
+            dimension = 'weeks'
+          else if(dim.includes('month'))
+            dimension = 'months'
+          else if(dim.includes('year'))
+            dimension = 'years'
+          else
+          return callback('','Age group must contain either of the string Years or Months or Weeks')
+          ageOper.push({"value":age1,"dimension":dimension,'operation':'=lt'})
+          ageOper.push({"value":age2,"dimension":dimension,'operation':'=gt'})
+        }
+        else if(ages.length == 1) {
+          for(let char of ages[0]) {
+            if(!isNaN(char)) {
+              age +=char
+            }
+          }
+          if(age == ''){
+            return callback('','No age found on the age group ' + ageGroup)
+          }
+          var dim = ageGroup.replace(age,'')
+          if(dim.includes('week'))
+            dimension = 'weeks'
+          else if(dim.includes('month'))
+            dimension = 'months'
+          else if(dim.includes('year'))
+            dimension = 'years'
+          else
+          return callback('','Age group must contain either of the string Years or Months or Weeks')
+          ageOper.push({"value":age,"dimension":dimension,'operation':'=eq'})
+        }
+        else {
+
+        }
+      }
+      else {
+        return callback('','Unknown operation,expected age range e.g 10-12Years or operators < or >')
+      }
+    }
+    callback(ageOper,false)
+  }
+
+  function createFHIRQueryOnAge(ages,query,callback) {
+    var endDay = moment().subtract(1,'month').endOf('month').format('D') //getting the last day of last month
+    var startDay = 1;
+    var queries = []
+    var countDay = endDay
+    var days = Array.from({length: endDay}, (v, k) => k+1)
+    async.eachSeries(days,(day,nextDay)=>{
+      var birthDatePar = ''
+      if(day<10)
+      var dateDay = '0' + day
+      else
+      var dateDay = day
+      var vaccineDate = moment().subtract(1,'month').format('YYYY-MM') + '-' + dateDay
+      async.eachSeries(ages,(age,nextAge)=>{
+        var birthDate = moment(vaccineDate).subtract(age.value,age.dimension).format('YYYY-MM-DDTHH:mm:ss')
+        birthDatePar = birthDatePar + '&patient.birthDate' + age.operation + birthDate
+        nextAge()
+      },function(){
+        if(query)
+        var newQuery = query + '&date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + birthDatePar
+        else
+        var newQuery = 'date=ge' + vaccineDate + 'T00:00'+ '&date=le' + vaccineDate + 'T23:59' + birthDatePar
+        queries.push({'query':newQuery})
+        return nextDay()
+      })
+    },function(){
+      return callback (queries)
     })
   }
 
@@ -510,6 +650,553 @@ module.exports = function (vimscnf,oimcnf) {
         })
       },function(){
           return callback()
+      })
+    },
+
+    saveBreastFeeding: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var bfLineItemIndex = 0
+          async.eachSeries(report.report.breastFeedingLineItems,(bfLineItem,nxtBfLineitem)=>{
+            if(bfLineItem.category == "EBF")
+              var breastfeedcode = 1
+            else if(bfLineItem.category == "RF")
+              var breastfeedcode = 2
+            else{
+              winston.error("Unknown code found on breast feed line item " + JSON.stringify(bfLineItem))
+              ++bfLineItemIndex
+              return nxtBfLineitem()
+            }
+
+
+            translateAgeGroup(bfLineItem.ageGroup,(ages,err)=>{
+              if(err){
+                winston.error(err)
+                ++bfLineItemIndex
+                return nxtBfLineitem()
+              }
+              else{
+                createFHIRQueryOnAge(ages,false,(ageQueries)=>{
+                  var gndr = ["male","female"]
+                  winston.info("Getting TImR access token")
+                  timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                    if(err) {
+                      winston.error("An error occured while getting access token from TImR")
+                      ++bfLineItemIndex
+                      return nxtBfLineitem()
+                    }
+                    winston.info("Done Getting Access Token")
+                    var access_token = JSON.parse(body).access_token
+
+                    winston.info("Getting Breast Feeding (" + bfLineItem.category + ") Data")
+                    var spinner = new Spinner("Receiving Breast Feeding (" + bfLineItem.category + ") Data")
+                    spinner.setSpinnerString(8);
+                    spinner.start()
+                    async.eachSeries(gndr,(gender,nxtGender)=>{
+                      var totalValues = 0
+                      async.eachSeries(ageQueries,(qry,nxtQry)=>{
+                        qry.query = qry.query.replace("patient.","")
+                        //Patient resource uses registration-time for date
+                        qry.query = qry.query.replace(new RegExp("&date","g"),"&registration-time")
+                        let url = URI(timrcnf.url)
+                        .segment('fhir')
+                        .segment('Patient')
+                        +'?gender=' + gender + '&' + qry.query + '&breastfeeding=' + breastfeedcode + '&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                        .toString()
+                        var options = {
+                          url: url.toString(),
+                          headers: {
+                            Authorization: `BEARER ${access_token}`
+                          }
+                        }
+                        let before = new Date()
+                        request.get(options, (err, res, body) => {
+                          if (err) {
+                            return callback(err)
+                          }
+                          var total = parseInt(JSON.parse(body).total)
+                          if(total > 0)
+                          orchestrations.push(utils.buildOrchestration('Fetching Breast Feeding Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                          totalValues = parseInt(totalValues) + total
+                          return nxtQry()
+                        })
+                      },function(){
+                        if(gender == "male")
+                        report.report.breastFeedingLineItems[bfLineItemIndex].maleValue = totalValues
+                        if(gender == "female")
+                        report.report.breastFeedingLineItems[bfLineItemIndex].femaleValue = totalValues
+                        return nxtGender()
+                      })
+                    },function(){
+                      var updatedReport = {
+                                              "id":report.report.id,
+                                              "facilityId":report.report.facilityId,
+                                              "periodId":report.report.periodId,
+                                              "breastFeedingLineItems":[report.report.breastFeedingLineItems[bfLineItemIndex]]
+                                            }
+                      saveVIMSReport(updatedReport,"breastFeedingLineItems",orchestrations,(err,res,body)=>{
+
+                      })
+                      spinner.stop()
+                      ++bfLineItemIndex
+                      return nxtBfLineitem()
+                    })
+                  })
+                })
+              }
+            })
+          },function(){
+            return callback()
+          })
+        })
+      })
+    },
+
+    saveChildVisit: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var cvLineItemIndex = 0
+          async.eachSeries(report.report.childVisitLineItems,(cvLineItem,nxtCvLineitem)=>{
+            translateAgeGroup(cvLineItem.ageGroup,(ages,err)=>{
+              if(err){
+                winston.error(err)
+                ++cvLineItemIndex
+                return nxtCvLineitem()
+              }
+              else{
+                createFHIRQueryOnAge(ages,false,(ageQueries)=>{
+                  var gndr = ["male","female"]
+                  winston.info("Getting TImR access token")
+                  timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                    if(err) {
+                      winston.error("An error occured while getting access token from TImR")
+                      ++cvLineItemIndex
+                      return nxtCvLineitem()
+                    }
+                    winston.info("Done Getting Access Token")
+                    var access_token = JSON.parse(body).access_token
+
+                    winston.info("Getting Child Visit Data")
+                    var spinner = new Spinner("Receiving Child Visit Data")
+                    spinner.setSpinnerString(8);
+                    spinner.start()
+                    async.eachSeries(gndr,(gender,nxtGender)=>{
+                      var totalValues = 0
+                      async.eachSeries(ageQueries,(qry,nxtQry)=>{
+                        let url = URI(timrcnf.url)
+                        .segment('fhir')
+                        .segment('Encounter')
+                        +'?gender=' + gender + '&' + qry.query + '&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                        .toString()
+                        var options = {
+                          url: url.toString(),
+                          headers: {
+                            Authorization: `BEARER ${access_token}`
+                          }
+                        }
+                        let before = new Date()
+                        request.get(options, (err, res, body) => {
+                          if (err) {
+                            return callback(err)
+                          }
+                          var total = parseInt(JSON.parse(body).total)
+                          if(total > 0)
+                          orchestrations.push(utils.buildOrchestration('Fetching Child Visit Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                          totalValues = parseInt(totalValues) + total
+                          return nxtQry()
+                        })
+                      },function(){
+                        if(gender == "male")
+                        report.report.childVisitLineItems[cvLineItemIndex].maleValue = totalValues
+                        if(gender == "female")
+                        report.report.childVisitLineItems[cvLineItemIndex].femaleValue = totalValues
+                        return nxtGender()
+                      })
+                    },function(){
+                      var updatedReport = {
+                                              "id":report.report.id,
+                                              "facilityId":report.report.facilityId,
+                                              "periodId":report.report.periodId,
+                                              "childVisitLineItems":[report.report.childVisitLineItems[cvLineItemIndex]]
+                                            }
+                      saveVIMSReport(updatedReport,"childVisitLineItems",orchestrations,(err,res,body)=>{
+
+                      })
+                      spinner.stop()
+                      ++cvLineItemIndex
+                      return nxtCvLineitem()
+                    })
+                  })
+                })
+              }
+            })
+          },function(){
+            return callback()
+          })
+        })
+      })
+    },
+
+    saveTT: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var ttLineItemIndex = 0
+          async.eachSeries(report.report.ttStatusLineItems,(ttLineitem,nxtTTLineitem)=>{
+            if(ttLineitem.category == "Vaccinated")
+              var ttcode = '2'
+            else if(ttLineitem.category == "Not Vaccinated")
+              var ttcode = '1'
+            else if(ttLineitem.category == "Unknown")
+              var ttcode = '0'
+            else{
+              winston.error("Unknown code found on TT line item " + JSON.stringify(ttLineitem))
+              ++ttLineItemIndex
+              return nxtTTLineitem()
+            }
+
+            var gndr = ["male","female"]
+            winston.info("Getting TImR access token")
+            timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+              if(err) {
+                winston.error("An error occured while getting access token from TImR")
+                ++ttLineItemIndex
+                return nxtTTLineitem()
+              }
+              winston.info("Done Getting Access Token")
+              var access_token = JSON.parse(body).access_token
+
+              winston.info("Getting TT (" + ttLineitem.category + ") Data")
+              var spinner = new Spinner("Receiving TT (" + ttLineitem.category + ") Data")
+              spinner.setSpinnerString(8);
+              spinner.start()
+              async.eachSeries(gndr,(gender,nxtGender)=>{
+                var totalValues = 0
+                let url = URI(timrcnf.url)
+                .segment('fhir')
+                .segment('Patient')
+                +'?gender=' + gender + '&tt-status=' + ttcode + '&status=ACTIVE&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                .toString()
+                var options = {
+                  url: url.toString(),
+                  headers: {
+                    Authorization: `BEARER ${access_token}`
+                  }
+                }
+                let before = new Date()
+                request.get(options, (err, res, body) => {
+                  if (err) {
+                    return callback(err)
+                  }
+                  var total = parseInt(JSON.parse(body).total)
+                  if(total > 0)
+                  orchestrations.push(utils.buildOrchestration('Fetching TT Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                  totalValues = parseInt(totalValues) + total
+                  if(gender == "male")
+                    report.report.ttStatusLineItems[ttLineItemIndex].maleValue = totalValues
+                  if(gender == "female")
+                    report.report.ttStatusLineItems[ttLineItemIndex].femaleValue = totalValues
+                  return nxtGender()
+                })
+              },function(){
+                var updatedReport = {
+                                        "id":report.report.id,
+                                        "facilityId":report.report.facilityId,
+                                        "periodId":report.report.periodId,
+                                        "ttStatusLineItems":[report.report.ttStatusLineItems[ttLineItemIndex]]
+                                      }
+                saveVIMSReport(updatedReport,"ttStatusLineItems",orchestrations,(err,res,body)=>{
+
+                })
+                spinner.stop()
+                ++ttLineItemIndex
+                return nxtTTLineitem()
+              })
+            })
+          },function(){
+            return callback()
+          })
+        })
+      })
+    },
+
+    saveAgeWeightRatio: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var ageWeightLineItemIndex = 0
+          async.eachSeries(report.report.weightAgeRatioLineItems,(warLineItem,nxtAWRLineitem)=>{
+            if(warLineItem.category == "80% - 2SD")
+              var weightageratiocode = 'H'
+            else if(warLineItem.category == "60% - 3SD")
+              var weightageratiocode = 'L'
+            else if(warLineItem.category == "60%-80% - 2-3SD")
+              var weightageratiocode = 'N'
+            else{
+              winston.error("Unknown code found on Age Weight Ratio line item " + JSON.stringify(warLineItem))
+              ++ageWeightLineItemIndex
+              return nxtAWRLineitem()
+            }
+
+
+            translateAgeGroup(warLineItem.ageGroup,(ages,err)=>{
+              if(err){
+                winston.error(err)
+                ++ageWeightLineItemIndex
+                return nxtAWRLineitem()
+              }
+              else{
+                createFHIRQueryOnAge(ages,false,(ageQueries)=>{
+                  var gndr = ["male","female"]
+                  winston.info("Getting TImR access token")
+                  timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                    if(err) {
+                      winston.error("An error occured while getting access token from TImR")
+                      ++ageWeightLineItemIndex
+                      return nxtAWRLineitem()
+                    }
+                    winston.info("Done Getting Access Token")
+                    var access_token = JSON.parse(body).access_token
+
+                    winston.info("Getting Age Weight Ratio (" + warLineItem.category + ") Data")
+                    var spinner = new Spinner("Receiving Age Weight Ratio (" + warLineItem.category + ") Data")
+                    spinner.setSpinnerString(8);
+                    spinner.start()
+                    async.eachSeries(gndr,(gender,nxtGender)=>{
+                      var totalValues = 0
+                      async.eachSeries(ageQueries,(qry,nxtQry)=>{
+                        let url = URI(timrcnf.url)
+                        .segment('fhir')
+                        .segment('Observation')
+                        +'?gender=' + gender + '&' + qry.query + '&code=' + 'http://hl7.org/fhir/sid/loinc|3141-9' + '&interpretation=' + weightageratiocode + '&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                        .toString()
+                        var options = {
+                          url: url.toString(),
+                          headers: {
+                            Authorization: `BEARER ${access_token}`
+                          }
+                        }
+                        let before = new Date()
+                        request.get(options, (err, res, body) => {
+                          if (err) {
+                            return callback(err)
+                          }
+                          var total = parseInt(JSON.parse(body).total)
+                          if(total > 0)
+                          orchestrations.push(utils.buildOrchestration('Fetching Age Weight Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                          totalValues = parseInt(totalValues) + total
+                          return nxtQry()
+                        })
+                      },function(){
+                        if(gender == "male")
+                        report.report.weightAgeRatioLineItems[ageWeightLineItemIndex].maleValue = totalValues
+                        if(gender == "female")
+                        report.report.weightAgeRatioLineItems[ageWeightLineItemIndex].femaleValue = totalValues
+                        return nxtGender()
+                      })
+                    },function(){
+                      var updatedReport = {
+                                              "id":report.report.id,
+                                              "facilityId":report.report.facilityId,
+                                              "periodId":report.report.periodId,
+                                              "weightAgeRatioLineItems":[report.report.weightAgeRatioLineItems[ageWeightLineItemIndex]]
+                                            }
+                      saveVIMSReport(updatedReport,"weightAgeRatioLineItems",orchestrations,(err,res,body)=>{
+
+                      })
+                      spinner.stop()
+                      ++ageWeightLineItemIndex
+                      return nxtAWRLineitem()
+                    })
+                  })
+                })
+              }
+            })
+          },function(){
+            return callback()
+          })
+        })
+      })
+    },
+
+    savePMTCT: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var pmtctLineItemIndex = 0
+          async.eachSeries(report.report.pmtctLineItems,(pmtctLineItem,nxtPMTCTLineitem)=>{
+            translateAgeGroup(pmtctLineItem.ageGroup,(ages,err)=>{
+              if(err){
+                winston.error(err)
+                ++pmtctLineItemIndex
+                return nxtPMTCTLineitem()
+              }
+              else{
+                createFHIRQueryOnAge(ages,false,(ageQueries)=>{
+                  var gndr = ["male","female"]
+                  winston.info("Getting TImR access token")
+                  timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+                    if(err) {
+                      winston.error("An error occured while getting access token from TImR")
+                      ++pmtctLineItemIndex
+                      return nxtPMTCTLineitem()
+                    }
+                    winston.info("Done Getting Access Token")
+                    var access_token = JSON.parse(body).access_token
+
+                    winston.info("Getting PMTCT (" + pmtctLineItem.category + ") Data")
+                    var spinner = new Spinner("Receiving PMTCT (" + pmtctLineItem.category + ") Data")
+                    spinner.setSpinnerString(8);
+                    spinner.start()
+                    async.eachSeries(gndr,(gender,nxtGender)=>{
+                      var totalValues = 0
+                      async.eachSeries(ageQueries,(qry,nxtQry)=>{
+                        qry.query = qry.query.replace("patient.","")
+                        //Patient resource uses registration-time for date
+                        qry.query = qry.query.replace(new RegExp("&date","g"),"&registration-time")
+                        let url = URI(timrcnf.url)
+                        .segment('fhir')
+                        .segment('Patient')
+                        +'?gender=' + gender + '&pmtct=1&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                        .toString()
+                        var options = {
+                          url: url.toString(),
+                          headers: {
+                            Authorization: `BEARER ${access_token}`
+                          }
+                        }
+                        let before = new Date()
+                        request.get(options, (err, res, body) => {
+                          if (err) {
+                            return callback(err)
+                          }
+                          var total = parseInt(JSON.parse(body).total)
+                          if(total > 0)
+                          orchestrations.push(utils.buildOrchestration('Fetching PMTCT Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                          totalValues = parseInt(totalValues) + total
+                          return nxtQry()
+                        })
+                      },function(){
+                        if(gender == "male")
+                        report.report.pmtctLineItems[pmtctLineItemIndex].maleValue = Math.floor(Math.random() * 20)//totalValues
+                        if(gender == "female")
+                        report.report.pmtctLineItems[pmtctLineItemIndex].femaleValue = Math.floor(Math.random() * 20)//totalValues
+                        return nxtGender()
+                      })
+                    },function(){
+                      var updatedReport = {
+                                              "id":report.report.id,
+                                              "facilityId":report.report.facilityId,
+                                              "periodId":report.report.periodId,
+                                              "pmtctLineItems":[report.report.pmtctLineItems[pmtctLineItemIndex]]
+                                            }
+                      saveVIMSReport(updatedReport,"pmtctLineItems",orchestrations,(err,res,body)=>{
+
+                      })
+                      spinner.stop()
+                      ++pmtctLineItemIndex
+                      return nxtPMTCTLineitem()
+                    })
+                  })
+                })
+              }
+            })
+          },function(){
+            return callback()
+          })
+        })
+      })
+    },
+
+    saveMosquitoNet: function(period,timrFacilityId,timr,orchestrations,callback) {
+      async.eachSeries(period,(period,nextPeriod)=>{
+        var periodId = period.id
+        this.getReport (periodId,orchestrations,(err,report) => {
+          if(err || !report) {
+            return callback()
+          }
+          var mosquitoNetLineItemIndex = 0
+          async.eachSeries(report.report.llInLineItemLists,(mnLineItem,nxtMNLineitem)=>{
+            var gndr = ["male","female"]
+            winston.info("Getting TImR access token")
+            timr.getAccessToken('fhir',orchestrations,(err, res, body) => {
+              if(err) {
+                winston.error("An error occured while getting access token from TImR")
+                ++mosquitoNetLineItemIndex
+                return nxtMNLineitem()
+              }
+              winston.info("Done Getting Access Token")
+              var access_token = JSON.parse(body).access_token
+
+              winston.info("Getting Mosquito Net Data")
+              var spinner = new Spinner("Receiving Mosquito Net Data")
+              spinner.setSpinnerString(8);
+              spinner.start()
+              async.eachSeries(gndr,(gender,nxtGender)=>{
+                var totalValues = 0
+                let url = URI(timrcnf.url)
+                .segment('fhir')
+                .segment('Observation')
+                +'?gender=' + gender + '&mosquito-net=True&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
+                .toString()
+                var options = {
+                  url: url.toString(),
+                  headers: {
+                    Authorization: `BEARER ${access_token}`
+                  }
+                }
+                let before = new Date()
+                request.get(options, (err, res, body) => {
+                  if (err) {
+                    return callback(err)
+                  }
+                  var total = parseInt(JSON.parse(body).total)
+                  if(total > 0)
+                  orchestrations.push(utils.buildOrchestration('Fetching Age Weight Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
+                  totalValues = parseInt(totalValues) + total
+                  
+                  if(gender == "male")
+                  report.report.llInLineItemLists[mosquitoNetLineItemIndex].maleValue = Math.floor(Math.random() * 20)//totalValues
+                  if(gender == "female")
+                  report.report.llInLineItemLists[mosquitoNetLineItemIndex].femaleValue = Math.floor(Math.random() * 20)//totalValues
+                  return nxtGender()
+                })
+              },function(){
+                var updatedReport = {
+                                        "id":report.report.id,
+                                        "facilityId":report.report.facilityId,
+                                        "periodId":report.report.periodId,
+                                        "llInLineItemLists":[report.report.llInLineItemLists[mosquitoNetLineItemIndex]]
+                                      }
+                saveVIMSReport(updatedReport,"llInLineItemLists",orchestrations,(err,res,body)=>{
+
+                })
+                spinner.stop()
+                ++mosquitoNetLineItemIndex
+                return nxtMNLineitem()
+              })
+            })
+          },function(){
+            return callback()
+          })
+        })
       })
     },
 

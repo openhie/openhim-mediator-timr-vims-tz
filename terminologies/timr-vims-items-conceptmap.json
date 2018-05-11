@@ -154,6 +154,15 @@
               "equivalence":"wider"
             }
           ]
+        },
+        {
+          "code": "2417",
+          "target": [
+            {
+              "code": "10",
+              "equivalence":"wider"
+            }
+          ]
         }
       ]
     }

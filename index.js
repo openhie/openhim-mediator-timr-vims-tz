@@ -464,6 +464,252 @@ function setupApp () {
     })
   }),
 
+  app.get('/syncBreastFeeding', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing Breastfeeding Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.saveBreastFeeding(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing Breast Feeding Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing Breast Feeding Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
+  app.get('/syncChildVisit', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing Child Visit Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.saveChildVisit(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing Child Visit Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing Breast Feeding Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
+  app.get('/syncPMTCT', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing PMTCT Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.savePMTCT(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing PMTCT Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing PMTCT Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
+  app.get('/syncWeightAgeRatio', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing Age Weight Ratio Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.saveAgeWeightRatio(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing Age Weight Ratio Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing Age Weight Ratio Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
+  app.get('/syncMosquitoNet', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing Mosquito Net Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.saveMosquitoNet(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing Mosquito Net Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing Mosquito Net Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
+  app.get('/syncTT', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims,'',config.timr,config.timrOauth2)
+    const timr = TImR(config.timr,config.oauth2,config.vims)
+    res.end()
+    updateTransaction (req,"Still Processing","Processing","200","")
+    req.timestamp = new Date()
+    let orchestrations = []
+
+    var LAST_MONTH = moment().subtract(1,'months').format('YYYYMM')
+      oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+        async.eachSeries(facilities,(facility,nextFacility)=>{
+          var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityId = facility.timrFacilityId
+          var facilityName = facility.facilityName
+          vims.getPeriod(vimsFacilityId,orchestrations,(err,period)=>{
+            if(err) {
+              winston.error(err)
+              return nextFacility()
+            }
+            if(period.length > 1 ) {
+              winston.warn("VIMS has returned two DRAFT reports,processng stoped!!!")
+              return nextFacility()
+            }
+            else if(period.length == 0) {
+              winston.warn("Skip Processing " + facilityName + ", No Period Found")
+              return nextFacility()
+            }
+            winston.info("Processing TT Data For " + facilityName + ", Period " + period[0].periodName)
+            vims.saveTT(period,timrFacilityId,timr,orchestrations,()=>{
+              winston.info("Done synchronizing TT Data For " + facilityName)
+              return nextFacility()
+            })
+          })
+        },function(){
+          winston.info('Done Synchronizing TT Data!!!')
+          updateTransaction(req,"","Successful","200",orchestrations)
+        })
+      })
+  }),
+
   app.get('/syncStock', (req, res) => {
     const oim = OIM(config.openinfoman)
     const vims = VIMS(config.vims)
