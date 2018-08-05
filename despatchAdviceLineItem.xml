@@ -1,19 +1,19 @@
-  <despatchAdviceLineItem>
-    <lineItemNumber>1</lineItemNumber>
-    <despatchedQuantity measurementUnitCode="dose" codeListVersion="UCUM">%s</despatchedQuantity>
-    <transactionalTradeItem>
-      <additionalTradeItemIdentification additionalTradeItemIdentificationTypeCode="VIMS_STOCK_ID">%s</additionalTradeItemIdentification>
-      <gtin>%s</gtin>
-      <tradeItemClassification>
-        <additionalTradeItemClassificationCode codeListVersion="VIMS_ITEM_ID">%s</additionalTradeItemClassificationCode>
-      </tradeItemClassification>
-      <tradeItemDescription>%s</tradeItemDescription>
-      <itemTypeCode codeListVersion="%s">%s</itemTypeCode>
-      <transactionalItemData>
-        <lotNumber>%s</lotNumber>
-        <itemExpirationDate>%s</itemExpirationDate>
-        <tradeItemQuantity>%s</tradeItemQuantity>
-      </transactionalItemData>
-    </transactionalTradeItem>
-  </despatchAdviceLineItem>
+<despatchAdviceLineItem>
+  <lineItemNumber>1</lineItemNumber>
+  <despatchedQuantity measurementUnitCode="dose" codeListVersion="UCUM">%s</despatchedQuantity>
+  <transactionalTradeItem>
+    <additionalTradeItemIdentification additionalTradeItemIdentificationTypeCode="VIMS_STOCK_ID">%s</additionalTradeItemIdentification>
+    <gtin>%s</gtin>
+    <tradeItemClassification>
+      <additionalTradeItemClassificationCode codeListVersion="VIMS_ITEM_ID">%s</additionalTradeItemClassificationCode>
+    </tradeItemClassification>
+    <tradeItemDescription>%s</tradeItemDescription>
+    <itemTypeCode codeListVersion="%s">%s</itemTypeCode>
+    <transactionalItemData>
+      <lotNumber>%s</lotNumber>
+      <itemExpirationDate>%s</itemExpirationDate>
+      <tradeItemQuantity>%s</tradeItemQuantity>
+    </transactionalItemData>
+  </transactionalTradeItem>
+</despatchAdviceLineItem>
   %s

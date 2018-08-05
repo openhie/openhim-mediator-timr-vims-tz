@@ -9,11 +9,10 @@ const utils = require('./utils')
 module.exports = function (rpconf) {
   const config = rpconf
   return {
-
-    broadcast: function (rp_req,callback) {
+    broadcast: function (rp_req, callback) {
       rp_req = JSON.parse(rp_req)
       let url = URI(config.url)
-      .segment("api/v2/broadcasts.json")
+        .segment("api/v2/broadcasts.json")
       let before = new Date()
 
       let options = {

@@ -10,7 +10,7 @@ module.exports = function (aggregatorconf) {
   const config = aggregatorconf
   return {
 
-    broadcast: function (phone,msg,orchestrations) {
+    broadcast: function (phone, msg, orchestrations) {
       let url = URI(config.url) + "?msisdn=" + phone + "&message=" + msg + "&u=" + config.username + "&p=" + config.password
       let before = new Date()
 

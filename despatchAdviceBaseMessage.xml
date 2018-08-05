@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<despatch_advice:despatchAdviceMessage xmlns:despatch_advice="urn:gs1:ecom:despatch_advice:xsd:3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:despatch_advice:xsd:3 ../Schemas/gs1/ecom/DespatchAdvice.xsd">
+<despatch_advice:despatchAdviceMessage xmlns:despatch_advice="urn:gs1:ecom:despatch_advice:xsd:3" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:despatch_advice:xsd:3 ../Schemas/gs1/ecom/DespatchAdvice.xsd">
   <StandardBusinessDocumentHeader xmlns="http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader">
     <HeaderVersion>1.0</HeaderVersion>
     <Receiver>

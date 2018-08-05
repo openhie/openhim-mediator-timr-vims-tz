@@ -9,7 +9,7 @@ const utils = require('./utils')
 module.exports = function (oimconf) {
   const config = oimconf
   return {
-    getVimsFacilities: function (orchestrations,callback) {
+    getVimsFacilities: function (orchestrations, callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -26,8 +26,8 @@ module.exports = function (oimconf) {
         headers: {
           Authorization: auth,
           'Content-Type': 'text/xml'
-           },
-           body: csd_msg
+        },
+        body: csd_msg
       }
 
       let before = new Date()
@@ -35,14 +35,14 @@ module.exports = function (oimconf) {
         orchestrations.push(utils.buildOrchestration('Fetching Facilities Mapped With VIMS From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
           winston.error(err)
-          return callback(err,"")
+          return callback(err, "")
         }
         var ast = XmlReader.parseSync(body);
         var totalFac = xmlQuery(ast).find("facilityDirectory").children().size()
         var loopCntr = totalFac
         var facilityDirectory = xmlQuery(ast).find("facilityDirectory").children()
         var facilities = []
-        for(var counter = 0;counter<totalFac;counter++) {
+        for (var counter = 0; counter < totalFac; counter++) {
           var timrFacilityId = facilityDirectory.eq(counter).attr("entityID")
           var facilityDetails = facilityDirectory.eq(counter).children()
           var totalDetails = facilityDirectory.eq(counter).children().size()
@@ -50,43 +50,42 @@ module.exports = function (oimconf) {
           var vimsFacilityId = 0
           var DVS = false
           var multiplevimsid = false
-          for(var detailsCount = 0;detailsCount<totalDetails;detailsCount++) {
-            if( facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "https://vims.moh.go.tz" &&
-                facilityDetails.eq(detailsCount).attr("code") == "id"
-              ) {
-                if(vimsFacilityId)
+          for (var detailsCount = 0; detailsCount < totalDetails; detailsCount++) {
+            if (facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "https://vims.moh.go.tz" &&
+              facilityDetails.eq(detailsCount).attr("code") == "id"
+            ) {
+              if (vimsFacilityId)
                 multiplevimsid = true
-                vimsFacilityId = facilityDetails.eq(detailsCount).text()
+              vimsFacilityId = facilityDetails.eq(detailsCount).text()
             }
-            if(facilityDetails.eq(detailsCount).has("csd:primaryName"))
+            if (facilityDetails.eq(detailsCount).has("csd:primaryName"))
               var facilityName = facilityDetails.eq(detailsCount).find("csd:primaryName").text()
-            if( facilityDetails.eq(detailsCount).has("csd:extension") &&
-                facilityDetails.eq(detailsCount).attr("type") == "facilityType" &&
-                facilityDetails.eq(detailsCount).attr("urn") == "urn:openhie.org:openinfoman-tz" &&
-                facilityDetails.eq(detailsCount).children().find("facilityType").text() == "DVS"
-              )
+            if (facilityDetails.eq(detailsCount).has("csd:extension") &&
+              facilityDetails.eq(detailsCount).attr("type") == "facilityType" &&
+              facilityDetails.eq(detailsCount).attr("urn") == "urn:openhie.org:openinfoman-tz" &&
+              facilityDetails.eq(detailsCount).children().find("facilityType").text() == "DVS"
+            )
               DVS = true
           }
-          if(DVS === false) {
+          if (DVS === false) {
             facilities.push({
-                              "timrFacilityId":timrFacilityId,
-                              "vimsFacilityId":vimsFacilityId,
-                              "facilityName":facilityName,
-                              "multiplevimsid":multiplevimsid
-                            })
+              "timrFacilityId": timrFacilityId,
+              "vimsFacilityId": vimsFacilityId,
+              "facilityName": facilityName,
+              "multiplevimsid": multiplevimsid
+            })
             loopCntr--
-          }
-          else {
+          } else {
             loopCntr--
           }
         }
-        if(loopCntr == 0){
-          callback(err,facilities)
+        if (loopCntr == 0) {
+          callback(err, facilities)
         }
       })
     },
 
-    getVimsFacilityId: function(uuid,orchestrations,callback) {
+    getVimsFacilityId: function (uuid, orchestrations, callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -103,34 +102,34 @@ module.exports = function (oimconf) {
         headers: {
           Authorization: auth,
           'Content-Type': 'text/xml'
-           },
-           body: csd_msg
+        },
+        body: csd_msg
       }
       let before = new Date()
       request.post(options, function (err, res, body) {
         orchestrations.push(utils.buildOrchestration('Fetching VIMS Facility ID From OpenInfoMan', before, 'GET', url.toString(), csd_msg, res, body))
         if (err) {
           winston.error(err)
-          return callback(err,"")
+          return callback(err, "")
         }
         var ast = XmlReader.parseSync(body)
         var facLength = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().size()
         var facility = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children()
         var loopCntr = facLength
         var facFound = false
-        for(var counter=0;counter<facLength;counter++){
-          if(facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
+        for (var counter = 0; counter < facLength; counter++) {
+          if (facility.eq(counter).find("csd:otherID").attr("assigningAuthorityName") == "https://vims.moh.go.tz" && facility.eq(counter).find("csd:otherID").attr("code") == "id") {
             facFound = true
-            return callback (err,facility.eq(counter).find("csd:otherID").text())
+            return callback(err, facility.eq(counter).find("csd:otherID").text())
           }
           loopCntr--
         }
-        if(loopCntr === 0 && facFound === false)
-        return callback()
+        if (loopCntr === 0 && facFound === false)
+          return callback()
       })
     },
 
-    getFacilityUUIDFromVimsId: function (vimsFacId,orchestrations,callback) {
+    getFacilityUUIDFromVimsId: function (vimsFacId, orchestrations, callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -146,24 +145,24 @@ module.exports = function (oimconf) {
         url: url.toString(),
         headers: {
           'Content-Type': 'text/xml'
-           },
-           body: csd_msg
+        },
+        body: csd_msg
       }
       let before = new Date()
       request.post(options, function (err, res, body) {
         orchestrations.push(utils.buildOrchestration('Get facility UUID From VIMSID', before, 'POST', url.toString(), options.body, res, body))
         if (err) {
           winston.error(err)
-          return callback(err,"","")
+          return callback(err, "", "")
         }
         var ast = XmlReader.parseSync(body)
         var uuid = xmlQuery(ast).find("facilityDirectory").children().attr("entityID")
         var name = xmlQuery(ast).find("facilityDirectory").children().find("csd:facility").children().find("csd:primaryName").text()
-        callback(err,uuid,name)
+        callback(err, uuid, name)
       })
     },
 
-    getOrganizationUUIDFromVimsId: function (vimsOrgId,orchestrations,callback) {
+    getOrganizationUUIDFromVimsId: function (vimsOrgId, orchestrations, callback) {
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -179,8 +178,8 @@ module.exports = function (oimconf) {
         url: url.toString(),
         headers: {
           'Content-Type': 'text/xml'
-           },
-           body: csd_msg
+        },
+        body: csd_msg
       }
       let before = new Date()
       request.post(options, function (err, res, body) {
@@ -191,7 +190,7 @@ module.exports = function (oimconf) {
         var ast = XmlReader.parseSync(body)
         var uuid = xmlQuery(ast).find("organizationDirectory").children().attr("entityID")
         var name = xmlQuery(ast).find("organizationDirectory").children().find("csd:organization").children().find("csd:primaryName").text()
-        callback(err,uuid,name)
+        callback(err, uuid, name)
       })
     }
   }

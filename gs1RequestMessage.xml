@@ -1,4 +1,6 @@
-<logistics_inventory_report_request:logisticsInventoryReportRequestMessage xmlns:logistics_inventory_report_request="urn:gs1:ecom:logistics_inventory_report_request:xsd:3" xmlns:sh="http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:logistics_inventory_report_request:xsd:3 ../Schemas/gs1/ecom/LogisticsInventoryReportRequest.xsd">
+<logistics_inventory_report_request:logisticsInventoryReportRequestMessage xmlns:logistics_inventory_report_request="urn:gs1:ecom:logistics_inventory_report_request:xsd:3" 
+  xmlns:sh="http://www.unece.org/cefact/namespaces/StandardBusinessDocumentHeader" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:gs1:ecom:logistics_inventory_report_request:xsd:3 ../Schemas/gs1/ecom/LogisticsInventoryReportRequest.xsd">
   <sh:StandardBusinessDocumentHeader>
     <sh:HeaderVersion>1.0</sh:HeaderVersion>
     <sh:Sender>
@@ -41,7 +43,7 @@
     </reportingPeriod>
     <logisticsInventoryRequestLocation>
       <inventoryLocation>
-	<additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
+        <additionalPartyIdentification additionalPartyIdentificationTypeCode="HIE_FRID">%s</additionalPartyIdentification>
       </inventoryLocation>
     </logisticsInventoryRequestLocation>
     <documentActionCode>ADD</documentActionCode>

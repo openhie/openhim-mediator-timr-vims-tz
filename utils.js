@@ -7,16 +7,19 @@ const moment = require("moment")
 
 exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent, res, body) => {
   let uri = new URI(url)
-  var body = JSON.stringify({"response":"Response Disabled"})
-  if(res == undefined || res == null || res == false) {
+  var body = JSON.stringify({
+    "response": "Response Disabled"
+  })
+  if (res == undefined || res == null || res == false) {
     var statusCode = 503
-    var header = JSON.stringify({"response_header":"Empty Header Returned"})
+    var header = JSON.stringify({
+      "response_header": "Empty Header Returned"
+    })
     var time = moment().format()
-    send_email.send("Empty Response Data","Res===>" + res + "Body===>" + body + "Req===>"+requestContent+ "Time===>"+ time,()=>{
+    send_email.send("Empty Response Data", "Res===>" + res + "Body===>" + body + "Req===>" + requestContent + "Time===>" + time, () => {
 
     })
-  }
-  else if('statusCode' in res) {
+  } else if ('statusCode' in res) {
     var statusCode = res.statusCode
     var header = res.headers
   }

@@ -15,30 +15,23 @@
   "targetReference": {
     "reference": "ValueSet/timr-breastfeeding-valuesets.json"
   },
-  "group": [
-    {
-      "source": "http://dhis.moh.go.tz/api/ValueSet",
-      "target": "http://timr.marc-hi.ca:8080/fhir/api/ValueSets",
-      "element": [
-        {
-          "code": "EBF",
-          "target": [
-            {
-              "code": "1",
-              "equivalence":"wider"
-            }
-          ]
-        },
-        {
-          "code": "RF",
-          "target": [
-            {
-              "code": "2",
-              "equivalence":"wider"
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  "group": [{
+    "source": "http://dhis.moh.go.tz/api/ValueSet",
+    "target": "http://timr.marc-hi.ca:8080/fhir/api/ValueSets",
+    "element": [{
+        "code": "EBF",
+        "target": [{
+          "code": "1",
+          "equivalence": "wider"
+        }]
+      },
+      {
+        "code": "RF",
+        "target": [{
+          "code": "2",
+          "equivalence": "wider"
+        }]
+      }
+    ]
+  }]
 }
