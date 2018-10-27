@@ -180,9 +180,9 @@ function setupApp () {
                   winston.error ("An error occured while saving despatch advice to TImR")
                   winston.warn(distribution)
                   winston.warn(despatchAdviceBaseMessage)
-                  winston.info(res)
+                  winston.error(res)
                 } else {
-                              winston.info("Despatch Advice Saved To TImR Successfully")
+                    winston.info("Despatch Advice Saved To TImR Successfully")
                 }
                 var time = moment().format()
                 if(facility.multiplevimsid == true)
