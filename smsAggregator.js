@@ -17,7 +17,6 @@ module.exports = function (aggregatorconf) {
       let options = {
         url: url.toString()
       }
-      winston.error(phone)
       request.get(options, (err, res, body) => {
         orchestrations.push(utils.buildOrchestration('Sending alert to defaulter', before, 'GET', url.toString(), options.body, res, body))
         winston.info(body)
