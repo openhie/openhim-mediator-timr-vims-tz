@@ -144,6 +144,7 @@ module.exports = function (oimconf) {
       var options = {
         url: url.toString(),
         headers: {
+          Authorization: auth,
           'Content-Type': 'text/xml'
         },
         body: csd_msg
@@ -177,6 +178,7 @@ module.exports = function (oimconf) {
       var options = {
         url: url.toString(),
         headers: {
+          Authorization: auth,
           'Content-Type': 'text/xml'
         },
         body: csd_msg
