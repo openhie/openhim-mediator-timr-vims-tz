@@ -208,26 +208,21 @@ function setupApp() {
                     vims.getValueSets(vimsImmValueSets, (err, vimsImmValueSet) => {
                       winston.info("Done Getting All VIMS Immunization Data Elements")
                       const immValPromise = []
-                      //async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
-                      for (var immValSetKey in vimsImmValueSet) {
-                        promises.push(new Promise((resolve, reject) => {
-                          var vimsVaccCode = vimsImmValueSet[immValSetKey]
-                          winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
-                          getDosesMapping(vimsVaccCode.code, (doses) => {
-                            async.eachOfSeries(doses, function (dose, doseInd, processNextDose) {
-                              timr.getImmunizationData(access_token, vimsVaccCode.code, dose, timrFacilityId, period, orchestrations, (err, values) => {
-                                vims.saveImmunizationData(period, values, vimsVaccCode.code, dose, facilityName, orchestrations, (err) => {
-                                  return processNextDose()
-                                })
+                      async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
+                        var vimsVaccCode = vimsImmValueSet[immValSetKey]
+                        winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
+                        getDosesMapping(vimsVaccCode.code, (doses) => {
+                          async.eachSeries(doses, function (dose, processNextDose) {
+                            timr.getImmunizationData(access_token, vimsVaccCode.code, dose, timrFacilityId, period, orchestrations, (err, values) => {
+                              vims.saveImmunizationData(period, values, vimsVaccCode.code, dose, facilityName, orchestrations, (err) => {
+                                return processNextDose()
                               })
-                            }, function () {
-                              return resolve()
                             })
+                          }, function () {
+                            return processNextDtElmnt()
                           })
-                        }))
-                      }
-
-                      Promise.all(promises).then(() => {
+                        })
+                      },() => {
                         winston.info("Done processing Immunization coverage for " + facilityName)
                         return processNextFacility()
                       })
@@ -859,6 +854,8 @@ function setupApp() {
             if (distribution == false || distribution == null || distribution == undefined) {
               winston.info("No Distribution For " + facilityName)
               return processNextFacility()
+            } else {
+              winston.info("Found distribution for " + facilityName)
             }
             winston.info("Now Converting Distribution To GS1")
             distribution = JSON.stringify(distribution)
@@ -882,14 +879,19 @@ function setupApp() {
                 var access_token = JSON.parse(body).access_token
                 winston.info("Saving Despatch Advice To TImR")
                 timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, (res) => {
-                  winston.info("Saved Despatch Advice To TImR")
-                  winston.info(res)
-                  if (res != "") {
-                    //send_email.send("Stock Rejected By TImR",despatchAdviceBaseMessage,()=>{
+                  if (res) {
+                    winston.error("An error occured while saving despatch advice to TImR")
+                    winston.warn(distribution)
+                    winston.warn(despatchAdviceBaseMessage)
+                    winston.error(res)
+                    let msg = distribution + '<br><p>' + despatchAdviceBaseMessage
+                    send_email.send("Stock Rejected By TImR", msg,()=>{
+                      return processNextFacility()
+                    })
+                  } else {
+                    winston.info("Despatch Advice Saved To TImR Successfully")
                     return processNextFacility()
-                    //})
-                  } else
-                    return processNextFacility()
+                  } 
                 })
               })
             })

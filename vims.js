@@ -1636,9 +1636,6 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           orchestrations.push(utils.buildOrchestration('Get Stock Distribution From VIMS', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
           if (isJSON(body)) {
             var distribution = JSON.parse(body).distribution
-            if (distribution != null && distribution != false && distribution != undefined) {
-              winston.info("Found " + JSON.stringify(distribution))
-            }
             return callback(err, distribution)
           } else {
             winston.error("VIMS has returned non JSON results,skip processing")
