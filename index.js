@@ -997,7 +997,6 @@ function setupApp() {
       const timr = TImR(config.timr, config.oauth2)
       let orchestrations = []
 
-      updateTransaction(req, "Still Processing", "Processing", "200", "")
       var distribution = req.rawBody
       vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage) => {
         if (err) {
