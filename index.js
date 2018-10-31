@@ -881,8 +881,8 @@ function setupApp() {
                 timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, (res) => {
                   if (res) {
                     winston.error("An error occured while saving despatch advice to TImR")
-                    winston.warn(distribution)
-                    winston.warn(despatchAdviceBaseMessage)
+                    winston.error(distribution)
+                    winston.error(despatchAdviceBaseMessage)
                     winston.error(res)
                     let msg = distribution + '<br><p>' + despatchAdviceBaseMessage
                     send_email.send("Stock Rejected By TImR", msg,()=>{
