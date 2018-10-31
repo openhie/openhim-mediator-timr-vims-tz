@@ -296,15 +296,15 @@ module.exports = function (vimscnf,oimcnf) {
                 if (!timrToFacilityId) {
                   err = true
                   winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
-                  callback(err, "", false)
+                  return callback(err, "", false)
                 }
                 if (despatchAdviceLineItem === undefined) {
                   err = true
-                  winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
-                  callback(err, "", true)
+                  winston.error("Empty despatch advice line item,skip sending Despatch Advise")
+                  return callback(err, "", true)
                 }
                 if(timrToFacilityId) {
-                  callback(err, despatchAdviceBaseMessage, true)
+                  return callback(err, despatchAdviceBaseMessage, true)
                 }
               })
             })
@@ -313,7 +313,7 @@ module.exports = function (vimscnf,oimcnf) {
       }
       else {
         winston.error("Invalid Distribution Passed For Conversion")
-        callback(true, "", false)
+        return callback(true, "", false)
       }
     },
 

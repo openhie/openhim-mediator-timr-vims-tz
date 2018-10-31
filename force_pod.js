@@ -158,6 +158,7 @@ function setupApp () {
           distribution = JSON.stringify(distribution)
           vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage, markReceived) => {
             if(err) {
+              winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
               if (markReceived) {
                 winston.error("Sending Receiving Advice")
                 vims.sendReceivingAdvice(receivingAdvice, orchestrations, (res) => {
@@ -166,52 +167,51 @@ function setupApp () {
                   orchestrations = []
                   return processNextFacility()
                 })
+              } else {
+                return processNextFacility()
               }
-              winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
-              return processNextFacility()
-            }
-            if(despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
+            } else if(despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
               winston.error("Failed to convert VIMS Distribution to GS1")
               return processNextFacility()
-            }
-            winston.info("Done Converting Distribution To GS1")
-            winston.info("Getting GS1 Access Token From TImR")
-            timr.getAccessToken('gs1',orchestrations,(err, res, body) => {
-              winston.info("Received GS1 Access Token From TImR")
-              if(err) {
-                winston.error("An error occured while getting access token from TImR")
-                return processNextFacility()
-              }
-              var access_token = JSON.parse(body).access_token
-              winston.info("Saving Despatch Advice To TImR")
-              timr.saveDistribution(despatchAdviceBaseMessage,access_token,orchestrations,(res)=>{
-                if (res) {
-                  winston.error ("An error occured while saving despatch advice to TImR")
-                  winston.warn(distribution)
-                  winston.warn(despatchAdviceBaseMessage)
-                  winston.error(res)
-                } else {
-                    winston.info("Despatch Advice Saved To TImR Successfully")
+            } else {
+              winston.info("Done Converting Distribution To GS1")
+              winston.info("Getting GS1 Access Token From TImR")
+              timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
+                winston.info("Received GS1 Access Token From TImR")
+                if (err) {
+                  winston.error("An error occured while getting access token from TImR")
+                  return processNextFacility()
                 }
-                var time = moment().format()
-                if(facility.multiplevimsid == true)
-                send_email.send("Multiple Matching","TImR ID "+facility.timrFacilityId + " " + time,()=>{
+                var access_token = JSON.parse(body).access_token
+                winston.info("Saving Despatch Advice To TImR")
+                timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, (res) => {
+                  if (res) {
+                    winston.error("An error occured while saving despatch advice to TImR")
+                    winston.warn(distribution)
+                    winston.warn(despatchAdviceBaseMessage)
+                    winston.error(res)
+                  } else {
+                    winston.info("Despatch Advice Saved To TImR Successfully")
+                  }
+                  var time = moment().format()
+                  if (facility.multiplevimsid == true)
+                    send_email.send("Multiple Matching", "TImR ID " + facility.timrFacilityId + " " + time, () => {
+
+                    })
+                  if (res == "" && facility.multiplevimsid != true) {
+                    winston.error("Sending Receiving Advice")
+                    vims.sendReceivingAdvice(receivingAdvice, orchestrations, (res) => {
+                      winston.info(res)
+                      winston.info('Receiving Advice Submitted To VIMS!!!')
+                      orchestrations = []
+                      return processNextFacility()
+                    })
+                  } else
+                    return processNextFacility()
 
                 })
-                if(res == "" && facility.multiplevimsid != true) {
-                  winston.error("Sending Receiving Advice")
-                  vims.sendReceivingAdvice(receivingAdvice,orchestrations,(res)=>{
-                    winston.info(res)
-                    winston.info('Receiving Advice Submitted To VIMS!!!')
-                    orchestrations = []
-                    return processNextFacility()
-                  })
-                }
-                else
-                return processNextFacility()
-
               })
-            })
+            }
           })
         })
       },function(){
