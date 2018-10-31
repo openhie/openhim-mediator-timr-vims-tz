@@ -156,8 +156,17 @@ function setupApp () {
           }
           winston.info("Now Converting Distribution To GS1")
           distribution = JSON.stringify(distribution)
-          vims.convertDistributionToGS1(distribution,orchestrations,(err,despatchAdviceBaseMessage)=>{
+          vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage, markReceived) => {
             if(err) {
+              if (markReceived) {
+                winston.error("Sending Receiving Advice")
+                vims.sendReceivingAdvice(receivingAdvice, orchestrations, (res) => {
+                  winston.info(res)
+                  winston.info('Receiving Advice Submitted To VIMS!!!')
+                  orchestrations = []
+                  return processNextFacility()
+                })
+              }
               winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
               return processNextFacility()
             }

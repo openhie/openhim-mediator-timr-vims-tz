@@ -16,35 +16,6 @@ module.exports = function (vimscnf,oimcnf) {
   const oimconfig = oimcnf
   const oim = OIM(oimcnf)
 
-  function saveSessionsData(period,report,data,orchestrations,callback) {
-    var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
-    if(data.hasOwnProperty(periodDate)) {
-      report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
-      report.report.outreachImmunizationSessions = data[periodDate].outreach
-      report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
-      report.report.fixedImmunizationSessions = data[periodDate].sessions
-      var sessionsUpdatedReport = {
-                                    "id":report.report.id,
-                                    "facilityId":report.report.facilityId,
-                                    "periodId":report.report.periodId,
-                                    "plannedOutreachImmunizationSessions":report.report.plannedOutreachImmunizationSessions,
-                                    "outreachImmunizationSessions":report.report.outreachImmunizationSessions,
-                                    "outreachImmunizationSessionsCanceled":report.report.outreachImmunizationSessionsCanceled,
-                                    "fixedImmunizationSessions":report.report.fixedImmunizationSessions
-                                  }
-      saveVIMSReport (sessionsUpdatedReport,"Sending Sessions Data",orchestrations,(err,res,body)=>{
-        if(err) {
-          winston.error(err)
-          return callback(err)
-        }
-        else
-        return callback(err,res,body)
-      })
-    }
-    else
-    return callback()
-  }
-
   function saveVIMSReport (updatedReport,name,orchestrations,callback) {
     var url = URI(vimsconfig.url).segment('rest-api/ivd/save')
     var username = vimsconfig.username
@@ -213,434 +184,6 @@ module.exports = function (vimscnf,oimcnf) {
       })
     },
 
-    saveImmunizationData: function (period,values,vimsVaccCode,dose,orchestrations,callback) {
-      if(values == "" || values == undefined || values == null) {
-        winston.error("Empty data Submitted,skip processing data of value "+ JSON.stringify(values))
-        return callback()
-      }
-      if( !values.hasOwnProperty("regularMale") ||
-          !values.hasOwnProperty("regularFemale") ||
-          !values.hasOwnProperty("outreachMale") ||
-          !values.hasOwnProperty("outreachFemale")
-        ) {
-          winston.error("Invalid data Submitted,ignoring processing data "+ JSON.stringify(values))
-          return callback()
-        }
-      if( values.regularMale === "" || values.regularMale === undefined || values.regularMale === null ||
-          values.regularFemale === "" || values.regularFemale === undefined || values.regularFemale === null ||
-          values.outreachMale === "" || values.outreachMale === undefined || values.outreachMale === null ||
-          values.outreachFemale === "" || values.outreachFemale === undefined || values.outreachFemale === null
-        ) {
-          winston.error("One of the required data is empty,ignoring processing data "+ JSON.stringify(values))
-          return callback()
-        }
-      period.forEach ((period) => {
-        var periodId = period.id
-        if(vimsVaccCode == '2413')
-        var doseid = dose.vimsid1
-        else if(vimsVaccCode == '2412') {
-          //VIMS has dose 1 only for BCG
-          var doseid = 1
-        }
-        else
-        var doseid = dose.vimsid
-        this.getReport (periodId,orchestrations,(err,report) => {
-          if(err || !report) {
-            return callback()
-          }
-          var totalCoveLine = report.report.coverageLineItems.length
-          var found = false
-          winston.info('Processing Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
-          report.report.coverageLineItems.forEach((coverageLineItems,index) =>{
-            if(coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
-              found = true
-              totalCoveLine--
-              report.report.coverageLineItems[index].regularMale = values.regularMale
-              report.report.coverageLineItems[index].regularFemale = values.regularFemale
-              report.report.coverageLineItems[index].outreachMale = values.outreachMale
-              report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
-              var updatedReport = {
-                                    "id":report.report.id,
-                                    "facilityId":report.report.facilityId,
-                                    "periodId":report.report.periodId,
-                                    "coverageLineItems":[report.report.coverageLineItems[index]]
-                                  }
-              saveVIMSReport(updatedReport,"Immunization Coverage",orchestrations,(err,res,body)=>{
-                if (err) {
-                  winston.error(err)
-                  return callback(err)
-                }
-                else
-                return callback()
-              })
-            }
-            else {
-              totalCoveLine--
-            }
-            if(totalCoveLine == 0 && found == false) {
-            callback('')
-            }
-          })
-
-        })
-      })
-    },
-
-    extractValuesFromAgeGroup: function (values,ageGroupID,callback) {
-      var mergedValues = []
-      async.eachSeries(values,(value,nxtValue)=>{
-        if(Object.keys(value)[0] == ageGroupID) {
-          if(mergedValues.length == 0)
-          mergedValues.push({[value[ageGroupID].gender]: value[ageGroupID].value})
-          else
-          mergedValues[(mergedValues.length-1)][value[ageGroupID].gender] = value[ageGroupID].value
-          nxtValue()
-        }
-        else
-          nxtValue()
-      },function(){
-          return callback(mergedValues)
-      })
-    },
-
-    saveVitaminData: function (period,values,vimsVitCode,orchestrations,callback) {
-      async.eachSeries(period,(period,nextPeriod)=>{
-        var periodId = period.id
-        this.getReport (periodId,orchestrations,(err,report) => {
-          if(err || !report) {
-            return callback()
-          }
-          winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
-          async.eachOfSeries(report.report.vitaminSupplementationLineItems,(vitaminSupplementationLineItems,index,nxtSupplmnt)=>{
-            if(report.report.vitaminSupplementationLineItems[index].vaccineVitaminId == vimsVitCode) {
-              var ageGroupID = report.report.vitaminSupplementationLineItems[index].vitaminAgeGroupId
-              this.extractValuesFromAgeGroup(values,ageGroupID,(mergedValues)=>{
-                var maleValue = mergedValues[0].maleValue
-                var femaleValue = mergedValues[0].femaleValue
-                report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
-                report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
-                var updatedReport = {
-                                      "id":report.report.id,
-                                      "facilityId":report.report.facilityId,
-                                      "periodId":report.report.periodId,
-                                      "vitaminSupplementationLineItems":[report.report.vitaminSupplementationLineItems[index]]
-                                    }
-                saveVIMSReport(updatedReport,"Supplements",orchestrations,(err,res,body)=>{
-                  if (err) {
-                    winston.error(err)
-                  }
-                  nxtSupplmnt()
-                })
-              })
-            }
-            else
-              nxtSupplmnt()
-          },function(){
-            nextPeriod()
-          })
-        })
-      },function(){
-          winston.info("Done Processing "+vimsVitCode)
-          return callback()
-      })
-    },
-
-    saveAdverseEffectData: function (period,values,vimsVaccCode,orchestrations,callback) {
-      var me = this
-      async.eachSeries(period,(period,nextPeriod)=>{
-        var periodId = period.id
-        this.getReport (periodId,orchestrations,(err,report) => {
-          if(err || !report) {
-            return callback()
-          }
-          winston.info('Adding To VIMS AdverseEvent Details '+ JSON.stringify(values))
-          //if no adverse effect reported
-          if(!report.report.adverseEffectLineItems.hasOwnProperty(0)) {
-            async.eachSeries(values,(value,nxtValue)=>{
-              if(value.value > 0) {
-                var date = value.date
-                var value = value.value
-                var updatedReport = {
-                                      "id":report.report.id,
-                                      "facilityId":report.report.facilityId,
-                                      "periodId":report.report.periodId,
-                                      "adverseEffectLineItems": [{
-                                                                  "productId": vimsVaccCode,
-                                                                  "date": date,
-                                                                  "cases": value,
-                                                                  "batch": "",
-                                                                  "isInvestigated": true
-                                                                }]
-                                    }
-                saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
-                  if (err) {
-                    winston.error(err)
-                    return nxtValue()
-                  }
-                  else
-                  nxtValue()
-                })
-              }
-              else{
-                nxtValue()
-              }
-            },function(){
-                nextPeriod()
-            })
-          }
-          //if there is adverse effect reported
-          else {
-            async.eachSeries(values,(value,nxtValue)=>{
-              //makesure we dont update Adverse Effect associated with multiple products
-              var found = false
-              async.eachOfSeries(report.report.adverseEffectLineItems,(adverseEffectLineItems,index,nxtAdvEff)=>{
-                if( adverseEffectLineItems.productId == vimsVaccCode &&
-                    adverseEffectLineItems.date == value.date &&
-                    !adverseEffectLineItems.relatedLineItems.hasOwnProperty(0) &&
-                    value.value > 0
-                  ) {
-                    report.report.adverseEffectLineItems[index].cases = value.value
-                    var updatedReport = {
-                                          "id":report.report.id,
-                                          "facilityId":report.report.facilityId,
-                                          "periodId":report.report.periodId,
-                                          "adverseEffectLineItems":[report.report.adverseEffectLineItems[index]]
-                                        }
-                    saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
-                      found = true
-                      if (err) {
-                        winston.error(err)
-                        return nxtValue()
-                      }
-                      else
-                      return nxtValue()
-                    })
-                  }
-                  else
-                  return nxtAdvEff()
-              },function(){
-                //if nothing found then it was not added,add it from scratch
-                if(found == false && value.value > 0) {
-                  var updatedReport = {
-                                        "id":report.report.id,
-                                        "facilityId":report.report.facilityId,
-                                        "periodId":report.report.periodId,
-                                        "adverseEffectLineItems": [{
-                                                                    "productId": vimsVaccCode,
-                                                                    "date": value.date,
-                                                                    "cases": value.value,
-                                                                    "batch": "",
-                                                                    "isInvestigated": true
-                                                                  }]
-                                      }
-                  me.saveVIMSReport(updatedReport,"Adverse Effect",orchestrations,(err,res,body)=>{
-                    if (err) {
-                      winston.error(err)
-                      return nxtValue()
-                    }
-                    else
-                    return nxtValue()
-                  })
-                }
-                else
-                return nxtValue()
-              })
-            },function(){
-                return nextPeriod()
-            })
-          }
-        })
-      },function(){
-          return callback()
-      })
-    },
-
-    saveDiseaseData: function (period,values,orchestrations,callback) {
-      async.eachSeries(period,(period,nextPeriod)=>{
-        var periodId = period.id
-        this.getReport (periodId,orchestrations,(err,report) => {
-          if(err || !report) {
-            return callback()
-          }
-          winston.info('Adding To VIMS Disease Details '+ JSON.stringify(values))
-          async.eachOfSeries(report.report.diseaseLineItems,(diseaseLineItems,index,nxtDisLineItm)=>{
-            var diseaseID = report.report.diseaseLineItems[index].diseaseId
-            var cases = values[diseaseID]["case"]
-            var death = values[diseaseID]["death"]
-            if(cases == 0 && death == 0) {
-              return nxtDisLineItm()
-            }
-            report.report.diseaseLineItems[index].cases = cases
-            report.report.diseaseLineItems[index].death = death
-            var updatedReport = {
-                                  "id":report.report.id,
-                                  "facilityId":report.report.facilityId,
-                                  "periodId":report.report.periodId,
-                                  "diseaseLineItems":[report.report.diseaseLineItems[index]]
-                                }
-            saveVIMSReport(updatedReport,"diseaseLineItems",orchestrations,(err,res,body)=>{
-              if (err) {
-                winston.error(err)
-              }
-              else
-              nxtDisLineItm()
-            })
-          },function(){
-            nextPeriod()
-          })
-        })
-      },function(){
-          return callback()
-      })
-    },
-
-    saveColdChain: function(coldChain,uuid,orchestrations,callback) {
-      winston.info("Sending to VIMS Cold Chain with timr facilityid " + uuid + " .sending Data " + coldChain)
-      var data = JSON.parse(coldChain)
-      oim.getVimsFacilityId(uuid,orchestrations,(err,vimsid)=>{
-        if(err) {
-          winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
-          return callback()
-        }
-        if(vimsid=="" || vimsid == null || vimsid == undefined){
-          winston.warn(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
-          var err = true
-          return callback(err)
-        }
-        this.getPeriod(vimsid,orchestrations,(err,period)=>{
-          if(period.length > 1 ) {
-	    winston.error(body)
-            winston.error("VIMS has returned two DRAFT reports,processng cold chain stoped!!!")
-            return callback()
-          }
-          else if(period.length == 0) {
-            winston.warn("Skip Processing Facility" + uuid + ", No Period Found")
-            return callback()
-          }
-          else if(period.length == 1) {
-            async.eachSeries(period,(period,nextPeriod)=>{
-              var periodId = period.id
-              this.getReport (periodId,orchestrations,(err,report) => {
-                if(err || !report) {
-                  return callback()
-                }
-                if(report.report.coldChainLineItems.length == 0) {
-                  saveSessionsData(period,report,data,orchestrations,(err,res,body)=>{
-                    winston.warn("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending Cold Chain data to VIMS for this facility")
-                    return callback()
-                  })
-                }
-                async.eachOfSeries(report.report.coldChainLineItems,(coldChainLineItem,index,nextColdChain) =>{
-                  var periodDate = moment(period.periodName, 'MMM YYYY','en').format('YYYY-MM')
-                  if(data.hasOwnProperty(periodDate)) {
-                    report.report.coldChainLineItems[index].minTemp = data[periodDate].coldStoreMin
-                    report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
-                    report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
-                    report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
-                    report.report.coldChainLineItems[index].operationalStatusId = data[periodDate].status
-                    var coldChainUpdatedReport = {
-                                                    "id":report.report.id,
-                                                    "facilityId":report.report.facilityId,
-                                                    "periodId":report.report.periodId,
-                                                    "coldChainLineItems":[report.report.coldChainLineItems[index]]
-                                                  }
-                    saveVIMSReport (coldChainUpdatedReport,"Cold Chain",orchestrations,(err,res,body)=>{
-                      saveSessionsData(period,report,data,orchestrations,(err,res,body)=>{
-                        return callback(err,res)
-                      })
-                    })
-                  }
-                  else{
-                    return callback()
-                  }
-                })
-              })
-            },function(){
-
-            })
-          }
-        })
-      })
-    },
-
-    saveStockData: function(period,timrStockData,stockCodes,vimsItemCode,orchestrations,callback) {
-      /**
-        push stock report to VIMS
-      */
-      var totalStockCodes = stockCodes.length
-      if(totalStockCodes == 0) {
-        return callback()
-      }
-      period.forEach ((period) => {
-        var periodId = period.id
-        this.getReport (periodId,orchestrations,(err,report) => {
-          if(err || !report) {
-            return callback()
-          }
-          var totalLogLineItems = report.report.logisticsLineItems.length;
-          var found = false
-          report.report.logisticsLineItems.forEach((logisticsLineItems,index) =>{
-            if(logisticsLineItems.productId == vimsItemCode) {
-              found = true
-              totalLogLineItems--
-              /*
-              currently vims combines quantityExpired,quantityWastedOther,quantityFreezed and quantityVvmAlerted
-              into quantityDiscardedUnopened,so we are also combining them until when vims accepts them separately
-              */
-              var discarded = 0
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"ON_HAND" }) != undefined) {
-                report.report.logisticsLineItems[index].closingBalance = timrStockData[(vimsItemCode+"ON_HAND")].quantity
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"EXPIRED" }) != undefined) {
-                //report.report.logisticsLineItems[index].quantityExpired = timrStockData[(vimsItemCode+"EXPIRED")].quantity
-                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"EXPIRED")].quantity)
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"DAMAGED" }) != undefined) {
-                //report.report.logisticsLineItems[index].quantityDiscardedUnopened = timrStockData[(vimsItemCode+"DAMAGED")].quantity
-                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"DAMAGED")].quantity)
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"WASTED" }) != undefined) {
-                //report.report.logisticsLineItems[index].quantityWastedOther = timrStockData[(vimsItemCode+"WASTED")].quantity
-                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"WASTED")].quantity)
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-VVM" }) != undefined) {
-                //report.report.logisticsLineItems[index].quantityVvmAlerted = timrStockData[(vimsItemCode+"REASON-VVM")].quantity
-                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"REASON-VVM")].quantity)
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-FROZEN" }) != undefined) {
-                //report.report.logisticsLineItems[index].quantityFreezed = timrStockData[(vimsItemCode+"REASON-FROZEN")].quantity
-                discarded = Number(discarded) + Number(timrStockData[(vimsItemCode+"REASON-FROZEN")].quantity)
-              }
-              if (stockCodes.find(stockCode=>{ return stockCode.code == vimsItemCode+"REASON-OPENWASTE" }) != undefined) {
-                report.report.logisticsLineItems[index].quantityDiscardedOpened = timrStockData[(vimsItemCode+"REASON-OPENWASTE")].quantity
-              }
-              report.report.logisticsLineItems[index].quantityDiscardedUnopened = discarded
-              var updatedReport = {
-                                    "id":report.report.id,
-                                    "facilityId":report.report.facilityId,
-                                    "periodId":report.report.periodId,
-                                    "logisticsLineItems":[report.report.logisticsLineItems[index]]
-                                  }
-              saveVIMSReport (updatedReport,"Stock",orchestrations,(err,res,body)=>{
-                if (err) {
-                  return callback(err)
-                }
-                else
-                return callback(err)
-              })
-            }
-            else {
-              totalLogLineItems--
-            }
-            if(totalLogLineItems == 0 && found == false) {
-              callback('')
-            }
-          })
-
-        })
-      })
-    },
-
     convertDistributionToGS1: function(distribution,orchestrations,callback) {
       distribution = JSON.parse(distribution)
       var me = this
@@ -676,6 +219,7 @@ module.exports = function (vimscnf,oimcnf) {
               }
               fromFacilityName = facName1
               timrFromFacilityId = facId1
+              let despatchAdviceLineItem
               var despatchAdviceBaseMessage = util.format(data,timrToFacilityId,timrFromFacilityId,fromFacilityName,distributionDate,distributionId,timrToFacilityId,timrFromFacilityId,timrToFacilityId,distributionDate,creationDate)
               async.eachSeries(distribution.lineItems,function(lineItems,nextlineItems) {
                 // if this is not safety box and lot is empty then ignore
@@ -705,7 +249,7 @@ module.exports = function (vimscnf,oimcnf) {
                       else {
                         var codeListVersion = "CVX"
                       }
-                      var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                      despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
                       despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
                       nextLot()
                     })
@@ -742,20 +286,25 @@ module.exports = function (vimscnf,oimcnf) {
                     else {
                       var codeListVersion = "CVX"
                     }
-                    var despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
+                    despatchAdviceLineItem = util.format(data,lotQuantity,lotId,gtin,vims_item_id,item_name,codeListVersion,timr_item_id,lotCode,expirationDate,dosesPerDispensingUnit)
                     despatchAdviceBaseMessage = util.format(despatchAdviceBaseMessage,despatchAdviceLineItem)
                     return nextlineItems()
                   })
                 }
               },function(){
                 despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s","")
-                winston.info(despatchAdviceBaseMessage)
-                if(timrToFacilityId)
-                callback(err,despatchAdviceBaseMessage)
-                else {
+                if (!timrToFacilityId) {
                   err = true
                   winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
-                  callback(err,"")
+                  callback(err, "", false)
+                }
+                if (despatchAdviceLineItem === undefined) {
+                  err = true
+                  winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
+                  callback(err, "", true)
+                }
+                if(timrToFacilityId) {
+                  callback(err, despatchAdviceBaseMessage, true)
                 }
               })
             })
@@ -764,8 +313,7 @@ module.exports = function (vimscnf,oimcnf) {
       }
       else {
         winston.error("Invalid Distribution Passed For Conversion")
-        //returning true to error
-        callback(true,"")
+        callback(true, "", false)
       }
     },
 
