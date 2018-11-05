@@ -1533,6 +1533,10 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data, timrToFacilityId, timrFromFacilityId, fromFacilityName, distributionDate, distributionId, timrToFacilityId, timrFromFacilityId, timrToFacilityId, distributionDate, creationDate)
               async.eachSeries(distribution.lineItems, function (lineItems, nextlineItems) {
+                // if this is not safety box and lot is empty then ignore
+                if (lineItems.product.id !== 2426 && lineItems.lots.length === 0) {
+                  return nextlineItems()
+                }
                 if (lineItems.lots.length > 0) {
                   async.eachSeries(lineItems.lots, function (lot, nextLot) {
                     fs.readFile('./despatchAdviceLineItem.xml', 'utf8', function (err, data) {
