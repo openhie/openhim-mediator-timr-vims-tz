@@ -1,0 +1,17 @@
+{
+  "server": {
+    "hostname": "0.0.0.0",
+    "port": 3000
+  },
+  "auth": {
+    "secret": "3084e343-71bc-4247-86e4-ea210af89c28",
+    "tokenDuration": 5400
+  },
+  "logger": {
+    "level": "info"
+  },
+  "encryption": {
+    "algorithm": "aes-256-ctr",
+    "secret": "b1ea334a-bf5a-11e8-a355-529269fb1459"
+  }
+}

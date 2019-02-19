@@ -1,16 +1,11 @@
 #!/usr/bin/env node
+
 'use strict'
 
 const express = require('express')
 const medUtils = require('openhim-mediator-utils')
-const utils = require('./utils')
 const winston = require('winston')
 const moment = require("moment")
-const request = require('request')
-const isJSON = require('is-json')
-const URI = require('urijs')
-const XmlReader = require('xml-reader')
-const xmlQuery = require('xml-query')
 const TImR = require('./timr')
 const VIMS = require('./vims_force_pod')
 const OIM = require('./openinfoman')
@@ -19,12 +14,7 @@ const bodyParser = require('body-parser')
 const SENDEMAIL = require('./send_email')
 const send_email = SENDEMAIL()
 var xmlparser = require('express-xml-bodyparser')
-const port  = 8888
-
-const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
-const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
-const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
-const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
+const port = 8888
 
 // Config
 var config = {} // this will vary depending on whats set in openhim-core
@@ -40,7 +30,11 @@ http.globalAgent.maxSockets = 32
 
 // Logging setup
 winston.remove(winston.transports.Console)
-winston.add(winston.transports.Console, {level: 'info', timestamp: true, colorize: true})
+winston.add(winston.transports.Console, {
+  level: 'info',
+  timestamp: true,
+  colorize: true
+})
 
 //set environment variable so that the mediator can be registered
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
@@ -50,114 +44,58 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
  *
  * @return {express.App}  the configured http server
  */
-function setupApp () {
+function setupApp() {
   const app = express()
   app.use(xmlparser())
   var rawBodySaver = function (req, res, buf, encoding) {
-  if (buf && buf.length) {
-    req.rawBody = buf.toString(encoding || 'utf8');
+    if (buf && buf.length) {
+      req.rawBody = buf.toString(encoding || 'utf8');
+    }
   }
-}
-  app.use(bodyParser.raw({ verify: rawBodySaver, type: '*/*' }));
+  app.use(bodyParser.raw({
+    verify: rawBodySaver,
+    type: '*/*'
+  }));
   app.use(bodyParser.urlencoded({
     extended: true
   }))
   app.use(bodyParser.json())
 
-  function getOpenHimTransationData(transactionId,callback) {
-    medUtils.authenticate(apiConf.api, function (err) {
-      if (err) {
-        return winston.error(err.stack);
-      }
-      var headers = medUtils.genAuthHeaders(apiConf.api)
-      var options = {
-        url: apiConf.api.apiURL + '/transactions/' + transactionId,
-        headers: headers
-      }
-      request.get(options, function(err, apiRes, body) {
-        if (err) {
-          return winston.error(err);
-        }
-        if (apiRes.statusCode !== 200) {
-          return winston.error(new Error('Unable to get transaction data from OpenHIM-core, received status code ' + apiRes.statusCode + ' with body ' + body).stack);
-        }
-        callback(body)
-      })
-
-    })
-  }
-
-  function updateTransaction (req,body,statatusText,statusCode,orchestrations) {
-    const transactionId = req.headers['x-openhim-transactionid']
-    var update = {
-      'x-mediator-urn': mediatorConfig.urn,
-      status: statatusText,
-      response: {
-        status: statusCode,
-        timestamp: new Date(),
-        body: body
-      },
-      orchestrations: orchestrations
-    }
-    medUtils.authenticate(apiConf.api, function (err) {
-      if (err) {
-        return winston.error(err.stack);
-      }
-      var headers = medUtils.genAuthHeaders(apiConf.api)
-      var options = {
-        url: apiConf.api.apiURL + '/transactions/' + transactionId,
-        headers: headers,
-        json:update
-      }
-
-      request.put(options, function(err, apiRes, body) {
-        if (err) {
-          return winston.error(err);
-        }
-        if (apiRes.statusCode !== 200) {
-          return winston.error(new Error('Unable to save updated transaction to OpenHIM-core, received status code ' + apiRes.statusCode + ' with body ' + body).stack);
-        }
-        winston.info('Successfully updated transaction with id ' + transactionId);
-      });
-    })
-  }
-
-  app.get('/despatchAdviceIL',(req,res)=>{
+  app.get('/despatchAdviceIL', (req, res) => {
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
     const oim = OIM(config.openinfoman)
-    const vims = VIMS(config.vims,config.openinfoman)
-    const timr = TImR(config.timr,config.oauth2)
+    const vims = VIMS(config.vims, config.openinfoman)
+    const timr = TImR(config.timr, config.oauth2)
     let orchestrations = []
 
     res.end()
-    //updateTransaction (req,"Still Processing","Processing","200","")
     winston.info("getting openinfoman facilities")
-    oim.getVimsFacilities(orchestrations,(err,facilities)=>{
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info("Done receiving openinfoman facilities")
-      if(err) {
+      if (err) {
         winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
         return
       }
-      async.eachSeries(facilities,function(facility,processNextFacility){
+      async.eachSeries(facilities, function (facility, processNextFacility) {
         var vimsFacilityId = facility.vimsFacilityId
         var facilityName = facility.facilityName
-        vims.checkDistribution(vimsFacilityId,orchestrations,(err,distribution,receivingAdvice)=>{
-          if(err) {
+        vims.checkDistribution(vimsFacilityId, orchestrations, (err, distribution, receivingAdvice) => {
+          if (err) {
             winston.error("An error occured while checking distribution for " + facilityName)
             return processNextFacility()
           }
-          if(distribution == false || distribution == null || distribution == undefined) {
+          if (distribution == false || distribution == null || distribution == undefined) {
             winston.info("No Distribution For " + facilityName)
             return processNextFacility()
           } else {
-		        winston.info("Found distribution for " + facilityName)
+            winston.info("Found distribution for " + facilityName)
           }
           winston.info("Now Converting Distribution To GS1")
           distribution = JSON.stringify(distribution)
           vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage, markReceived) => {
-            if(err) {
+            if (err) {
               winston.error("An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR")
               if (markReceived) {
                 winston.error("Sending Receiving Advice")
@@ -170,7 +108,7 @@ function setupApp () {
               } else {
                 return processNextFacility()
               }
-            } else if(despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
+            } else if (despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
               winston.error("Failed to convert VIMS Distribution to GS1")
               return processNextFacility()
             } else {
@@ -214,7 +152,7 @@ function setupApp () {
             }
           })
         })
-      },function(){
+      }, function () {
         winston.info('Done Getting Despatch Advice!!!')
         //updateTransaction(req,"","Successful","200",orchestrations)
         orchestrations = []
@@ -231,7 +169,7 @@ function setupApp () {
  * @param  {Function} callback a node style callback that is called once the
  * server is started
  */
-function start (callback) {
+function start(callback) {
   if (apiConf.register) {
     medUtils.registerMediator(apiConf.api, mediatorConfig, (err) => {
       if (err) {

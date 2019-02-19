@@ -1,0 +1,26 @@
+{
+  "name": "timr_dwh",
+  "version": "1.0.0",
+  "description": "TImR Dataware house API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "datawarehouse",
+    "timr"
+  ],
+  "author": "Ally Shaban <allyshaban5@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.6.1",
+    "body-parser": "^1.18.3",
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
+    "formidable": "^1.2.1",
+    "nconf": "^0.10.0",
+    "pg": "^7.8.0",
+    "stdio": "^0.2.7",
+    "winston": "^2.4.2"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "dhis2-category-options",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/dhis2-category-options"
+    ]
+  },
+  "url": "http://timr.marc-hi.ca:8080/fhir",
+  "version": "1.0.0",
+  "name": "DHIS2 Category Options",
+  "status": "draft",
+  "experimental": true,
+  "publisher": "TZ CAT team",
+  "date": "2016-08-04",
+  "description": "This is a codesystem for DHIS2 category options.",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+  {
+    "display": "ORAL POLIO VACCINE",
+    "code": "VaccineType-OPV"
+  },
+  {
+    "display": "Inactivated Polio Vaccine",
+    "code": "VaccineType-IPV"
+  },
+  {
+    "display": "Rotavirus Vaccine",
+    "code": "VaccineType-rotavirus"
+  },
+  {
+    "display": "BACILLUS CALMETTE-GUERIN VACCINE",
+    "code": "VaccineType-BCG"
+  },
+  {
+    "display": "Pneumococcal conjugate PCV 13",
+    "code": "VaccineType-PCV13"
+  },
+  {
+    "display": "DTP - Haemophilus influenzae type b conjugate and hepatitis b",
+    "code": "VaccineType-DTP-Hib-HepB"
+  },
+  {
+    "display": "Measles vaccine",
+    "code": "05"
+  },
+  {
+    "display": "Measles and Rubella",
+    "code": "04"
+  },
+  {
+    "display": "Tetanus Toxoid",
+    "code": "VaccineType-tetanustoxoid"
+  },
+  {
+    "display": "Vitamin A",
+    "code": "Supplement-VitaminA"
+  },
+  {
+    "display": "Mebendazole",
+    "code": "Substance/7D80E518-6E04-4091-8D19-7A3BB2B32C1F"
+  },
+  {
+    "display": "Neonatal Tetanus",
+    "code": "A33"
+  },
+  {
+    "display": "Acute Flaccid Paralysis (AFP)",
+    "code": "G82.0"
+  },
+  {
+    "display": "Fever",
+    "code": "R50.9"
+  }
+]
+}

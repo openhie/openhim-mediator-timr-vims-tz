@@ -1,9 +1,10 @@
 {
-	"02" : ["Dose 0","Dose 1","Dose 2","Dose 3"],
-	"122" : ["Dose 1","Dose 2"],
-	"19" : ["Dose 0"],
-	"133" : ["Dose 1","Dose 2","Dose 3"],
-	"102" : ["Dose 1","Dose 2","Dose 3"],
-	"04" : ["Dose 1","Dose 2"],
-	"112" : ["Dose 1","Dose 2","Dose 3","Dose 4","Dose 5"]
+	"VaccineType-OPV": ["Dose 0", "Dose 1", "Dose 2", "Dose 3"],
+	"VaccineType-rotavirus": ["Dose 1", "Dose 2"],
+	"VaccineType-BCG": ["Dose 0"],
+	"VaccineType-PCV13": ["Dose 1", "Dose 2", "Dose 3"],
+	"VaccineType-DTP-Hib-HepB": ["Dose 1", "Dose 2", "Dose 3"],
+	"VaccineType-MR": ["Dose 1", "Dose 2"],
+	"VaccineType-IPV": ["Dose 1"],
+	"VaccineType-tetanustoxoid": ["Dose 1", "Dose 2", "Dose 3", "Dose 4", "Dose 5"]
 }

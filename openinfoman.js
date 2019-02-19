@@ -10,6 +10,7 @@ module.exports = function (oimconf) {
   const config = oimconf
   return {
     getVimsFacilities: function (orchestrations, callback) {
+      // return callback(false, facilities)
       var url = new URI(config.url)
         .segment('/CSD/csr/')
         .segment(config.document)
@@ -43,7 +44,8 @@ module.exports = function (oimconf) {
         var facilityDirectory = xmlQuery(ast).find("facilityDirectory").children()
         var facilities = []
         for (var counter = 0; counter < totalFac; counter++) {
-          var timrFacilityId = facilityDirectory.eq(counter).attr("entityID")
+          var timrFacilityUUID = facilityDirectory.eq(counter).attr("entityID")
+          let timrFacilityId
           var facilityDetails = facilityDirectory.eq(counter).children()
           var totalDetails = facilityDirectory.eq(counter).children().size()
           var detailsLoopControl = totalDetails
@@ -58,6 +60,13 @@ module.exports = function (oimconf) {
                 multiplevimsid = true
               vimsFacilityId = facilityDetails.eq(detailsCount).text()
             }
+
+            if (facilityDetails.eq(detailsCount).attr("assigningAuthorityName") == "http://hfrportal.ehealth.go.tz" &&
+              facilityDetails.eq(detailsCount).attr("code") == "id"
+            ) {
+              timrFacilityId = facilityDetails.eq(detailsCount).text()
+            }
+
             if (facilityDetails.eq(detailsCount).has("csd:primaryName"))
               var facilityName = facilityDetails.eq(detailsCount).find("csd:primaryName").text()
             if (facilityDetails.eq(detailsCount).has("csd:extension") &&
@@ -70,6 +79,7 @@ module.exports = function (oimconf) {
           if (DVS === false) {
             facilities.push({
               "timrFacilityId": timrFacilityId,
+              "timrFacilityUUID": timrFacilityUUID,
               "vimsFacilityId": vimsFacilityId,
               "facilityName": facilityName,
               "multiplevimsid": multiplevimsid

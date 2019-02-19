@@ -6,9 +6,10 @@ const moment = require("moment")
 const isJSON = require('is-json')
 const XmlReader = require('xml-reader')
 const xmlQuery = require('xml-query')
-const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const timrVimsDwhImmConceptMap = require('./terminologies/timr-vims-dwh-immunization-conceptmap.json')
 const timrVimsDiseaseConceptMap = require('./terminologies/timr-vims-diseases-conceptmap.json')
 const timrVimsVitaConceptMap = require('./terminologies/timr-vims-vitamin-conceptmap.json')
+const timrVimsDwhVitaConceptMap = require('./terminologies/timr-vims-dwh-vitamin-conceptmap.json')
 const fs = require('fs')
 const querystring = require('querystring')
 const async = require('async')
@@ -70,55 +71,52 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
       })
     },
 
-    getImmunizationData: function (access_token, vimsVaccCode, dose, facilityid, period, orchestrations, callback) {
-      this.getTimrCode(vimsVaccCode, timrVimsImmConceptMap, (timrVaccCode) => {
+    getImmunizationData: function (vimsVaccCode, dose, facilityid, fac_name, period, orchestrations, callback) {
+      this.getTimrCode(vimsVaccCode, timrVimsDwhImmConceptMap, (timrVaccCode) => {
         if (timrVaccCode == "") {
           return callback()
         }
         if (vimsVaccCode == '2412')
           dose.timrid = 0
 
-        var totalValues = 0
         var queryPar = []
         var values = {}
+
         //TT does not have catchment data,lets treat it differently
-        if (timrVaccCode == 112) {
+        if (timrVaccCode == 'VaccineType-tetanustoxoid') {
           queryPar.push({
             'name': 'regularMale',
-            'fhirQuery': 'patient.gender=male&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Male&doseSequence=' + dose.timrid
           })
           queryPar.push({
             'name': 'regularFemale',
-            'fhirQuery': 'patient.gender=female&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Female&doseSequence=' + dose.timrid
           })
           values["outreachMale"] = 0
           values["outreachFemale"] = 0
         } else {
           queryPar.push({
             'name': 'regularMale',
-            'fhirQuery': 'patient.gender=male&in-catchment=True&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Male&inCatchment=True&doseSequence=' + dose.timrid
           })
           queryPar.push({
             'name': 'regularFemale',
-            'fhirQuery': 'patient.gender=female&in-catchment=True&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Female&inCatchment=True&doseSequence=' + dose.timrid
           })
           queryPar.push({
             'name': 'outreachMale',
-            'fhirQuery': 'patient.gender=male&in-catchment=False&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Male&inCatchment=False&doseSequence=' + dose.timrid
           })
           queryPar.push({
             'name': 'outreachFemale',
-            'fhirQuery': 'patient.gender=female&in-catchment=False&dose-sequence=' + dose.timrid
+            'fhirQuery': 'gender=Female&inCatchment=False&doseSequence=' + dose.timrid
           })
         }
         var vaccineStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
         var vaccineEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-        var totalLoop = queryPar.length
-        queryPar.forEach((query, index) => {
-          let url = URI(timrconfig.url)
-            .segment('fhir')
-            .segment('Immunization') +
-            '?' + query.fhirQuery + '&vaccine-code=' + timrVaccCode + '&patient.location.identifier=HIE_FRID|' + facilityid + '&date=ge' + vaccineStartDate + 'T00:00' + '&date=le' + vaccineEndDate + 'T23:59' + '&_format=json&_count=0'
+        async.each(queryPar, (query, nxtQuery) => {
+          let url = 'http://localhost:3000/immunization?' +
+            query.fhirQuery + '&vaccineCode=' + timrVaccCode + '&fac_id=' + facilityid + '&fac_name=' + fac_name + '&vaccineStartDate=' + vaccineStartDate + 'T00:00' + '&vaccineEndDate=' + vaccineEndDate + 'T23:59'
             .toString()
           var options = {
             url: url.toString(),
@@ -131,45 +129,29 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
             orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Immunization Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
             if (err) {
               winston.error(err)
-              totalLoop--
-              if (totalLoop === 0) {
-                return callback('', values)
-              } else
-                return
+              return nxtQuery()
             }
             if (!isJSON(body)) {
-              totalLoop--
               winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
-              if (totalLoop === 0) {
-                return callback('', values)
-              } else
-                return
+              return nxtQuery()
             }
-            var value = JSON.parse(body).total
-            if (!Number.isInteger(value)) {
-              winston.error("Immunization Coverage Sync " + body)
-              if (totalLoop === 0) {
-                return callback('', values)
-              } else
-                return
-            }
+            var value = JSON.parse(body).count
             var queryName = query.name
             values[queryName] = value
-            totalLoop--
-            if (totalLoop === 0) {
-              return callback('', values)
-            }
+            return nxtQuery()
           })
+        }, () => {
+          return callback('', values)
         })
       })
     },
 
-    getAdverseEffectData: function (access_token, vimsVaccCode, facilityid, period, orchestrations, callback) {
+    getAdverseEffectData: function (vimsVaccCode, facilityid, facilityName, period, orchestrations, callback) {
       if (facilityid == "" || facilityid == null || facilityid == undefined) {
         winston.error("TImR facility is empty,skip processing")
         return callback()
       }
-      this.getTimrCode(vimsVaccCode, timrVimsImmConceptMap, (timrVaccCode) => {
+      this.getTimrCode(vimsVaccCode, timrVimsDwhImmConceptMap, (timrVaccCode) => {
         var values = []
         if (timrVaccCode == "") {
           return callback(false, values)
@@ -189,11 +171,8 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
           else
             var dateDay = day
           var vaccineDate = vaccineYearMonth + '-' + dateDay
-          const url = URI(timrconfig.url)
-            .segment('fhir')
-            .segment('AdverseEvent') +
-            '?substance.type=' + timrVaccCode + '&location.identifier=HIE_FRID|' + facilityid + '&date=ge' + vaccineDate + 'T00:00' + '&date=le' + vaccineDate + 'T23:59' + '&_format=json&_count=0'
-            .toString()
+          const url = 'http://localhost:3000/aefi' +
+            '?vaccCode=' + timrVaccCode + '&fac_id=' + facilityid + '&fac_name=' + facilityName + '&startDate' + vaccineDate + 'T00:00' + '&endDate' + vaccineDate + 'T23:59'
           var options = {
             url: url.toString(),
             headers: {
@@ -231,8 +210,7 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
         })
       })
     },
-
-    getSupplementsData: function (access_token, vimsVitCode, timrFacilityId, period, orchestrations, callback) {
+    getSupplementsDataFHIR: function (access_token, vimsVitCode, timrFacilityId, period, orchestrations, callback) {
       var genderTerminologies = [{
           "fhirgender": "male",
           "vimsgender": "maleValue"
@@ -303,6 +281,91 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
                   winston.error("Supplements Sync " + body)
                   return nxtGender()
                 }
+                values.push({
+                  [Object.keys(age)[0]]: {
+                    "gender": gender.vimsgender,
+                    "value": value
+                  }
+                })
+                return nxtGender()
+              })
+            }, function () {
+              resolve()
+            })
+          }))
+        }
+
+        Promise.all(promises).then(() => {
+          return callback("", values)
+        })
+
+      })
+    },
+
+    getSupplementsDataDWH: function (access_token, vimsVitCode, timrFacilityId, facilityName, period, orchestrations, callback) {
+      var genderTerminologies = [{
+          "timrgender": "Male",
+          "vimsgender": "maleValue"
+        },
+        {
+          "timrgender": "Female",
+          "vimsgender": "femaleValue"
+        }
+      ]
+      var ageGroups = [{
+          "1": 9
+        },
+        {
+          "2": 15
+        },
+        {
+          "3": 18
+        },
+        {
+          "4": 6
+        }
+      ]
+      //commenting below line so that we take vaccination by date range instead of individual vacc date
+      var vaccineDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
+      var vaccinationStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+      var vaccinationEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format("YYYY-MM-DD")
+      //var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
+
+      var startDay = 1;
+      var values = []
+      this.getTimrCode(vimsVitCode, timrVimsDwhVitaConceptMap, (timrVitCode) => {
+        const promises = []
+        for (var ageIndex in ageGroups) {
+          promises.push(new Promise((resolve, reject) => {
+            var age = ageGroups[ageIndex]
+            var genderRef = null
+            async.eachSeries(genderTerminologies, (gender, nxtGender) => {
+              var value = 0
+              genderRef = gender
+              //var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
+              var startBirthDate = moment(vaccineDate).subtract(Object.values(age)[0], "months").startOf('month').format('YYYY-MM-DD') + 'T00:00'
+              var endBirthDate = moment(vaccineDate).subtract(Object.values(age)[0], "months").endOf('month').format('YYYY-MM-DD') + 'T23:59'
+              let url = 'http://localhost:3000/supplements?' +
+                'suppCode=' + timrVitCode + '&gender=' + gender.timrgender + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName + '&suppStartDate=' + vaccinationStartDate + 'T00:00' + '&suppEndDate=' + vaccinationEndDate + 'T23:59' + '&startBirthDate=' + startBirthDate + '&endBirthDate=' + endBirthDate
+                .toString()
+              var options = {
+                url: url.toString(),
+                headers: {
+                  Authorization: `BEARER ${access_token}`
+                }
+              }
+              let before = new Date()
+              request.get(options, (err, res, body) => {
+                orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+                if (err) {
+                  winston.error(err)
+                  return nxtGender()
+                }
+                if (!isJSON(body)) {
+                  winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
+                  return nxtGender()
+                }
+                value = value + parseInt(JSON.parse(body).count)
                 values.push({
                   [Object.keys(age)[0]]: {
                     "gender": gender.vimsgender,

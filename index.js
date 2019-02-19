@@ -30,7 +30,7 @@ const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.jso
 const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
 const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
 const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
-const timrVimsImmConceptMap = require('./terminologies/timr-vims-immunization-conceptmap.json')
+const timrVimsDwhImmConceptMap = require('./terminologies/timr-vims-dwh-immunization-conceptmap.json')
 const imm_doses = require("./config/doses.json")
 const vacc_doses_mapping = require("./config/vaccine-doses-mapping.json")
 const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
@@ -150,7 +150,7 @@ function setupApp() {
       //process immunization coverage
       //need to put this inside terminology service
       function getDosesMapping(vimsVaccCode, callback) {
-        timr.getTimrCode(vimsVaccCode, timrVimsImmConceptMap, (timrVaccCode) => {
+        timr.getTimrCode(vimsVaccCode, timrVimsDwhImmConceptMap, (timrVaccCode) => {
           var dosesMapping = []
           async.eachOfSeries(vacc_doses_mapping, (vacc_doses, vacc_doses_key, nxtVaccDoses) => {
             if (vacc_doses_key == timrVaccCode) {
@@ -177,6 +177,7 @@ function setupApp() {
         const promises = []
         async.eachSeries(facilities, function (facility, processNextFacility) {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           if (vimsFacilityId > 0) {
@@ -194,38 +195,27 @@ function setupApp() {
                 winston.warn("Skip Processing " + facilityName + ", No Period Found")
                 return processNextFacility()
               } else {
-                winston.info("Getting Access Token from TImR")
                 if (period.length == 1) {
-                  timr.getAccessToken('fhir', orchestrations, (err, res, body) => {
-                    if (err) {
-                      winston.error("An error occured while getting access token from TImR")
-                      return processNextFacility()
-                    }
-                    winston.info("Done Getting Access Token")
-                    winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
-                    var access_token = JSON.parse(body).access_token
-                    winston.info("Getting All VIMS Immunization Data Elements")
-                    vims.getValueSets(vimsImmValueSets, (err, vimsImmValueSet) => {
-                      winston.info("Done Getting All VIMS Immunization Data Elements")
-                      const immValPromise = []
-                      async.eachSeries(vimsImmValueSet,function(vimsVaccCode,processNextDtElmnt) {
-                        var vimsVaccCode = vimsImmValueSet[immValSetKey]
-                        winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
-                        getDosesMapping(vimsVaccCode.code, (doses) => {
-                          async.eachSeries(doses, function (dose, processNextDose) {
-                            timr.getImmunizationData(access_token, vimsVaccCode.code, dose, timrFacilityId, period, orchestrations, (err, values) => {
-                              vims.saveImmunizationData(period, values, vimsVaccCode.code, dose, facilityName, orchestrations, (err) => {
-                                return processNextDose()
-                              })
+                  winston.info("Processing Coverage For " + facilityName + ", Period " + period[0].periodName)
+                  winston.info("Getting All VIMS Immunization Data Elements")
+                  vims.getValueSets(vimsImmValueSets, (err, vimsImmValueSet) => {
+                    winston.info("Done Getting All VIMS Immunization Data Elements")
+                    async.each(vimsImmValueSet, function (vimsVaccCode, processNextDtElmnt) {
+                      winston.info("Processing VIMS Data Element With Code " + vimsVaccCode.code)
+                      getDosesMapping(vimsVaccCode.code, (doses) => {
+                        async.each(doses, function (dose, processNextDose) {
+                          timr.getImmunizationData(vimsVaccCode.code, dose, timrFacilityId, facilityName, period, orchestrations, (err, values) => {
+                            vims.saveImmunizationData(period, values, vimsVaccCode.code, dose, facilityName, orchestrations, (err) => {
+                              return processNextDose()
                             })
-                          }, function () {
-                            return processNextDtElmnt()
                           })
+                        }, function () {
+                          return processNextDtElmnt()
                         })
-                      },() => {
-                        winston.info("Done processing Immunization coverage for " + facilityName)
-                        return processNextFacility()
                       })
+                    }, () => {
+                      winston.info("Done processing Immunization coverage for " + facilityName)
+                      return processNextFacility()
                     })
                   })
                 }
@@ -259,6 +249,7 @@ function setupApp() {
         }
         async.eachSeries(facilities, function (facility, processNextFacility) {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           if (vimsFacilityId > 0) {
@@ -288,7 +279,7 @@ function setupApp() {
                     vims.getValueSets(vimsVitaminValueSets, (err, vimsVitValueSet) => {
                       async.eachSeries(vimsVitValueSet, function (vimsVitCode, processNextDtElmnt) {
                         winston.info("Processing Supplement Id " + vimsVitCode.code)
-                        timr.getSupplementsData(access_token, vimsVitCode.code, timrFacilityId, period, orchestrations, (err, values) => {
+                        timr.getSupplementsDataFHIR(access_token, vimsVitCode.code, timrFacilityUUID, period, orchestrations, (err, values) => {
                           vims.saveVitaminData(period, values, vimsVitCode.code, orchestrations, (err) => {
                             return processNextDtElmnt()
                           })
@@ -330,6 +321,7 @@ function setupApp() {
         }
         async.eachSeries(facilities, function (facility, processNextFacility) {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           if (vimsFacilityId > 0) {
@@ -348,31 +340,23 @@ function setupApp() {
               } else {
                 winston.info("Getting Access Token from TImR")
                 if (period.length == 1) {
-                  timr.getAccessToken('fhir', orchestrations, (err, res, body) => {
-                    if (err) {
-                      winston.error("An error occured while getting access token from TImR")
-                      return processNextFacility()
-                    }
-                    winston.info("Received Access Token")
-                    winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
-                    var access_token = JSON.parse(body).access_token
-                    vims.getValueSets(vimsImmValueSets, (err, vimsImmValueSet) => {
-                      async.eachSeries(vimsImmValueSet, function (vimsVaccCode, processNextValSet) {
-                        winston.info("Getting Adverse Effect From TImR For " + vimsVaccCode.code)
-                        timr.getAdverseEffectData(access_token, vimsVaccCode.code, timrFacilityId, period, orchestrations, (err, values) => {
-                          if (values.length == 0) {
-                            winston.info("No Adverse Effect Found For " + facilityName + " Vaccine Code " + vimsVaccCode.code)
-                            return processNextValSet()
-                          }
-                          vims.saveAdverseEffectData(period, values, vimsVaccCode.code, orchestrations, (err) => {
-                            processNextValSet()
-                          })
+                  winston.info("Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
+                  vims.getValueSets(vimsImmValueSets, (err, vimsImmValueSet) => {
+                    async.eachSeries(vimsImmValueSet, function (vimsVaccCode, processNextValSet) {
+                      winston.info("Getting Adverse Effect From TImR For " + vimsVaccCode.code)
+                      timr.getAdverseEffectData(vimsVaccCode.code, timrFacilityId, facilityName, period, orchestrations, (err, values) => {
+                        if (values.length == 0) {
+                          winston.info("No Adverse Effect Found For " + facilityName + " Vaccine Code " + vimsVaccCode.code)
+                          return processNextValSet()
+                        }
+                        vims.saveAdverseEffectData(period, values, vimsVaccCode.code, orchestrations, (err) => {
+                          processNextValSet()
                         })
-                      }, function () {
-                        //before fetching new facility,lets process vitaminA for this facility first
-                        winston.info("Done Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
-                        processNextFacility()
                       })
+                    }, function () {
+                      //before fetching new facility,lets process vitaminA for this facility first
+                      winston.info("Done Processing Adverse Event For " + facilityName + ", Period " + period[0].periodName)
+                      processNextFacility()
                     })
                   })
                 }
@@ -409,6 +393,7 @@ function setupApp() {
         }
         async.eachSeries(facilities, function (facility, processNextFacility) {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           if (vimsFacilityId > 0) {
@@ -435,7 +420,7 @@ function setupApp() {
                     winston.info("Received Access Token")
                     var access_token = JSON.parse(body).access_token
                     vims.getValueSets(vimsDiseaseValueSet, (err, vimsDiseaseValSet) => {
-                      timr.getDiseaseData(access_token, vimsDiseaseValSet, timrFacilityId, period, orchestrations, (err, values) => {
+                      timr.getDiseaseData(access_token, vimsDiseaseValSet, timrFacilityUUID, period, orchestrations, (err, values) => {
                         vims.saveDiseaseData(period, values, orchestrations, (err) => {
                           winston.info("Done Updating diseaseLineItems In VIMS For " + facilityName)
                           processNextFacility()
@@ -471,6 +456,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -486,7 +472,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing Breastfeeding Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveBreastFeeding(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveBreastFeeding(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing Breast Feeding Data For " + facilityName)
               return nextFacility()
             })
@@ -511,6 +497,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -526,7 +513,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing Child Visit Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveChildVisit(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveChildVisit(period, timrFacilityUUID, timr, orchestrations, () => {
               winston.info("Done synchronizing Child Visit Data For " + facilityName)
               return nextFacility()
             })
@@ -551,6 +538,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -566,7 +554,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing PMTCT Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.savePMTCT(period, timrFacilityId, timr, orchestrations, () => {
+            vims.savePMTCT(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing PMTCT Data For " + facilityName)
               return nextFacility()
             })
@@ -591,6 +579,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -606,7 +595,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing Age Weight Ratio Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveAgeWeightRatio(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveAgeWeightRatio(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing Age Weight Ratio Data For " + facilityName)
               return nextFacility()
             })
@@ -631,6 +620,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -646,7 +636,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing Mosquito Net Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveMosquitoNet(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveMosquitoNet(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing Mosquito Net Data For " + facilityName)
               return nextFacility()
             })
@@ -671,6 +661,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -686,7 +677,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing Immunization Coverage By Age Group Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveImmCoverAgeGrp(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveImmCoverAgeGrp(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing Immunization Coverage By Age Group Data For " + facilityName)
               return nextFacility()
             })
@@ -711,6 +702,7 @@ function setupApp() {
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         async.eachSeries(facilities, (facility, nextFacility) => {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           vims.getPeriod(vimsFacilityId, orchestrations, (err, period) => {
@@ -726,7 +718,7 @@ function setupApp() {
               return nextFacility()
             }
             winston.info("Processing TT Data For " + facilityName + ", Period " + period[0].periodName)
-            vims.saveTT(period, timrFacilityId, timr, orchestrations, () => {
+            vims.saveTT(period, timrFacilityId, facilityName, timr, orchestrations, () => {
               winston.info("Done synchronizing TT Data For " + facilityName)
               return nextFacility()
             })
@@ -758,6 +750,7 @@ function setupApp() {
         }
         async.eachSeries(facilities, function (facility, processNextFacility) {
           var vimsFacilityId = facility.vimsFacilityId
+          var timrFacilityUUID = facility.timrFacilityUUID
           var timrFacilityId = facility.timrFacilityId
           var facilityName = facility.facilityName
           if (vimsFacilityId > 0) {
@@ -788,10 +781,10 @@ function setupApp() {
                     eventEmitter.once('received_timr_stock', function () {
                       processNextFacility()
                     })
-                    timr.getStockData(access_token, timrFacilityId, period, orchestrations, (data) => {
+                    timr.getStockData(access_token, timrFacilityUUID, period, orchestrations, (data) => {
                       winston.info("\tDone Fetching TImR Stock Data")
                       winston.info("\tExtracting TImR Stock Data")
-                      timr.extractStockData(data, timrFacilityId, (timrStockData, stockCodes) => {
+                      timr.extractStockData(data, timrFacilityUUID, (timrStockData, stockCodes) => {
                         winston.info("\tDone Extracting TImR Stock Data")
                         if ((Object.keys(timrStockData).length == 0)) {
                           winston.warn("\tNo stock data to process for " + facilityName)
@@ -885,13 +878,13 @@ function setupApp() {
                     winston.error(despatchAdviceBaseMessage)
                     winston.error(res)
                     let msg = distribution + '<br><p>' + despatchAdviceBaseMessage
-                    send_email.send("Stock Rejected By TImR", msg,()=>{
+                    send_email.send("Stock Rejected By TImR", msg, () => {
                       return processNextFacility()
                     })
                   } else {
                     winston.info("Despatch Advice Saved To TImR Successfully")
                     return processNextFacility()
-                  } 
+                  }
                 })
               })
             })
