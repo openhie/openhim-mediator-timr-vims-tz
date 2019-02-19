@@ -1,0 +1,93 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "vims-dataelements",
+  "meta": {
+    "profile": [
+      "http://hl7.org/fhir/StructureDefinition/dhis2-category-options"
+    ]
+  },
+  "url": "http://timr.marc-hi.ca:8080/fhir",
+  "version": "1.0.0",
+  "name": "VIMS Data Elements",
+  "status": "draft",
+  "experimental": true,
+  "publisher": "Intrahealth",
+  "date": "2017-05-29",
+  "description": "This is a codesystem for VIMS dataelements",
+  "caseSensitive": true,
+  "content": "complete",
+  "concept": [
+  {
+    "display": "BCG",
+    "code": "2412"
+  },
+  {
+    "display": "BCG diluent",
+    "code": "2434"
+  },
+  {
+    "display": "bOPV",
+    "code": "2413"
+  },
+  {
+    "display": "PCV-13",
+    "code": "2415"
+  },
+  {
+    "display": "DTP-HepB-Hib",
+    "code": "2421"
+  },
+  {
+    "display": "Rota",
+    "code": "2416"
+  },
+  {
+    "display": "MR",
+    "code": "2420"
+  },
+  {
+    "display": "TT",
+    "code": "2418"
+  },
+  {
+    "display": "ADS_0.05ml",
+    "code": "2422"
+  },
+  {
+    "display": "ADS_0.5ml",
+    "code": "2423"
+  },
+  {
+    "display": "Sdilution_5ml",
+    "code": "2425"
+  },
+  {
+    "display": "Safety boxes",
+    "code": "2426"
+  },
+  {
+    "display": "Vit. A 200000 IU",
+    "code": "2431"
+  },
+  {
+    "display": "Vit. A 100000 IU",
+    "code": "2430"
+  },
+  {
+    "display": "Vitamin A",
+    "code": "1"
+  },
+  {
+    "display": "Fever and rash illness",
+    "code": "1"
+  },
+  {
+    "display": "AFP Cases",
+    "code": "2"
+  },
+  {
+    "display": "Neonatal Tetanus",
+    "code": "3"
+  }
+]
+}

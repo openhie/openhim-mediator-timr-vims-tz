@@ -1,0 +1,713 @@
+{
+  "urn": "hussein",
+  "version": "0.0.1",
+  "name": "TImR-VIMS Trigger",
+  "description": "This mediator synchronises data between TImR and VIMS",
+  "defaultClientConfig": [
+    {
+      "clientID": "openinfoman",
+      "name": "OpenInfoman",
+      "organization": "PATH",
+      "softwareName": "Openinfoman",
+      "passwordAlgorithm": "sha512",
+      "passwordSalt": "16400d41d2372c2c1187a0933b436ffb",
+      "passwordHash": "11fe16c4c77c23175a6028514a40ccd3abc05eef55c91f106d50e6ad7cf07791e97a1c5d7c29fdad3fc8c1776a162b0355621e2607838da64c6313ee85488706",
+      "roles": [
+        "openinfoman"
+      ]
+    },
+    {
+      "clientID": "il_timr",
+      "name": "timr",
+      "organization": "MOH",
+      "softwareName": "TImR",
+      "passwordAlgorithm": "sha512",
+      "passwordSalt": "2449d251c01f802a46bb63b0db246253",
+      "passwordHash": "e6e20a9fafdd890d7afa296ffdd3dc39e92a1c1df04c9036c864da3507f62a7b5ad2e6543810441fa5aa1dc4331cffe762bb65366cee049231a1ab25df987991",
+      "roles": [
+        "il_timr"
+      ]
+    },
+    {
+      "clientID": "sync",
+      "name": "sync",
+      "organization": "MOH",
+      "softwareName": "openHIM",
+      "passwordAlgorithm": "sha512",
+      "passwordSalt": "30538a3a8f0c81d401b9ae48ecf0a517",
+      "passwordHash": "9f8773d19269d87131566839d3ceec2c1b416019b8f7bc3338836974e1f7711080beec2a4e6dc00fa22ae4eb86ec7665c08b90dea87a34325ae6806fa4ea2800",
+      "roles": [
+        "sync"
+      ]
+    }
+  ],
+  "defaultChannelConfig": [
+    {
+      "requestBody": true,
+      "responseBody": true,
+      "name": "Openinfoman Server",
+      "urlPattern": "^/CSD||/static$",
+      "matchContentRegex": null,
+      "matchContentXpath": null,
+      "matchContentValue": null,
+      "matchContentJson": null,
+      "pollingSchedule": null,
+      "tcpHost": null,
+      "tcpPort": null,
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "password": "",
+          "username": "",
+          "primary": true,
+          "pathTransform": "",
+          "path": "",
+          "port": 8984,
+          "host": "localhost",
+          "secured": false,
+          "name": "openinfoman",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "openinfoman"
+      ],
+      "type": "http"
+    },
+    {
+      "urlPattern": "/initializeReport",
+      "pollingSchedule": "00 21 * * 6",
+      "name": "Initialize Report In VIMS Facilities",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Immunization Coverage Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/initializeReport",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncImmunizationCoverage",
+      "pollingSchedule": "30 4 * * 6,7",
+      "name": "TImR and VIMS Immunization Coverage Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Immunization Coverage Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncImmunizationCoverage",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncAdverseEffects",
+      "pollingSchedule": "30 22 * * 6,7",
+      "name": "TImR and VIMS Adverse Events Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Adverse Events Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncAdverseEffects",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncDiseases",
+      "pollingSchedule": "30 17 * * 6,7",
+      "name": "TImR and VIMS Disease Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Disease Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncDiseases",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncColdChain",
+      "pollingSchedule": "30 21 * * 5",
+      "name": "TImR and VIMS Cold Chain Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate TImR and VIMS Cold Chain Sync",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/syncColdChain",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/syncStock",
+      "pollingSchedule": "30 12 * * 6,7",
+      "name": "TImR and VIMS Stock Sync",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "password": "",
+          "username": "",
+          "primary": true,
+          "path": "/syncStock",
+          "port": 9000,
+          "host": "localhost",
+          "secured": false,
+          "name": "Activate TImR and VIMS Stock Sync",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/despatchAdviceIL",
+      "pollingSchedule": "0 */1 * * *",
+      "name": "Get Despatch Advice from VIMS - IL Intiated",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "password": "",
+          "username": "",
+          "primary": true,
+          "path": "/despatchAdviceIL",
+          "port": 9000,
+          "host": "localhost",
+          "secured": false,
+          "name": "Activate VIMS and TImR Despatch Advice",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "sync"
+      ],
+      "type": "polling",
+      "tcpPort": null,
+      "tcpHost": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    },
+    {
+      "urlPattern": "/getDespatchAdviceVims",
+      "name": "Get Despatch Advice from VIMS - VIMS Intiated",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "name": "Activate VIMS and TImR Despatch Advice",
+          "secured": false,
+          "host": "localhost",
+          "port": 9000,
+          "path": "/despatchAdviceVims",
+          "primary": true,
+          "username": "",
+          "password": "",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "il_vims"
+      ],
+      "type": "http"
+    },
+    {
+      "name": "Send Proof Of Delivery To VIMS",
+      "urlPattern": "/receivingAdvice",
+      "autoRetryPeriodMinutes": 60,
+      "autoRetryEnabled": false,
+      "rewriteUrlsConfig": [],
+      "addAutoRewriteRules": true,
+      "rewriteUrls": false,
+      "status": "enabled",
+      "alerts": [],
+      "txRerunAcl": [],
+      "txViewFullAcl": [],
+      "txViewAcl": [],
+      "properties": [],
+      "matchContentTypes": [],
+      "routes": [
+        {
+          "password": "",
+          "username": "",
+          "primary": true,
+          "pathTransform": "",
+          "path": "/receivingAdvice",
+          "port": 9000,
+          "host": "localhost",
+          "secured": false,
+          "name": "POD - receivingAdvice",
+          "forwardAuthHeader": false,
+          "status": "enabled",
+          "type": "http"
+        }
+      ],
+      "authType": "private",
+      "whitelist": [],
+      "allow": [
+        "il_timr"
+      ],
+      "type": "http",
+      "tcpPort": null,
+      "tcpHost": null,
+      "pollingSchedule": null,
+      "matchContentJson": null,
+      "matchContentValue": null,
+      "matchContentXpath": null,
+      "matchContentRegex": null
+    }
+    ],
+    "endpoints": [
+      {
+        "name": "Activate TImR and VIMS Sync",
+        "host": "localhost",
+        "path": "/sync",
+        "port": "8545",
+        "primary": true,
+        "type": "http"
+      }
+    ],
+  "configDefs": [
+    {
+      "param": "oauth2",
+      "displayName": "TImR OAUTH2",
+      "description": "The Open Authentication that generates access token to access TImR server",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/auth/oauth2_token)",
+          "type": "string"
+        },
+        {
+          "param": "gs1Scope",
+          "displayName": "GS1 Scope",
+          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/gs1)",
+          "type": "string"
+        },
+        {
+          "param": "fhirScope",
+          "displayName": "FHIR Scope",
+          "description": "The base URL (e.g. http://timr.marc-hi.ca:8080/fhir)",
+          "type": "string"
+        },
+        {
+          "param": "token",
+          "displayName": "Token",
+          "description": "Token",
+          "type": "string"
+        },
+        {
+          "param": "username",
+          "displayName": "Username",
+          "description": "Username required to generate access token",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Password",
+          "description": "Password required to generate access token",
+          "type": "password"
+        }
+      ]
+    },
+    {
+      "param": "timr",
+      "displayName": "TImR",
+      "description": "The Immunization server to sync data with",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. https://vimstraining.elmis-dev.org)",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "param": "vims",
+      "displayName": "VIMS",
+      "description": "The VIMS server to send data to",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. https://vimstraining.elmis-dev.org)",
+          "type": "string"
+        },
+        {
+          "param": "username",
+          "displayName": "Username",
+          "description": "Username required to send data to DHIS2",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Password",
+          "description": "Password required to send data to DHIS2",
+          "type": "password"
+        }
+      ]
+    },
+    {
+      "param": "openinfoman",
+      "displayName": "InterLinked Registry - Openinfoman",
+      "description": "Server holding facility mappings between DHIS2,VIMS,TImR and HFR",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. http://52.32.67.173:8984/CSD)",
+          "type": "string"
+        },
+        {
+          "param": "document",
+          "displayName": "Facility Document",
+          "description": "Document holding facilities",
+          "type": "string"
+        },
+        {
+          "param": "username",
+          "displayName": "Username",
+          "description": "Username required to send data to DHIS2",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Password",
+          "description": "Password required to send data to DHIS2",
+          "type": "password"
+        }
+      ]
+    },
+    {
+      "param": "rapidpro",
+      "displayName": "Rapidpro",
+      "description": "Communication App",
+      "type": "struct",
+      "template": [
+        {
+          "param": "url",
+          "displayName": "URL",
+          "description": "The base URL (e.g. http://52.32.67.173:8000)",
+          "type": "string"
+        },
+        {
+          "param": "token",
+          "displayName": "Token",
+          "description": "Token",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "param": "email_notification",
+      "displayName": "Email Notification",
+      "description": "Email Notification",
+      "type": "struct",
+      "template": [
+        {
+          "param": "emails",
+          "displayName": "Emails",
+          "description": "Emails to send notifications as events happens inside the mediator like restart etc",
+          "type": "map"
+        },
+        {
+          "param": "smtp_host",
+          "displayName": "SMTP Host",
+          "description": "SMTP Host like like smtp.gmail.com",
+          "type": "string"
+        },
+        {
+          "param": "smtp_port",
+          "displayName": "SMTP Port",
+          "description": "SMTP Port like 587 (non secured) or 465 (secured)",
+          "type": "string"
+        },
+        {
+          "param": "smtp_secured",
+          "displayName": "SMTP Secured?",
+          "description": "SMTP Secured",
+          "type": "option",
+          "values": ["Yes","No"]
+        },
+        {
+          "param": "username",
+          "displayName": "Authentication User",
+          "description": "Authentication User",
+          "type": "string"
+        },
+        {
+          "param": "password",
+          "displayName": "Authentication Password",
+          "description": "Authentication Password",
+          "type": "password"
+        }
+      ]
+    }
+  ],
+  "config": {
+    "oauth2": {
+      "url": "http://34.212.232.56:8080/auth/oauth2_token",
+      "fhirScope": "http://34.212.232.56:8080/fhir",
+      "gs1Scope": "http://34.212.232.56:8080/gs1",
+      "token": "aWxfbWVkaWF0b3I6QE1lZGlhdG9yU291cmNlMTIz",
+      "username": "il_mediator",
+      "password": "@MediatorSource123"
+    },
+    "timr": {
+      "url": "http://34.212.232.56:8080/"
+    },
+    "vims": {
+      "url": "https://vimstraining.elmis-dev.org",
+      "username": "vims-divo",
+      "password": "Admin123"
+    },
+    "openinfoman": {
+      "url": "http://localhost:8984",
+      "document": "BID",
+      "username": "",
+      "password": ""
+    },
+    "rapidpro": {
+      "url": "http://localhost:8000",
+      "token": "306562cf1ffca2bc4526ed61445aa21fde42d9c6"
+    },
+    "email_notification": {
+      "emails": {
+        "1":"allyshaban5@gmail.com",
+        "2":"ashaban@intrahealth.org"
+      },
+      "smtp_host":"smtp.gmail.com",
+      "smtp_port":"587",
+      "smtp_secured":"No"
+    }
+  }
+}

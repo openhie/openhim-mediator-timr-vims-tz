@@ -1,0 +1,7 @@
+2017-08-11T04:46:11.381Z - [32minfo[39m: Received initial config: password=, username=, document=BID, url=http://localhost:8984, password=Admin123, username=vims-divo, url=https://vimstraining.elmis-dev.org, url=http://35.164.113.129:8080/, password=@MediatorSource123, username=il_mediator, token=aWxfbWVkaWF0b3I6QE1lZGlhdG9yU291cmNlMTIz, gs1Scope=http://35.164.113.129:8080/fhir, fhirScope=http://35.164.113.129:8080/fhir, url=http://35.164.113.129:8080/auth/oauth2_token
+2017-08-11T04:46:11.383Z - [32minfo[39m: Successfully registered mediator!
+2017-08-11T04:46:11.400Z - [32minfo[39m: Listening on 9000...
+2017-08-11T04:46:14.318Z - [32minfo[39m: Getting Periods
+2017-08-11T04:46:14.334Z - [32minfo[39m: Successfully updated transaction with id 598d36969c825a6033e6dc5b
+2017-08-11T04:46:15.702Z - [32minfo[39m: Getting Access Token from TImR
+2017-08-11T04:46:16.521Z - [32minfo[39m: Processing Coverage For Karangai, Period July 2017

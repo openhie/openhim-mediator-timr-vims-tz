@@ -1,0 +1,63 @@
+{
+  "name": "openhim-mediator-timr-vims-tz",
+  "version": "6.0.1",
+  "description": "This mediator synchronises data between Tanzania Immunization Registry and Vaccine Immunization Registry.",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.4.1",
+    "body-parser": "^1.17.2",
+    "circular-json": "^0.3.1",
+    "exec-php": "^0.0.3",
+    "express": "^4.14.0",
+    "express-xml-bodyparser": "^0.3.0",
+    "forever": "^0.15.3",
+    "forever-monitor": "^1.7.1",
+    "http": "^0.0.0",
+    "https": "^1.0.0",
+    "humanize-age": "^1.0.0",
+    "is-json": "^2.0.1",
+    "js2xmlparser": "^3.0.0",
+    "lodash": "^4.16.3",
+    "moment": "^2.18.1",
+    "mongodb": "^2.2.31",
+    "nodemailer": "^4.1.3",
+    "onchange": "^2.5.0",
+    "openhim-mediator-utils": "^0.2.2",
+    "promise": "^7.1.1",
+    "request": "^2.75.0",
+    "rewire": "^2.5.2",
+    "snazzy": "^3.0.1",
+    "standard": "^6.0.8",
+    "strtotime": "^1.0.0",
+    "underscore": "^1.8.3",
+    "urijs": "^1.18.2",
+    "winston": "^2.2.0",
+    "xml-query": "^1.4.0",
+    "xml-reader": "^2.4.3",
+    "xml2js": "^0.4.17",
+    "xml2json": "^0.11.0",
+    "xmldom": "^0.1.22",
+    "xpath": "^0.0.23",
+    "forever-monitor": "^1.7.1"
+  },
+  "devDependencies": {
+    "tap": "^5.8.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openhie/openhim-mediator-timr-vims-tz.git"
+  },
+  "keywords": [
+    "timr",
+    "vimz"
+  ],
+  "author": "Ally Shaban",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/openhie/openhim-mediator-timr-vims-tz/issues"
+  },
+  "homepage": "https://github.com/openhie/openhim-mediator-timr-vims-tz#readme"
+}

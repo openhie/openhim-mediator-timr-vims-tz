@@ -1,0 +1,11 @@
+# Cookies for domains related to go.tz.
+# This content may be pasted into a cookies.txt file and used by wget
+# Example:  wget -x --load-cookies cookies.txt https://vims.moh.go.tz/vaccine/inventory/distribution/get-by-date-range/14156?date=2017-10-08&endDate=2017-12-17
+#
+.vims.moh.go.tz	TRUE	/	FALSE	1576482048	_ga	GA1.4.13443579.1496587210
+.vims.moh.go.tz	TRUE	/	FALSE	1529178023	__utmz	175670821.1496587210.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none)
+.vims.moh.go.tz	TRUE	/	FALSE	1513496448	_gid	GA1.4.2111547914.1512965801
+.vims.moh.go.tz	TRUE	/	FALSE	0	__utmc	175670821
+vims.moh.go.tz	FALSE	/	FALSE	0	JSESSIONID	399F5A362186CE64D64B912318FCD416
+.vims.moh.go.tz	TRUE	/	FALSE	1576482023	__utma	175670821.13443579.1496587210.1513375105.1513410024.143
+.vims.moh.go.tz	TRUE	/	FALSE	1513411823	__utmb	175670821.1.10.1513410024
