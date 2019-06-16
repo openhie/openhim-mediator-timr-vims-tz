@@ -24,7 +24,7 @@
           "code": "1",
           "target": [
             {
-              "code": "R50.9",
+              "code": "DiagnosisCode-UnspecifiedFever",
               "equivalence":"wider"
             }
           ]
@@ -33,7 +33,7 @@
           "code": "2",
           "target": [
             {
-              "code": "G82.0",
+              "code": "DiagnosisCode-FlaccidParaplegia",
               "equivalence":"wider"
             }
           ]
@@ -42,7 +42,7 @@
           "code": "3",
           "target": [
             {
-              "code": "A33",
+              "code": "DiagnosisCode-NoenatalTetanus",
               "equivalence":"wider"
             }
           ]

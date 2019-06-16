@@ -14,10 +14,10 @@ const app = express();
 const server = require('http').createServer(app);
 
 const pool = new Pool({
-  user: 'stagingdw',
-  host: 'timrdwh.ctdiocjoaayg.us-west-2.rds.amazonaws.com',
-  database: 'timrdwh_staging',
-  password: 'Tanzania??13',
+  user: 'postgres',
+  host: 'localhost',
+  database: 'timrdwh_latest',
+  password: 'tajiri',
   port: 5432,
 })
 
@@ -85,10 +85,14 @@ if (cluster.isMaster) {
     if (incatchment) {
       catchmentQuery = `and act_id in (select act_id from act_tag_tbl where tag_name='catchmentIndicator' and tag_value='${incatchment}')`
     }
-    let query = `select count(*) from sbadm_tbl where seq_id=${seq_id} and mat_id in (select mat_id from mat_tbl where type_mnemonic='${vaccine}') and fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') ${catchmentQuery} and act_utc between '${vaccineStartDate}' and '${vaccineEndDate}'`
+    let query = `select count(*) from sbadm_tbl where seq_id=${seq_id} and mat_id in (select mat_id from mat_tbl where type_mnemonic='${vaccine}') and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') ${catchmentQuery} and act_utc between '${vaccineStartDate}' and '${vaccineEndDate}'`
     winston.info("received a request to get immunization coverage for facility " + fac_name)
     pool.query(query, (err, response) => {
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -132,9 +136,13 @@ if (cluster.isMaster) {
         }
       ],
       function (err, results) {
-        let query = `select count(*) from sbadm_tbl where seq_id=${seq_id} and mat_id in (select mat_id from mat_tbl where type_mnemonic='${vaccine}') and fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2})) and act_id in (select act_id from act_tag_tbl where tag_name='catchmentIndicator' and tag_value='${incatchment}') and act_utc between '${startDate}' and '${endDate}'`
+        let query = `select count(*) from sbadm_tbl where seq_id=${seq_id} and mat_id in (select mat_id from mat_tbl where type_mnemonic='${vaccine}') and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2})) and act_id in (select act_id from act_tag_tbl where tag_name='catchmentIndicator' and tag_value='${incatchment}') and act_utc between '${startDate}' and '${endDate}'`
         pool.query(query, (err, response) => {
-          res.status(200).json(response.rows[0])
+          if(response && response.hasOwnProperty('rows')) {
+            res.status(200).json(response.rows[0])
+          } else {
+            res.status(200).send()
+          }
         })
       })
   })
@@ -148,10 +156,30 @@ if (cluster.isMaster) {
     let suppEndDate = req.query.suppEndDate
     let startBirthDate = req.query.startBirthDate
     let endBirthDate = req.query.endBirthDate
-    let query = `select count(*) from sbadm_tbl where mat_id in (select mat_id from mat_tbl where type_mnemonic='${code}') and fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') and pat_id in (select psn_id from psn_tbl where dob between '${startBirthDate}' and '${endBirthDate}') and act_utc between '${suppStartDate}' and '${suppEndDate}'`
-    winston.error(query)
+    let query = `select count(*) from sbadm_tbl where mat_id in (select mat_id from mat_tbl where type_mnemonic='${code}') and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') and pat_id in (select psn_id from psn_tbl where dob between '${startBirthDate}' and '${endBirthDate}') and act_utc between '${suppStartDate}' and '${suppEndDate}'`
     pool.query(query, (err, response) => {
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
+    })
+  })
+
+  app.get('/disease', (req, res) => {
+    let code = req.query.diseaseCode
+    let condition = req.query.diseaseCond
+    let fac_id = req.query.fac_id
+    let fac_name = req.query.fac_name
+    let startDate = req.query.startDate
+    let endDate = req.query.endDate
+    let query = `select count(*) from cond_tbl where typ_mnemonic='${condition}' and prob_mnemonic='${code}' and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and act_utc between '${startDate}' and '${endDate}'`
+    pool.query(query, (err, response) => {
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -161,10 +189,13 @@ if (cluster.isMaster) {
     let fac_name = req.query.fac_name
     let startDate = req.query.startDate
     let endDate = req.query.endDate
-    let query = `select count(*) from sbadm_tbl where mat_id in (select mat_id from mat_tbl where type_mnemonic='${code}') and fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') and pat_id in (select psn_id from psn_tbl where dob between '${startBirthDate}' and '${endBirthDate}') and act_utc between '${startDate}' and '${endDate}'`
-    winston.error(query)
+    let query = `select count(*) from sbadm_tbl where mat_id in (select mat_id from mat_tbl where type_mnemonic='${code}') and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}') and pat_id in (select psn_id from psn_tbl where dob between '${startBirthDate}' and '${endBirthDate}') and act_utc between '${startDate}' and '${endDate}'`
     pool.query(query, (err, response) => {
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -188,29 +219,83 @@ if (cluster.isMaster) {
     }
 
     async.parallel([
-        function (callback) {
-          translateFHIROperator(birthDate1, (operator, date) => {
-            birthDate1 = `dob ${operator} '${date}'`
-            callback(null, birthDate1)
-          })
-        },
-        function (callback) {
-          if (!birthDate2) {
-            birthDate2 = ''
-            return callback(null, birthDate2)
-          }
-          translateFHIROperator(birthDate2, (operator, date) => {
-            birthDate2 = `and dob ${operator} '${date}'`
-            callback(null, birthDate2)
-          })
-        }
-      ],
-      function (err, results) {
-        let query = `select count(*) from pat_ext_tbl where ext_value='${code}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/breastFeedingStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2} and crt_utc between '${startDate}' and '${endDate}'))`
-        pool.query(query, (err, response) => {
-          res.status(200).json(response.rows[0])
+      function (callback) {
+        translateFHIROperator(birthDate1, (operator, date) => {
+          birthDate1 = `dob ${operator} '${date}'`
+          callback(null, birthDate1)
         })
+      },
+      function (callback) {
+        if (!birthDate2) {
+          birthDate2 = ''
+          return callback(null, birthDate2)
+        }
+        translateFHIROperator(birthDate2, (operator, date) => {
+          birthDate2 = `and dob ${operator} '${date}'`
+          callback(null, birthDate2)
+        })
+      }
+    ],
+    function (err, results) {
+      let query = `select count(*) from pat_ext_tbl where ext_value='${code}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/breastFeedingStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2} and crt_utc between '${startDate}' and '${endDate}'))`
+      pool.query(query, (err, response) => {
+        if(response && response.hasOwnProperty('rows')) {
+          res.status(200).json(response.rows[0])
+        } else {
+          res.status(200).send()
+        }
       })
+    })
+  })
+
+  app.get('/childVisit', (req, res) => {
+    let code = req.query.breastFeedingCode
+    let fac_id = req.query.fac_id
+    let fac_name = req.query.fac_name
+    let gender = req.query.gender
+    let startDate = req.query.startDate
+    let endDate = req.query.endDate
+    let birthDate = req.query.birthDate
+
+
+    let birthDate1, birthDate2
+    if (Array.isArray(birthDate)) {
+      birthDate1 = birthDate[0]
+      birthDate2 = birthDate[1]
+    } else {
+      birthDate1 = birthDate
+      birthDate2 = null
+    }
+
+    async.parallel([
+      function (callback) {
+        translateFHIROperator(birthDate1, (operator, date) => {
+          birthDate1 = `dob ${operator} '${date}'`
+          callback(null, birthDate1)
+        })
+      },
+      function (callback) {
+        if (!birthDate2) {
+          birthDate2 = ''
+          return callback(null, birthDate2)
+        }
+        translateFHIROperator(birthDate2, (operator, date) => {
+          birthDate2 = `and dob ${operator} '${date}'`
+          callback(null, birthDate2)
+        })
+      }
+    ],
+    function (err, results) {
+      let query = `select count(*) from enc_tbl where pat_id in (select pat_id from pat_vw where gender_mnemonic='${gender}' and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and ${birthDate1} ${birthDate2}) and crt_utc between '${startDate}' and '${endDate}'`
+      winston.error(query)
+      pool.query(query, (err, response) => {
+        if(response && response.hasOwnProperty('rows')) {
+          res.status(200).json(response.rows[0])
+        } else {
+          res.status(200).send()
+        }
+      })
+    })
   })
 
   app.get('/pmtct', (req, res) => {
@@ -220,9 +305,13 @@ if (cluster.isMaster) {
     let gender = req.query.gender
     let startDate = req.query.startDate
     let endDate = req.query.endDate
-    let query = `select count(*) from pat_ext_tbl where ext_value='${status}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/pctmtStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
+    let query = `select count(*) from pat_ext_tbl where ext_value='${status}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/pctmtStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
     pool.query(query, (err, response) => {
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -232,14 +321,18 @@ if (cluster.isMaster) {
     let gender = req.query.gender
     let startDate = req.query.startDate
     let endDate = req.query.endDate
-    let query = `select count(*) from pat_ext_tbl where ext_value='True' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/mosquitoNetStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
+    let query = `select count(*) from pat_ext_tbl where ext_value='True' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/mosquitoNetStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
     pool.query(query, (err, response) => {
       if (err) {
         winston.error(err)
         res.status(400).json()
         return
       }
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -250,7 +343,7 @@ if (cluster.isMaster) {
     let gender = req.query.gender
     let startDate = req.query.startDate
     let endDate = req.query.endDate
-    let query = `select count(*) from pat_ext_tbl where ext_value='${ttstatus}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/tetanusStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
+    let query = `select count(*) from pat_ext_tbl where ext_value='${ttstatus}' and ext_typ='http://openiz.org/extensions/patient/contrib/timr/tetanusStatus' and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and asgn_fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and psn_id in (select psn_id from psn_tbl where crt_utc between '${startDate}' and '${endDate}'))`
     winston.error(query)
     pool.query(query, (err, response) => {
       if (err) {
@@ -258,7 +351,11 @@ if (cluster.isMaster) {
         res.status(400).json()
         return
       }
-      res.status(200).json(response.rows[0])
+      if(response && response.hasOwnProperty('rows')) {
+        res.status(200).json(response.rows[0])
+      } else {
+        res.status(200).send()
+      }
     })
   })
 
@@ -298,9 +395,13 @@ if (cluster.isMaster) {
         }
       ],
       function (err, results) {
-        let query = `select count(*) from qty_obs_tbl where int_cs='${code}' and typ_cs='VitalSign-Weight' and crt_utc between '${startDate}' and '${endDate}' and fac_id in (select fac_id from fac_id_tbl where hfr_id='${fac_id}') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2}))`
+        let query = `select count(*) from qty_obs_tbl where int_cs='${code}' and typ_cs='VitalSign-Weight' and crt_utc between '${startDate}' and '${endDate}' and fac_id in (select fac_id from fac_id_tbl where ext_id='${fac_id}' and nsid='TZ_HFR_ID') and pat_id in (select pat_id from pat_tbl where gender_mnemonic='${gender}' and psn_id in (select psn_id from psn_tbl where ${birthDate1} ${birthDate2}))`
         pool.query(query, (err, response) => {
-          res.status(200).json(response.rows[0])
+          if(response && response.hasOwnProperty('rows')) {
+            res.status(200).json(response.rows[0])
+          } else {
+            res.status(200).send()
+          }
         })
       })
   })
@@ -323,11 +424,6 @@ if (cluster.isMaster) {
     return callback(operator, data)
   }
 
-  app.get('/test', (req, res) => {
-    pool.query("select * from pat_ext_tbl limit 10", (err, response) => {
-      console.log(err, response)
-    })
-  })
   server.listen(config.getConf('server:port'));
   winston.info(`Server is running and listening on port ${config.getConf('server:port')}`);
 }

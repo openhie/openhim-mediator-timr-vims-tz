@@ -20,31 +20,34 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
   const oimconfig = oimcnf
   const oim = OIM(oimcnf)
 
-  function saveSessionsData(period, report, data, orchestrations, callback) {
-    var periodDate = moment(period.periodName, 'MMM YYYY', 'en').format('YYYY-MM')
-    if (data.hasOwnProperty(periodDate)) {
-      report.report.plannedOutreachImmunizationSessions = data[periodDate].outreachPlan
-      report.report.outreachImmunizationSessions = data[periodDate].outreach
-      report.report.outreachImmunizationSessionsCanceled = data[periodDate].outreachCancel
-      report.report.fixedImmunizationSessions = data[periodDate].sessions
-      var sessionsUpdatedReport = {
-        "id": report.report.id,
-        "facilityId": report.report.facilityId,
-        "periodId": report.report.periodId,
-        "plannedOutreachImmunizationSessions": report.report.plannedOutreachImmunizationSessions,
-        "outreachImmunizationSessions": report.report.outreachImmunizationSessions,
-        "outreachImmunizationSessionsCanceled": report.report.outreachImmunizationSessionsCanceled,
-        "fixedImmunizationSessions": report.report.fixedImmunizationSessions
-      }
-      saveVIMSReport(sessionsUpdatedReport, "Sending Sessions Data", orchestrations, (err, res, body) => {
-        if (err) {
-          winston.error(err)
-          return callback(err)
+  function getTimrCode(vimsCode, conceptMapName, callback) {
+    async.each(conceptMapName.group, (groups, nxtGrp) => {
+      async.each(groups.element, (element, nxtElmnt) => {
+        if (element.code == vimsCode) {
+          return callback(element.target[0].code)
         } else
-          return callback(err, res, body)
+          nxtElmnt()
+      }, function () {
+        nxtGrp()
       })
-    } else
-      return callback()
+    }, function () {
+      return callback("")
+    })
+  }
+
+  function getVimsCode(timrCode, conceptMapName, callback) {
+    async.each(conceptMapName.group, (groups, nxtGrp) => {
+      let element = groups.element.find(element => {
+        return element.target[0].code == timrCode
+      })
+      if(element) {
+        return callback(element.code)
+      } else {
+        return nxtGrp()
+      }
+    }, function () {
+      return callback("")
+    })
   }
 
   function saveVIMSReport(updatedReport, name, orchestrations, callback) {
@@ -330,16 +333,95 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
+    countPeriods: function (vimsFacId, orchestrations, callback) {
+      this.getAllPeriods(vimsFacId, orchestrations, (err, body) => {
+        if (err) {
+          return callback(err)
+        }
+        try {
+          body = JSON.parse(body)
+        } catch (error) {
+          winston.error(error)
+          return callback()
+        }
+        if (!body.hasOwnProperty("periods")) {
+          return callback(0, 0)
+        }
+        if (body.hasOwnProperty("periods") && body.periods.length < 1) {
+          return callback(0, 0)
+        }
+        let totalDraft = 0
+        let periodId, periodName
+        async.each(body.periods, (period, nxtPer) => {
+          if (period.id > 0 && (period.status == "DRAFT" || period.status == "REJECTED")) {
+            periodId = period.id
+            periodName = period.periodName
+            totalDraft++
+          }
+          return nxtPer()
+        }, () => {
+          return callback(body.periods.length, totalDraft, periodId, periodName)
+        })
+      })
+    },
+
+    getFacilityWithLatestPeriod: function (facilities, callback) {
+      let period = {}
+      async.each(facilities, (facility, nxtFac) => {
+        this.countPeriods(facility.vimsFacilityId, [], (total, totalDraft, periodId, periodName) => {
+          facility.periodId = periodId
+          facility.periodName = periodName
+          if(totalDraft > 0) {
+            if(Object.keys(period).length == 0) {
+              period.periodId = periodId
+              period.periodName = periodName
+              period.total = total
+              period.facility = facility
+            } else {
+              let periodDate1 = moment(periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+              let periodDate2 = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+              if(periodDate1 > periodDate2) {
+                period.periodId = periodId
+                period.periodName = periodName
+                period.total = total
+                period.facility = facility
+              }
+            }
+          }
+          return nxtFac()
+        })
+      }, () => {
+        return callback(period)
+      })
+    },
+
+    extractAgeGroups: function(lineItems) {
+      let ageGroups = []
+      return new Promise((resolve, reject) => {
+        async.eachSeries(lineItems, (lineItem, nxtLineitem) => {
+          let exists = ageGroups.find((ageGroup) => {
+            return ageGroup === lineItem.ageGroup
+          })
+          if(!exists) {
+            ageGroups.push(lineItem.ageGroup)
+          }
+          return nxtLineitem()
+        }, () => {
+          return resolve(ageGroups)
+        })
+      })
+    },
+
     getValueSets: function (valueSetName, callback) {
       var concept = valueSetName.compose.include[0].concept
       var valueSets = []
-      async.eachSeries(concept, (code, nxtConcept) => {
+      async.each(concept, (code, nxtConcept) => {
         valueSets.push({
           'code': code.code
         })
-        nxtConcept()
+        return nxtConcept()
       }, function () {
-        callback('', valueSets)
+        return callback('', valueSets)
       })
     },
 
@@ -381,768 +463,184 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
-    saveImmunizationData: function (period, values, vimsVaccCode, dose, facilityName, orchestrations, callback) {
-      if (values == "" || values == undefined || values == null) {
-        winston.error("Empty data Submitted,skip processing data of value " + JSON.stringify(values))
-        return callback()
-      }
-      if (!values.hasOwnProperty("regularMale") ||
-        !values.hasOwnProperty("regularFemale") ||
-        !values.hasOwnProperty("outreachMale") ||
-        !values.hasOwnProperty("outreachFemale")
-      ) {
-        winston.error("Invalid data Submitted,ignoring processing data " + JSON.stringify(values))
-        return callback()
-      }
-      if (values.regularMale === "" || values.regularMale === undefined || values.regularMale === null ||
-        values.regularFemale === "" || values.regularFemale === undefined || values.regularFemale === null ||
-        values.outreachMale === "" || values.outreachMale === undefined || values.outreachMale === null ||
-        values.outreachFemale === "" || values.outreachFemale === undefined || values.outreachFemale === null
-      ) {
-        winston.error("One of the required data is empty,ignoring processing data " + JSON.stringify(values))
-        return callback()
-      }
-      period.forEach((period) => {
-        var periodId = period.id
-        if (vimsVaccCode == '2413')
-          var doseid = dose.vimsid1
-        else if (vimsVaccCode == '2412') {
-          //VIMS has dose 1 only for BCG
-          var doseid = 1
-        } else
-          var doseid = dose.vimsid
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
+    saveImmunizationData: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.coverageLineItems, (covLineItem, covLineItemIndex, nxtCovLineitem) => {
+          let vimsProductId = covLineItem.productId
+          let timrProductId
+          getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
+            timrProductId = code
+          })
+
+          let vimsDoseId = covLineItem.doseId
+          let timrDoseId
+          if(vimsProductId == '2413' || vimsProductId == '2412') {
+            timrDoseId = vimsDoseId - 1
+          } else {
+            timrDoseId = vimsDoseId
           }
-          var totalCoveLine = report.report.coverageLineItems.length
-          var found = false
-          winston.info('Processing ' + facilityName + ' Vacc Code ' + vimsVaccCode + ' ' + dose.name + JSON.stringify(values))
-          report.report.coverageLineItems.forEach((coverageLineItems, index) => {
-            if (coverageLineItems.productId == vimsVaccCode && coverageLineItems.doseId == doseid) {
-              found = true
-              totalCoveLine--
-              report.report.coverageLineItems[index].regularMale = values.regularMale
-              report.report.coverageLineItems[index].regularFemale = values.regularFemale
-              report.report.coverageLineItems[index].outreachMale = values.outreachMale
-              report.report.coverageLineItems[index].outreachFemale = values.outreachFemale
-              var updatedReport = {
-                "id": report.report.id,
-                "facilityId": report.report.facilityId,
-                "periodId": report.report.periodId,
-                "coverageLineItems": [report.report.coverageLineItems[index]]
-              }
-              saveVIMSReport(updatedReport, "Immunization Coverage", orchestrations, (err, res, body) => {
-                if (err) {
-                  winston.error(err)
-                  return callback(err)
-                } else
-                  return callback()
+
+          let updated = false
+          /** Treat TT data differently because of the disaggregation by PregnantWomen,Newborns,InjuredPersons
+           * Stop summing once VIMS has added this disaggregation
+           * Below are timr disaggregation
+           * "Concept (K:07898ff6-64f3-11e9-a923-1681be663d3e, V:c6a115ec-b2be-4ec1-b8e1-fd1120a911ad) [M: PopulationType-Newborns]"
+           * "Concept (K:078992da-64f3-11e9-a923-1681be663d3e, V:a2608645-2648-4524-83fd-3fce315d6a6a) [M: PopulationType-InjuredPersons]"
+           * "Concept (K:0789944c-64f3-11e9-a923-1681be663d3e, V:e6b6dcad-8cda-477b-be70-5fbf5f05464f) [M: PopulationType-PregnantWomen]"
+          */
+          if(vimsProductId == '2418') {
+            let maleValueData = facData.filter((data) => {
+              return data.gender_mnemonic == 'Male' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+            let femaleValueData = facData.filter((data) => {
+              return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+            if(maleValueData.length > 0) {
+              updated = true
+              let totalregular = 0
+              let totalOutreach = 0
+              maleValueData.forEach((data) => {
+                totalregular += parseInt(data.in_service_area)
+                totalOutreach = parseInt(data.in_catchment)
               })
+              covLineItem.regularMale = totalregular
+              covLineItem.outreachMale = totalOutreach
+            }
+            if(femaleValueData.length > 0) {
+              updated = true
+              let totalregular = 0
+              let totalOutreach = 0
+              femaleValueData.forEach((data) => {
+                totalregular += parseInt(data.in_service_area)
+                totalOutreach = parseInt(data.in_catchment)
+              })
+              covLineItem.regularFemale = totalregular
+              covLineItem.outreachFemale = totalOutreach
+            }
+          } else {
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+  
+            if(maleValueData) {
+              updated = true
+              let regular = maleValueData.in_service_area
+              let outreach = maleValueData.in_catchment
+              covLineItem.regularMale = regular
+              covLineItem.outreachMale = outreach
+            }
+            if(femaleValueData) {
+              updated = true
+              let regular = femaleValueData.in_service_area
+              let outreach = femaleValueData.in_catchment
+              covLineItem.regularFemale = regular
+              covLineItem.outreachFemale = outreach
+            }
+          }
+          if(!updated) {
+            return nxtCovLineitem()
+          }
+          winston.info("Saving Immunization Coverage Product " + covLineItem.product.primaryName + " Dose " + vimsDoseId + " " + 
+          JSON.stringify({
+            regularMale: covLineItem.regularMale,
+            regularFemale: covLineItem.regularFemale,
+            outreachMale: covLineItem.outreachMale,
+            outreachFemale: covLineItem.outreachFemale
+          }))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "coverageLineItems": [report.report.coverageLineItems[covLineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "Immunization Coverage", orchestrations, (err, res, body) => {
+            if (err) {
+              winston.error(err)
+            }
+          })
+          return nxtCovLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveImmCoverAgeGrp: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.coverageAgeGroupLineItems, (lineItem, lineItemIndex, nxtLineItem) => {
+          if(lineItem.ageGroup === vimsAgeGroup) {
+            let vimsProductId = lineItem.productId
+            let timrProductId
+            getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
+              timrProductId = code
+            })
+
+            let vimsDoseId = lineItem.doseId
+            let timrDoseId
+            if(vimsProductId == '2413' || vimsProductId == '2412') {
+              timrDoseId = vimsDoseId - 1
             } else {
-              totalCoveLine--
-            }
-            if (totalCoveLine == 0 && found == false) {
-              callback('')
-            }
-          })
-
-        })
-      })
-    },
-
-    extractValuesFromAgeGroup: function (values, ageGroupID, callback) {
-      var mergedValues = []
-      async.eachSeries(values, (value, nxtValue) => {
-        if (Object.keys(value)[0] == ageGroupID) {
-          if (mergedValues.length == 0)
-            mergedValues.push({
-              [value[ageGroupID].gender]: value[ageGroupID].value
-            })
-          else
-            mergedValues[(mergedValues.length - 1)][value[ageGroupID].gender] = value[ageGroupID].value
-          nxtValue()
-        } else
-          nxtValue()
-      }, function () {
-        return callback(mergedValues)
-      })
-    },
-
-    saveVitaminData: function (period, values, vimsVitCode, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          winston.info('Processing Vitamin Code ' + vimsVitCode + JSON.stringify(values))
-          async.eachOfSeries(report.report.vitaminSupplementationLineItems, (vitaminSupplementationLineItems, index, nxtSupplmnt) => {
-            if (report.report.vitaminSupplementationLineItems[index].vaccineVitaminId == vimsVitCode) {
-              var ageGroupID = report.report.vitaminSupplementationLineItems[index].vitaminAgeGroupId
-              this.extractValuesFromAgeGroup(values, ageGroupID, (mergedValues) => {
-                if (mergedValues.length == 1 && mergedValues[0].hasOwnProperty("maleValue"))
-                  var maleValue = mergedValues[0].maleValue
-                if (mergedValues.length == 1 && mergedValues[0].hasOwnProperty("femaleValue"))
-                  var femaleValue = mergedValues[0].femaleValue
-                if (maleValue)
-                  report.report.vitaminSupplementationLineItems[index].maleValue = maleValue
-                if (femaleValue)
-                  report.report.vitaminSupplementationLineItems[index].femaleValue = femaleValue
-                var updatedReport = {
-                  "id": report.report.id,
-                  "facilityId": report.report.facilityId,
-                  "periodId": report.report.periodId,
-                  "vitaminSupplementationLineItems": [report.report.vitaminSupplementationLineItems[index]]
-                }
-                saveVIMSReport(updatedReport, "Supplements", orchestrations, (err, res, body) => {
-                  if (err) {
-                    winston.error(err)
-                  }
-                  nxtSupplmnt()
-                })
-              })
-            } else
-              nxtSupplmnt()
-          }, function () {
-            nextPeriod()
-          })
-        })
-      }, function () {
-        winston.info("Done Processing " + vimsVitCode)
-        return callback()
-      })
-    },
-
-    saveAdverseEffectData: function (period, values, vimsVaccCode, orchestrations, callback) {
-      var me = this
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          winston.info('Adding To VIMS AdverseEvent Details ' + JSON.stringify(values))
-          //if no adverse effect reported
-          if (!report.report.adverseEffectLineItems.hasOwnProperty(0)) {
-            async.eachSeries(values, (value, nxtValue) => {
-              if (!value.hasOwnProperty("value"))
-                return nxtValue()
-
-              if (value.value > 0) {
-                var date = value.date
-                var value = value.value
-                var updatedReport = {
-                  "id": report.report.id,
-                  "facilityId": report.report.facilityId,
-                  "periodId": report.report.periodId,
-                  "adverseEffectLineItems": [{
-                    "productId": vimsVaccCode,
-                    "date": date,
-                    "cases": value,
-                    "batch": "",
-                    "isInvestigated": true
-                  }]
-                }
-                saveVIMSReport(updatedReport, "Adverse Effect", orchestrations, (err, res, body) => {
-                  if (err) {
-                    winston.error(err)
-                    return nxtValue()
-                  } else
-                    nxtValue()
-                })
-              } else {
-                nxtValue()
-              }
-            }, function () {
-              nextPeriod()
-            })
-          }
-          //if there is adverse effect reported
-          else {
-            async.eachSeries(values, (value, nxtValue) => {
-              //makesure we dont update Adverse Effect associated with multiple products
-              var found = false
-              if (!value.hasOwnProperty("value"))
-                return nxtValue()
-              async.eachOfSeries(report.report.adverseEffectLineItems, (adverseEffectLineItems, index, nxtAdvEff) => {
-                if (adverseEffectLineItems.productId == vimsVaccCode &&
-                  adverseEffectLineItems.date == value.date &&
-                  !adverseEffectLineItems.relatedLineItems.hasOwnProperty(0) &&
-                  value.value > 0
-                ) {
-                  report.report.adverseEffectLineItems[index].cases = value.value
-                  var updatedReport = {
-                    "id": report.report.id,
-                    "facilityId": report.report.facilityId,
-                    "periodId": report.report.periodId,
-                    "adverseEffectLineItems": [report.report.adverseEffectLineItems[index]]
-                  }
-                  saveVIMSReport(updatedReport, "Adverse Effect", orchestrations, (err, res, body) => {
-                    found = true
-                    if (err) {
-                      winston.error(err)
-                      return nxtValue()
-                    } else
-                      return nxtValue()
-                  })
-                } else
-                  return nxtAdvEff()
-              }, function () {
-                //if nothing found then it was not added,add it from scratch
-                if (found == false && value.value > 0) {
-                  var updatedReport = {
-                    "id": report.report.id,
-                    "facilityId": report.report.facilityId,
-                    "periodId": report.report.periodId,
-                    "adverseEffectLineItems": [{
-                      "productId": vimsVaccCode,
-                      "date": value.date,
-                      "cases": value.value,
-                      "batch": "",
-                      "isInvestigated": true
-                    }]
-                  }
-                  saveVIMSReport(updatedReport, "Adverse Effect", orchestrations, (err, res, body) => {
-                    if (err) {
-                      winston.error(err)
-                      return nxtValue()
-                    } else
-                      return nxtValue()
-                  })
-                } else
-                  return nxtValue()
-              })
-            }, function () {
-              return nextPeriod()
-            })
-          }
-        })
-      }, function () {
-        return callback()
-      })
-    },
-
-    saveDiseaseData: function (period, values, orchestrations, callback) {
-      if (Object.keys(values).length == 0) {
-        return callback()
-      }
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          winston.info('Adding To VIMS Disease Details ' + JSON.stringify(values))
-          async.eachOfSeries(report.report.diseaseLineItems, (diseaseLineItems, index, nxtDisLineItm) => {
-            var diseaseID = report.report.diseaseLineItems[index].diseaseId
-            var cases
-            var death
-            if (values[diseaseID].hasOwnProperty("case"))
-              cases = values[diseaseID]["case"]
-            if (values[diseaseID].hasOwnProperty("death"))
-              death = values[diseaseID]["death"]
-
-            if (cases == 0 && death == 0) {
-              return nxtDisLineItm()
+              timrDoseId = vimsDoseId
             }
 
-            report.report.diseaseLineItems[index].cases = cases
-            report.report.diseaseLineItems[index].death = death
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
+            })
+
+            if(maleValueData) {
+              let regular = maleValueData.in_service_area
+              let outreach = maleValueData.in_catchment
+              lineItem.regularMale = regular
+              lineItem.outreachMale = outreach
+            }
+            if(femaleValueData) {
+              let regular = femaleValueData.in_service_area
+              let outreach = femaleValueData.in_catchment
+              lineItem.regularFemale = regular
+              lineItem.outreachFemale = outreach
+            }
+            if(!maleValueData && !femaleValueData) {
+              return nxtLineItem()
+            }
+            winston.info("Saving Immunization Coverage By Age Product " + lineItem.product.primaryName + " Dose " + vimsDoseId + " " + 
+            JSON.stringify({
+              regularMale: lineItem.regularMale,
+              regularFemale: lineItem.regularFemale,
+              outreachMale: lineItem.outreachMale,
+              outreachFemale: lineItem.outreachFemale
+            }))
             var updatedReport = {
               "id": report.report.id,
               "facilityId": report.report.facilityId,
               "periodId": report.report.periodId,
-              "diseaseLineItems": [report.report.diseaseLineItems[index]]
+              "coverageAgeGroupLineItems": [report.report.coverageAgeGroupLineItems[lineItemIndex]]
             }
-            saveVIMSReport(updatedReport, "diseaseLineItems", orchestrations, (err, res, body) => {
-              if (err) {
-                winston.error(err)
-              } else
-                nxtDisLineItm()
+            saveVIMSReport(updatedReport, "coverageAgeGroupLineItems", orchestrations, (err, res, body) => {
+
             })
-          }, function () {
-            nextPeriod()
-          })
-        })
-      }, function () {
-        return callback()
-      })
-    },
-
-    saveBreastFeeding: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
+            return nxtLineItem()
+          } else {
+            return nxtLineItem()
           }
-          var bfLineItemIndex = 0
-          async.eachSeries(report.report.breastFeedingLineItems, (bfLineItem, nxtBfLineitem) => {
-            if (bfLineItem.category == "EBF")
-              var breastfeedcode = 1
-            else if (bfLineItem.category == "RF")
-              var breastfeedcode = 2
-            else {
-              winston.error("Unknown code found on breast feed line item " + JSON.stringify(bfLineItem))
-                ++bfLineItemIndex
-              return nxtBfLineitem()
-            }
-
-
-            translateAgeGroup(bfLineItem.ageGroup, (ages, err) => {
-              if (err) {
-                winston.error(err + JSON.stringify(bfLineItem.ageGroup))
-                  ++bfLineItemIndex
-                return nxtBfLineitem()
-              } else {
-                createQueryOnAge(ages, false, period, (ageQueries) => {
-                  var gndr = ["Male", "Female"]
-
-                  winston.info("Getting Breast Feeding (" + bfLineItem.category + ") Data")
-                  var spinner = new Spinner("Receiving Breast Feeding (" + bfLineItem.category + ") Data")
-                  spinner.setSpinnerString(8);
-                  spinner.start()
-                  async.eachSeries(gndr, (gender, nxtGender) => {
-                    var totalValues = 0
-                    async.eachSeries(ageQueries, (qry, nxtQry) => {
-                      let url = URI('http://localhost:3000')
-                        .segment('breastFeeding') +
-                        '?gender=' + gender + '&' + qry.query + '&breastFeedingCode=' + breastfeedcode + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName
-                        .toString()
-                      var options = {
-                        url: url.toString()
-                      }
-                      let before = new Date()
-                      request.get(options, (err, res, body) => {
-                        if (err) {
-                          return callback(err)
-                        }
-                        var total = parseInt(JSON.parse(body).count)
-                        if (total > 0)
-                          orchestrations.push(utils.buildOrchestration('Fetching Breast Feeding Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                        totalValues = parseInt(totalValues) + total
-                        return nxtQry()
-                      })
-                    }, function () {
-                      if (gender == "Male")
-                        report.report.breastFeedingLineItems[bfLineItemIndex].maleValue = totalValues
-                      if (gender == "Female")
-                        report.report.breastFeedingLineItems[bfLineItemIndex].femaleValue = totalValues
-                      return nxtGender()
-                    })
-                  }, function () {
-                    var updatedReport = {
-                      "id": report.report.id,
-                      "facilityId": report.report.facilityId,
-                      "periodId": report.report.periodId,
-                      "breastFeedingLineItems": [report.report.breastFeedingLineItems[bfLineItemIndex]]
-                    }
-                    saveVIMSReport(updatedReport, "breastFeedingLineItems", orchestrations, (err, res, body) => {
-
-                    })
-                    spinner.stop()
-                      ++bfLineItemIndex
-                    return nxtBfLineitem()
-                  })
-                })
-              }
-            })
-          }, function () {
-            return callback()
-          })
+        }, () => {
+          return callback()
         })
       })
     },
 
-    saveChildVisit: function (period, timrFacilityId, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          var cvLineItemIndex = 0
-          async.eachSeries(report.report.childVisitLineItems, (cvLineItem, nxtCvLineitem) => {
-            translateAgeGroup(cvLineItem.ageGroup, (ages, err) => {
-              if (err) {
-                winston.error(err + JSON.stringify(cvLineItem.ageGroup))
-                  ++cvLineItemIndex
-                return nxtCvLineitem()
-              } else {
-                createQueryOnAge(ages, false, period, (ageQueries) => {
-                  var gndr = ["male", "female"]
-                  winston.info("Getting TImR access token")
-                  timr.getAccessToken('fhir', orchestrations, (err, res, body) => {
-                    if (err) {
-                      winston.error("An error occured while getting access token from TImR")
-                        ++cvLineItemIndex
-                      return nxtCvLineitem()
-                    }
-                    winston.info("Done Getting Access Token")
-                    var access_token = JSON.parse(body).access_token
-
-                    winston.info("Getting Child Visit Data")
-                    var spinner = new Spinner("Receiving Child Visit Data")
-                    spinner.setSpinnerString(8);
-                    spinner.start()
-                    async.eachSeries(gndr, (gender, nxtGender) => {
-                      var totalValues = 0
-                      async.eachSeries(ageQueries, (qry, nxtQry) => {
-                        let url = URI(timrcnf.url)
-                          .segment('fhir')
-                          .segment('Encounter') +
-                          '?gender=' + gender + '&' + qry.query + '&location.identifier=HIE_FRID|' + timrFacilityId + '&_format=json&_count=0'
-                          .toString()
-                        var options = {
-                          url: url.toString(),
-                          headers: {
-                            Authorization: `BEARER ${access_token}`
-                          }
-                        }
-                        let before = new Date()
-                        request.get(options, (err, res, body) => {
-                          if (err) {
-                            return callback(err)
-                          }
-                          var total = parseInt(JSON.parse(body).total)
-                          if (total > 0)
-                            orchestrations.push(utils.buildOrchestration('Fetching Child Visit Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                          totalValues = parseInt(totalValues) + total
-                          return nxtQry()
-                        })
-                      }, function () {
-                        if (gender == "male")
-                          report.report.childVisitLineItems[cvLineItemIndex].maleValue = totalValues
-                        if (gender == "female")
-                          report.report.childVisitLineItems[cvLineItemIndex].femaleValue = totalValues
-                        return nxtGender()
-                      })
-                    }, function () {
-                      var updatedReport = {
-                        "id": report.report.id,
-                        "facilityId": report.report.facilityId,
-                        "periodId": report.report.periodId,
-                        "childVisitLineItems": [report.report.childVisitLineItems[cvLineItemIndex]]
-                      }
-                      saveVIMSReport(updatedReport, "childVisitLineItems", orchestrations, (err, res, body) => {
-
-                      })
-                      spinner.stop()
-                        ++cvLineItemIndex
-                      return nxtCvLineitem()
-                    })
-                  })
-                })
-              }
-            })
-          }, function () {
-            return callback()
-          })
-        })
-      })
-    },
-
-    saveTT: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          var ttLineItemIndex = 0
-          async.eachSeries(report.report.ttStatusLineItems, (ttLineitem, nxtTTLineitem) => {
-            if (ttLineitem.category == "Vaccinated")
-              var ttcode = '2'
-            else if (ttLineitem.category == "Not Vaccinated")
-              var ttcode = '1'
-            else if (ttLineitem.category == "Unknown")
-              var ttcode = '0'
-            else {
-              winston.error("Unknown code found on TT line item " + JSON.stringify(ttLineitem))
-                ++ttLineItemIndex
-              return nxtTTLineitem()
-            }
-
-            var gndr = ["Male", "Female"]
-            winston.info("Getting TImR access token")
-
-            winston.info("Getting TT (" + ttLineitem.category + ") Data")
-            var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-            var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-            var spinner = new Spinner("Receiving TT (" + ttLineitem.category + ") Data")
-            spinner.setSpinnerString(8);
-            spinner.start()
-            async.eachSeries(gndr, (gender, nxtGender) => {
-              var totalValues = 0
-              let url = URI('http://localhost:3000')
-                .segment('TTData') +
-                '?gender=' + gender + '&ttstatus=' + ttcode + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName + '&startDate=' + startDate + 'T00:00' + '&endDate=' + endDate + 'T23:59'
-                .toString()
-              var options = {
-                url: url.toString()
-              }
-              let before = new Date()
-              request.get(options, (err, res, body) => {
-                if (err) {
-                  return callback(err)
-                }
-                var total = parseInt(JSON.parse(body).total)
-                if (total > 0)
-                  orchestrations.push(utils.buildOrchestration('Fetching TT Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                totalValues = parseInt(totalValues) + total
-                if (gender == "Male")
-                  report.report.ttStatusLineItems[ttLineItemIndex].maleValue = totalValues
-                if (gender == "Female")
-                  report.report.ttStatusLineItems[ttLineItemIndex].femaleValue = totalValues
-                return nxtGender()
-              })
-            }, function () {
-              var updatedReport = {
-                "id": report.report.id,
-                "facilityId": report.report.facilityId,
-                "periodId": report.report.periodId,
-                "ttStatusLineItems": [report.report.ttStatusLineItems[ttLineItemIndex]]
-              }
-              saveVIMSReport(updatedReport, "ttStatusLineItems", orchestrations, (err, res, body) => {
-
-              })
-              spinner.stop()
-                ++ttLineItemIndex
-              return nxtTTLineitem()
-            })
-          }, function () {
-            return callback()
-          })
-        })
-      })
-    },
-
-    saveAgeWeightRatio: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          var ageWeightLineItemIndex = 0
-          async.eachSeries(report.report.weightAgeRatioLineItems, (warLineItem, nxtAWRLineitem) => {
-            if (warLineItem.category == "80% - 2SD")
-              var weightageratiocode = 'AbnormalHigh'
-            else if (warLineItem.category == "60% - 3SD")
-              var weightageratiocode = 'AbnormalLow'
-            else if (warLineItem.category == "60%-80% - 2-3SD")
-              var weightageratiocode = 'Normal'
-            else {
-              winston.error("Unknown code found on Age Weight Ratio line item " + JSON.stringify(warLineItem))
-                ++ageWeightLineItemIndex
-              return nxtAWRLineitem()
-            }
-
-
-            translateAgeGroup(warLineItem.ageGroup, (ages, err) => {
-              if (err) {
-                winston.error(err + JSON.stringify(warLineItem.ageGroup))
-                  ++ageWeightLineItemIndex
-                return nxtAWRLineitem()
-              } else {
-                createQueryOnAge(ages, false, period, (ageQueries) => {
-                  var gndr = ["Male", "Female"]
-
-                  winston.info("Getting Age Weight Ratio (" + warLineItem.category + ") Data")
-                  var spinner = new Spinner("Receiving Age Weight Ratio (" + warLineItem.category + ") Data")
-                  spinner.setSpinnerString(8);
-                  spinner.start()
-                  async.eachSeries(gndr, (gender, nxtGender) => {
-                    var totalValues = 0
-                    async.eachSeries(ageQueries, (qry, nxtQry) => {
-                      let url = URI('http://localhost:3000')
-                        .segment('ageWeightRatio') +
-                        '?gender=' + gender + '&' + qry.query + '&code=' + weightageratiocode + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName
-                        .toString()
-                      winston.error(url)
-                      var options = {
-                        url: url.toString()
-                      }
-                      let before = new Date()
-                      request.get(options, (err, res, body) => {
-                        if (err) {
-                          return callback(err)
-                        }
-                        var total = parseInt(JSON.parse(body).count)
-                        if (total > 0)
-                          orchestrations.push(utils.buildOrchestration('Fetching Age Weight Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                        totalValues = parseInt(totalValues) + total
-                        return nxtQry()
-                      })
-                    }, function () {
-                      if (gender == "Male")
-                        report.report.weightAgeRatioLineItems[ageWeightLineItemIndex].maleValue = totalValues
-                      if (gender == "Female")
-                        report.report.weightAgeRatioLineItems[ageWeightLineItemIndex].femaleValue = totalValues
-                      return nxtGender()
-                    })
-                  }, function () {
-                    var updatedReport = {
-                      "id": report.report.id,
-                      "facilityId": report.report.facilityId,
-                      "periodId": report.report.periodId,
-                      "weightAgeRatioLineItems": [report.report.weightAgeRatioLineItems[ageWeightLineItemIndex]]
-                    }
-                    saveVIMSReport(updatedReport, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
-
-                    })
-                    spinner.stop()
-                      ++ageWeightLineItemIndex
-                    return nxtAWRLineitem()
-                  })
-                })
-              }
-            })
-          }, function () {
-            return callback()
-          })
-        })
-      })
-    },
-
-    savePMTCT: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          var pmtctLineItemIndex = 0
-          async.eachSeries(report.report.pmtctLineItems, (pmtctLineItem, nxtPMTCTLineitem) => {
-            if (err) {
-              winston.error(err + JSON.stringify(warLineItem.ageGroup))
-                ++pmtctLineItemIndex
-              return nxtPMTCTLineitem()
-            } else {
-              var gndr = ["Male", "Female"]
-
-              winston.info("Getting PMTCT (" + pmtctLineItem.category + ") Data")
-              var spinner = new Spinner("Receiving PMTCT (" + pmtctLineItem.category + ") Data")
-              spinner.setSpinnerString(8);
-              spinner.start()
-              let pmtctStatus
-              if (pmtctLineItem.categoryId == 1) {
-                pmtctStatus = 1
-              } else if (pmtctLineItem.categoryId == 2) {
-                pmtctStatus = 0
-              }
-              var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-              var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-              async.eachSeries(gndr, (gender, nxtGender) => {
-                let url = URI('http://localhost:3000')
-                  .segment('pmtct') +
-                  '?gender=' + gender + '&status=' + pmtctStatus + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName + '&startDate=' + startDate + 'T00:00' + '&endDate=' + endDate + 'T23:59'
-                  .toString()
-                var options = {
-                  url: url.toString()
-                }
-                let before = new Date()
-                request.get(options, (err, res, body) => {
-                  if (err) {
-                    return callback(err)
-                  }
-                  var total = parseInt(JSON.parse(body).count)
-                  winston.error(total)
-                  if (total > 0)
-                    orchestrations.push(utils.buildOrchestration('Fetching PMTCT Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                  if (gender == "Male")
-                    report.report.pmtctLineItems[pmtctLineItemIndex].maleValue = total
-                  if (gender == "Female")
-                    report.report.pmtctLineItems[pmtctLineItemIndex].femaleValue = total
-                  return nxtGender()
-                })
-              }, function () {
-                var updatedReport = {
-                  "id": report.report.id,
-                  "facilityId": report.report.facilityId,
-                  "periodId": report.report.periodId,
-                  "pmtctLineItems": [report.report.pmtctLineItems[pmtctLineItemIndex]]
-                }
-                saveVIMSReport(updatedReport, "pmtctLineItems", orchestrations, (err, res, body) => {
-
-                })
-                spinner.stop()
-                  ++pmtctLineItemIndex
-                return nxtPMTCTLineitem()
-              })
-            }
-          }, function () {
-            return callback()
-          })
-        })
-      })
-    },
-
-    saveMosquitoNet: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
-      async.eachSeries(period, (period, nextPeriod) => {
-        var periodId = period.id
-        this.getReport(periodId, orchestrations, (err, report) => {
-          if (err || !report) {
-            return callback()
-          }
-          var mosquitoNetLineItemIndex = 0
-          async.eachSeries(report.report.llInLineItemLists, (mnLineItem, nxtMNLineitem) => {
-            var gndr = ["male", "female"]
-
-            winston.info("Getting Mosquito Net Data")
-            var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-            var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-            var spinner = new Spinner("Receiving Mosquito Net Data")
-            spinner.setSpinnerString(8);
-            spinner.start()
-            async.eachSeries(gndr, (gender, nxtGender) => {
-              var totalValues = 0
-              let url = URI('http://localhost:3000')
-                .segment('mosquitoNet') +
-                '?gender=' + gender + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName + '&startDate=' + startDate + 'T00:00' + '&endDate=' + endDate + 'T23:59'
-                .toString()
-              var options = {
-                url: url.toString()
-              }
-              let before = new Date()
-              request.get(options, (err, res, body) => {
-                if (err) {
-                  return callback(err)
-                }
-                var total = parseInt(JSON.parse(body).count)
-                if (total > 0)
-                  orchestrations.push(utils.buildOrchestration('Fetching Age Weight Data From TImR', before, 'GET', url.toString(), JSON.stringify(options), res, JSON.stringify(body)))
-                totalValues = parseInt(totalValues) + total
-
-                if (gender == "Male")
-                  report.report.llInLineItemLists[mosquitoNetLineItemIndex].maleValue = totalValues
-                if (gender == "Female")
-                  report.report.llInLineItemLists[mosquitoNetLineItemIndex].femaleValue = totalValues
-                return nxtGender()
-              })
-            }, function () {
-              var updatedReport = {
-                "id": report.report.id,
-                "facilityId": report.report.facilityId,
-                "periodId": report.report.periodId,
-                "llInLineItemLists": [report.report.llInLineItemLists[mosquitoNetLineItemIndex]]
-              }
-              saveVIMSReport(updatedReport, "llInLineItemLists", orchestrations, (err, res, body) => {
-
-              })
-              spinner.stop()
-                ++mosquitoNetLineItemIndex
-              return nxtMNLineitem()
-            })
-          }, function () {
-            return callback()
-          })
-        })
-      })
-    },
-
-    saveImmCoverAgeGrp: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
+    saveImmCoverAgeGrpDel: function (period, timrFacilityId, facilityName, timr, orchestrations, callback) {
       async.eachSeries(period, (period, nextPeriod) => {
         var periodId = period.id
         this.getReport(periodId, orchestrations, (err, report) => {
@@ -1176,7 +674,6 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
                   return nxtCagLineItem()
                 } else {
                   createQueryOnAge(ages, false, period, (ageQueries) => {
-                    winston.error(JSON.stringify(ageQueries))
                     var gndrCatchment = {
                       "Male": ["regular", "outreach"],
                       "Female": ["regular", "outreach"]
@@ -1257,68 +754,626 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
-    saveColdChain: function (coldChain, uuid, orchestrations, callback) {
-      winston.info("Sending to VIMS Cold Chain with timr facilityid " + uuid + " .sending Data " + coldChain)
-      var data = JSON.parse(coldChain)
-      oim.getVimsFacilityId(uuid, orchestrations, (err, vimsid) => {
-        if (err) {
-          winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
+    extractValuesFromAgeGroup: function (values, ageGroupID, callback) {
+      var mergedValues = []
+      async.eachSeries(values, (value, nxtValue) => {
+        if (Object.keys(value)[0] == ageGroupID) {
+          if (mergedValues.length == 0)
+            mergedValues.push({
+              [value[ageGroupID].gender]: value[ageGroupID].value
+            })
+          else
+            mergedValues[(mergedValues.length - 1)][value[ageGroupID].gender] = value[ageGroupID].value
+          nxtValue()
+        } else
+          nxtValue()
+      }, function () {
+        return callback(mergedValues)
+      })
+    },
+
+    saveSupplements: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
           return callback()
         }
-        if (vimsid == "" || vimsid == null || vimsid == undefined) {
-          winston.warn(uuid + " Is not mapped to any VIMS Facility,Stop saving Cold Chain")
-          var err = true
-          return callback(err)
-        }
-        this.getPeriod(vimsid, orchestrations, (err, period) => {
-          if (period.length > 1) {
-            winston.error("VIMS has returned two DRAFT reports,processng cold chain stoped!!!")
-            return callback()
-          } else if (period.length == 0) {
-            winston.warn("Skip Processing Facility" + uuid + ", No Period Found")
-            return callback()
-          } else if (period.length == 1) {
-            async.eachSeries(period, (period, nextPeriod) => {
-              var periodId = period.id
-              this.getReport(periodId, orchestrations, (err, report) => {
-                if (err || !report) {
-                  return callback()
-                }
-                if (report.report.coldChainLineItems.length == 0) {
-                  saveSessionsData(period, report, data, orchestrations, (err, res, body) => {
-                    winston.warn("No Cold Chain Initialized For VIMS Facility " + vimsid + " Skip sending Cold Chain data to VIMS for this facility")
-                    return callback()
-                  })
-                }
-                async.eachOfSeries(report.report.coldChainLineItems, (coldChainLineItem, index, nextColdChain) => {
-                  var periodDate = moment(period.periodName, 'MMM YYYY', 'en').format('YYYY-MM')
-                  if (data.hasOwnProperty(periodDate)) {
-                    report.report.coldChainLineItems[index].minTemp = data[periodDate].coldStoreMin
-                    report.report.coldChainLineItems[index].maxTemp = data[periodDate].coldStoreMax
-                    report.report.coldChainLineItems[index].minEpisodeTemp = data[periodDate].coldStoreLow
-                    report.report.coldChainLineItems[index].maxEpisodeTemp = data[periodDate].coldStoreHigh
-                    report.report.coldChainLineItems[index].operationalStatusId = data[periodDate].status
-                    var coldChainUpdatedReport = {
-                      "id": report.report.id,
-                      "facilityId": report.report.facilityId,
-                      "periodId": report.report.periodId,
-                      "coldChainLineItems": [report.report.coldChainLineItems[index]]
-                    }
-                    saveVIMSReport(coldChainUpdatedReport, "Cold Chain", orchestrations, (err, res, body) => {
-                      saveSessionsData(period, report, data, orchestrations, (err, res, body) => {
-                        return callback(err, res)
-                      })
-                    })
-                  } else {
-                    return callback()
-                  }
-                })
-              })
-            }, function () {
+        async.eachOf(report.report.vitaminSupplementationLineItems, (suppLineItem, supptLineItemIndex, nxtSupplmnt) => {
+          if(suppLineItem.ageGroup === vimsAgeGroup) {
+            let supplementCode
+            if (suppLineItem.vitaminName == "Vitamin A"){
+              supplementCode = 'Supplement-VitaminA'
+            }
+            else if (suppLineItem.vitaminName == "Mebendazole") {
+              supplementCode = 'Supplement-Mebendazole'
+            }
+            else {
+              winston.error("Unknown code found on Vitamin line item " + JSON.stringify(suppLineItem))
+              return nxtSupplmnt()
+            }
 
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male' && data.code == supplementCode
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female' && data.code == supplementCode
+            })
+            if(maleValueData) {
+              let maleValue = maleValueData.total
+              suppLineItem.maleValue = maleValue
+            }
+            if(femaleValueData) {
+              let femaleValue = femaleValueData.total
+              suppLineItem.femaleValue = femaleValue
+            }
+            if(!maleValueData && !femaleValueData) {
+              return nxtSupplmnt()
+            }
+            winston.info("Saving Supplements " + facility.facilityName + " " + JSON.stringify({
+              maleValue: suppLineItem.maleValue, 
+              femaleValue: suppLineItem.femaleValue, 
+              ageGroup: suppLineItem.ageGroup
+            }))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "vitaminSupplementationLineItems": [report.report.vitaminSupplementationLineItems[supptLineItemIndex]]
+            }
+            saveVIMSReport(updatedReport, "Supplements", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+            })
+            return nxtSupplmnt()
+          } else {
+            return nxtSupplmnt()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveAdverseEffectData: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachSeries(facData, (data, nxtData) => {
+          data.start_date = moment(data.start_date).format("YYYY-MM-DD")
+          let vimsVaccCode
+          getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+            vimsVaccCode = code
+          })
+          let AEFILineItem = report.report.adverseEffectLineItems.find((AEFILineItem) => {
+            return AEFILineItem.productId == vimsVaccCode && AEFILineItem.date == data.start_date
+          })
+          if(AEFILineItem) {
+            AEFILineItem.cases = data.total
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "adverseEffectLineItems": [AEFILineItem]
+            }
+            winston.info("Updating AEFI " + JSON.stringify({
+              product: data.type_mnemonic,
+              cases: AEFILineItem.cases,
+              date: data.start_date
+            }))
+            saveVIMSReport(updatedReport, "Adverse Effect", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return nxtData()
+            })
+          } else {
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "adverseEffectLineItems": [{
+                "productId": vimsVaccCode,
+                "date": data.start_date,
+                "cases": data.total,
+                "batch": "",
+                "isInvestigated": true
+              }]
+            }
+            winston.info("Saving New With " + JSON.stringify({
+              product: data.type_mnemonic,
+              cases: data.total,
+              date: data.start_date
+            }))
+            saveVIMSReport(updatedReport, "Adverse Effect", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return nxtData()
             })
           }
+        }, () => {
+          return callback()
         })
+      })
+    },
+
+    saveDiseaseData: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.diseaseLineItems, (lineItem, lineItemIndex, nxtLineitem) => {
+          let diseaseCode
+          if (lineItem.diseaseId == 1) {
+            diseaseCode = 'DiagnosisCode-UnspecifiedFever'
+          }
+          else if (lineItem.diseaseId == 2) {
+            diseaseCode = 'DiagnosisCode-FlaccidParaplegia'
+          } else if (lineItem.diseaseId == 3) {
+            diseaseCode = 'DiagnosisCode-NoenatalTetanus'
+          }
+          let caseValueData = facData.find((data) => {
+            return data.typ_mnemonic == 'ObservationType-Problem' && data.prob_mnemonic == diseaseCode
+          })
+          let deathValueData = facData.find((data) => {
+            return data.typ_mnemonic == 'ObservationType-CauseOfDeath' && data.prob_mnemonic == diseaseCode
+          })
+          if(caseValueData) {
+            lineItem.cases = caseValueData.total
+          }
+          if(deathValueData) {
+            lineItem.death = deathValueData.total
+          }
+          if(!caseValueData && !deathValueData) {
+            return nxtLineitem()
+          }
+          winston.info("Saving Disease " + lineItem.diseaseName + " " + JSON.stringify({
+            case: lineItem.cases,
+            death: lineItem.death
+          }))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "diseaseLineItems": [report.report.diseaseLineItems[lineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "diseaseLineItems", orchestrations, (err, res, body) => {
+            if (err) {
+              winston.error(err)
+            }
+          })
+          return nxtLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveBreastFeeding: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.breastFeedingLineItems, (bfLineItem, bfLineItemIndex, nxtBfLineitem) => {
+          if(bfLineItem.ageGroup === vimsAgeGroup) {
+            let bfCode
+            if (bfLineItem.category == "EBF") {
+              bfCode = 1
+            }
+            else if (bfLineItem.category == "RF") {
+              bfCode = 2
+            }
+
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male' && data.ext_value == bfCode
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female' && data.ext_value == bfCode
+            })
+            if(maleValueData) {
+              let maleValue = maleValueData.total
+              bfLineItem.maleValue = maleValue
+            }
+            if(femaleValueData) {
+              let femaleValue = femaleValueData.total
+              bfLineItem.femaleValue = femaleValue
+            }
+            if(!maleValueData && !femaleValueData) {
+              return nxtBfLineitem()
+            }
+            winston.info("Saving Breast Feeding " + JSON.stringify({maleValue: bfLineItem.maleValue, femaleValue: bfLineItem.femaleValue, ageGroup: bfLineItem.ageGroup}))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "breastFeedingLineItems": [report.report.breastFeedingLineItems[bfLineItemIndex]]
+            }
+            saveVIMSReport(updatedReport, "breastFeedingLineItems", orchestrations, (err, res, body) => {
+
+            })
+            return nxtBfLineitem()
+          } else {
+            return nxtBfLineitem()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveChildVisit: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.childVisitLineItems, (cvLineItem, cvLineItemIndex, nxtCvLineitem) => {
+          if(cvLineItem.ageGroup === vimsAgeGroup) {
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male'
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female'
+            })
+            if(maleValueData) {
+              let maleValue = maleValueData.total
+              cvLineItem.maleValue = maleValue
+            }
+            if(femaleValueData) {
+              let femaleValue = femaleValueData.total
+              cvLineItem.femaleValue = femaleValue
+            }
+            if(!maleValueData && !femaleValueData) {
+              return nxtCvLineitem()
+            }
+            winston.info("Saving Child Visit " + JSON.stringify({maleValue: cvLineItem.maleValue, femaleValue: cvLineItem.femaleValue, ageGroup: cvLineItem.ageGroup}))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "childVisitLineItems": [report.report.childVisitLineItems[cvLineItemIndex]]
+            }
+            saveVIMSReport(updatedReport, "childVisitLineItems", orchestrations, (err, res, body) => {
+
+            })
+            return nxtCvLineitem()
+          } else {
+            return nxtCvLineitem()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveWeightAgeRatio: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.weightAgeRatioLineItems, (warLineItem, ageWeightLineItemIndex, nxtAWRLineitem) => {
+          if(warLineItem.ageGroup === vimsAgeGroup) {
+            let weightageratiocode
+            if (warLineItem.category == "80% - 2SD"){
+              weightageratiocode = 'AbnormalHigh'
+            }
+            else if (warLineItem.category == "60% - 3SD") {
+              weightageratiocode = 'AbnormalLow'
+            }
+            else if (warLineItem.category == "60%-80% - 2-3SD") {
+              weightageratiocode = 'Normal'
+            }
+            else {
+              winston.error("Unknown code found on Age Weight Ratio line item " + JSON.stringify(warLineItem))
+              return nxtAWRLineitem()
+            }
+
+            let maleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Male' && data.code == weightageratiocode
+            })
+            let femaleValueData = facData.find((data) => {
+              return data.gender_mnemonic == 'Female' && data.code == weightageratiocode
+            })
+            if(maleValueData) {
+              let maleValue = maleValueData.total
+              warLineItem.maleValue = maleValue
+            }
+            if(femaleValueData) {
+              let femaleValue = femaleValueData.total
+              warLineItem.femaleValue = femaleValue
+            }
+            if(!maleValueData && !femaleValueData) {
+              return nxtAWRLineitem()
+            }
+            winston.info("Saving Weight Age Ratio " + JSON.stringify({maleValue: warLineItem.maleValue, femaleValue: warLineItem.femaleValue, ageGroup: warLineItem.ageGroup}))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "weightAgeRatioLineItems": [report.report.weightAgeRatioLineItems[ageWeightLineItemIndex]]
+            }
+            saveVIMSReport(updatedReport, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
+
+            })
+            return nxtAWRLineitem()
+          } else {
+            return nxtAWRLineitem()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveTT: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.ttStatusLineItems, (ttLineitem, ttLineItemIndex, nxtTTLineitem) => {
+          let ttcode
+          if (ttLineitem.category == "Vaccinated") {
+            ttcode = '2'
+          }
+          else if (ttLineitem.category == "Not Vaccinated") {
+            ttcode = '1'
+          }
+          else if (ttLineitem.category == "Unknown") {
+            ttcode = '0'
+          }
+          else {
+            winston.error("Unknown code found on TT line item " + JSON.stringify(ttLineitem))
+            return nxtTTLineitem()
+          }
+
+          let maleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Male' && data.ext_value == ttcode
+          })
+          let femaleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Female' && data.ext_value == ttcode
+          })
+          if(maleValueData) {
+            let maleValue = maleValueData.total
+            ttLineitem.maleValue = maleValue
+          }
+          if(femaleValueData) {
+            let femaleValue = femaleValueData.total
+            ttLineitem.femaleValue = femaleValue
+          }
+
+          if(!maleValueData && !femaleValueData) {
+            return nxtTTLineitem()
+          }
+
+          winston.info("Saving TT " + JSON.stringify({maleValue: ttLineitem.maleValue, femaleValue: ttLineitem.femaleValue}))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "ttStatusLineItems": [report.report.ttStatusLineItems[ttLineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "ttStatusLineItems", orchestrations, (err, res, body) => {
+
+          })
+          return nxtTTLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    savePMTCT: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.pmtctLineItems, (pmtctLineItem, pmtctLineItemIndex, nxtPMTCTLineitem) => {
+          let pmtctStatus
+          if (pmtctLineItem.categoryId == 1) {
+            pmtctStatus = 1
+          } else if (pmtctLineItem.categoryId == 2) {
+            pmtctStatus = 0
+          }
+
+          let maleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Male' && data.ext_value == pmtctStatus
+          })
+          let femaleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Female' && data.ext_value == pmtctStatus
+          })
+          if(maleValueData) {
+            let maleValue = maleValueData.total
+            pmtctLineItem.maleValue = maleValue
+          }
+          if(femaleValueData) {
+            let femaleValue = femaleValueData.total
+            pmtctLineItem.femaleValue = femaleValue
+          }
+          if(!maleValueData && !femaleValueData) {
+            return nxtPMTCTLineitem()
+          }
+          winston.info("Saving PMTCT " + JSON.stringify({maleValue: pmtctLineItem.maleValue, femaleValue: pmtctLineItem.femaleValue}))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "pmtctLineItems": [report.report.pmtctLineItems[pmtctLineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "pmtctLineItems", orchestrations, (err, res, body) => {
+
+          })
+          return nxtPMTCTLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveMosquitoNet: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.llInLineItemLists, (mnLineItem, mosquitoNetLineItemIndex, nxtMNLineitem) => {
+          let maleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Male'
+          })
+          let femaleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Female'
+          })
+          if(maleValueData) {
+            let maleValue = maleValueData.total
+            mnLineItem.maleValue = maleValue
+          }
+          if(femaleValueData) {
+            let femaleValue = femaleValueData.total
+            mnLineItem.femaleValue = femaleValue
+          }
+          if(!maleValueData && !femaleValueData) {
+            return nxtMNLineitem()
+          }
+          winston.info("Saving Mosquito Data " + JSON.stringify({maleValue: mnLineItem.maleValue, femaleValue: mnLineItem.femaleValue}))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "llInLineItemLists": [report.report.llInLineItemLists[mosquitoNetLineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "llInLineItemLists", orchestrations, (err, res, body) => {
+
+          })
+          return nxtMNLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveColdChain: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        if(facData.length > 1) {
+          winston.error("Multiple cold chain data returned for " + facility.facilityName + " stoping data sync")
+          return
+        }
+        async.eachOf(report.report.coldChainLineItems, (lineItem, lineItemIndex, nxtlineitem) => {
+          let minTemp = facData[0].coldstoremintemp
+          let maxTemp = facData[0].coldstoremaxtemp
+          let lowTempAlert = facData[0].coldstorelowtempalert
+          let highTempAlert = facData[0].coldstorehightempalert
+          let timrStatusCode = facData[0].status
+          let found = false
+          if (!Number.isNaN(Number.parseFloat(minTemp))) {
+            report.report.coldChainLineItems[lineItemIndex].minTemp = minTemp
+            found = true
+          }
+          if (!Number.isNaN(Number.parseFloat(maxTemp))) {
+            report.report.coldChainLineItems[lineItemIndex].maxTemp = maxTemp
+            found = true
+          }
+          if (!Number.isNaN(Number.parseFloat(lowTempAlert))) {
+            report.report.coldChainLineItems[lineItemIndex].minEpisodeTemp = lowTempAlert
+            found = true
+          }
+          if (!Number.isNaN(Number.parseFloat(highTempAlert))) {
+            report.report.coldChainLineItems[lineItemIndex].maxEpisodeTemp = highTempAlert
+            found = true
+          }
+          if (!Number.isNaN(Number.parseFloat(timrStatusCode))) {
+            let vimsStatusCode
+            if(timrStatusCode == 1) {
+              vimsStatusCode = 10
+            } else if(timrStatusCode == 0) {
+              vimsStatusCode = 12
+            }
+            if(vimsStatusCode) {
+              report.report.coldChainLineItems[lineItemIndex].operationalStatusId = vimsStatusCode
+              found = true
+            }
+          }
+
+          if(!found) {
+            return nxtlineitem()
+          }
+          winston.info("Saving Cold Chain " + JSON.stringify({
+            minTemp: lineItem.minTemp,
+            maxTemp: lineItem.maxTemp,
+            minEpisodeTemp: lineItem.minEpisodeTemp,
+            maxEpisodeTemp: lineItem.maxEpisodeTemp,
+            status: lineItem.operationalStatusId
+          }))
+          var coldChainUpdatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "coldChainLineItems": [report.report.coldChainLineItems[lineItemIndex]]
+          }
+          saveVIMSReport(coldChainUpdatedReport, "Cold Chain", orchestrations, (err, res, body) => {
+            
+          })
+          return nxtlineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveSessionsData: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        if(facData.length > 1) {
+          winston.error("Multiple Session data returned for " + facility.facilityName + " stoping data sync")
+          return
+        }
+        var sessionsUpdatedReport = {
+          "id": report.report.id,
+          "facilityId": report.report.facilityId,
+          "periodId": report.report.periodId,
+        }
+        let outreachPlan = facData[0].outreachplanned
+        let outreach = facData[0].outreachperformed
+        let outreachCancel = facData[0].outreachcancelled
+        let sessions = facData[0].sessions
+        let found = false
+        if (!Number.isNaN(Number.parseFloat(outreachPlan))) {
+          report.report.plannedOutreachImmunizationSessions = outreachPlan
+          sessionsUpdatedReport.plannedOutreachImmunizationSessions = report.report.plannedOutreachImmunizationSessions
+          found = true
+        }
+        if (!Number.isNaN(Number.parseFloat(outreach))) {
+          report.report.outreachImmunizationSessions = outreach
+          sessionsUpdatedReport.outreachImmunizationSessions = report.report.outreachImmunizationSessions
+          found = true
+        }
+        if (!Number.isNaN(Number.parseFloat(outreachCancel))) {
+          report.report.outreachImmunizationSessionsCanceled = outreachCancel
+          sessionsUpdatedReport.outreachImmunizationSessionsCanceled = report.report.outreachImmunizationSessionsCanceled
+          found = true
+        }
+        if (!Number.isNaN(Number.parseFloat(sessions))) {
+          report.report.fixedImmunizationSessions = sessions
+          sessionsUpdatedReport.fixedImmunizationSessions = report.report.fixedImmunizationSessions
+          found = true
+        }
+        if(!found) {
+          return callback()
+        }
+        winston.info("Saving Session " + JSON.stringify({
+          outreachPlanned: report.report.plannedOutreachImmunizationSessions,
+          outreachPerformed: report.report.outreachImmunizationSessions,
+          outreachCancelled: report.report.outreachImmunizationSessionsCanceled,
+          sessions: report.report.fixedImmunizationSessions
+        }))
+        saveVIMSReport(sessionsUpdatedReport, "Sending Sessions Data", orchestrations, (err, res, body) => {
+          if (err) {
+            winston.error(err)
+          }
+        })
+        return callback()
       })
     },
 

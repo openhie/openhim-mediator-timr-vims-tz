@@ -210,99 +210,8 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
         })
       })
     },
-    getSupplementsDataFHIR: function (access_token, vimsVitCode, timrFacilityId, period, orchestrations, callback) {
-      var genderTerminologies = [{
-          "fhirgender": "male",
-          "vimsgender": "maleValue"
-        },
-        {
-          "fhirgender": "female",
-          "vimsgender": "femaleValue"
-        }
-      ]
-      var ageGroups = [{
-          "1": 9
-        },
-        {
-          "2": 15
-        },
-        {
-          "3": 18
-        },
-        {
-          "4": 6
-        }
-      ]
-      //commenting below line so that we take vaccination by date range instead of individual vacc date
-      var vaccineDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
-      var vaccinationStartDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-      var vaccinationEndDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format("YYYY-MM-DD")
-      //var endDay = moment(period[0].periodName, "MMM YYYY").endOf('month').format('D') //getting the last day of last month
 
-      var startDay = 1;
-      var values = []
-      this.getTimrCode(vimsVitCode, timrVimsVitaConceptMap, (timrVitCode) => {
-        const promises = []
-        for (var ageIndex in ageGroups) {
-          promises.push(new Promise((resolve, reject) => {
-            var age = ageGroups[ageIndex]
-            var genderRef = null
-            async.eachSeries(genderTerminologies, (gender, nxtGender) => {
-              var value = 0
-              genderRef = gender
-              var birthDatePar = ''
-              var countAges = 0
-              //var birthDate = moment(vaccineDate).subtract(Object.values(age)[0],"months").format('YYYY-MM-DDTHH:mm:ss')
-              var birthDate = moment(vaccineDate).subtract(Object.values(age)[0], "months").format('YYYY-MM')
-              let url = URI(timrconfig.url)
-                .segment('fhir')
-                .segment('MedicationAdministration') +
-                '?medication=' + timrVitCode + '&patient.gender=' + gender.fhirgender + '&location.identifier=HIE_FRID|' + timrFacilityId + '&date=ge' + vaccinationStartDate + 'T00:00' + '&date=le' + vaccinationEndDate + 'T23:59' + '&patient.birthDate=ap' + birthDate + '&_format=json&_count=0'
-                .toString()
-              var options = {
-                url: url.toString(),
-                headers: {
-                  Authorization: `BEARER ${access_token}`
-                }
-              }
-              let before = new Date()
-              request.get(options, (err, res, body) => {
-                orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Supplements Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-                if (err) {
-                  winston.error(err)
-                  return nxtGender()
-                }
-                if (!isJSON(body)) {
-                  winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
-                  return nxtGender()
-                }
-                value = value + JSON.parse(body).total
-                if (!Number.isInteger(value)) {
-                  winston.error("Supplements Sync " + body)
-                  return nxtGender()
-                }
-                values.push({
-                  [Object.keys(age)[0]]: {
-                    "gender": gender.vimsgender,
-                    "value": value
-                  }
-                })
-                return nxtGender()
-              })
-            }, function () {
-              resolve()
-            })
-          }))
-        }
-
-        Promise.all(promises).then(() => {
-          return callback("", values)
-        })
-
-      })
-    },
-
-    getSupplementsDataDWH: function (access_token, vimsVitCode, timrFacilityId, facilityName, period, orchestrations, callback) {
+    getSupplementsDataDWH: function (vimsVitCode, timrFacilityId, facilityName, period, orchestrations, callback) {
       var genderTerminologies = [{
           "timrgender": "Male",
           "vimsgender": "maleValue"
@@ -349,10 +258,7 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
                 'suppCode=' + timrVitCode + '&gender=' + gender.timrgender + '&fac_id=' + timrFacilityId + '&fac_name=' + facilityName + '&suppStartDate=' + vaccinationStartDate + 'T00:00' + '&suppEndDate=' + vaccinationEndDate + 'T23:59' + '&startBirthDate=' + startBirthDate + '&endBirthDate=' + endBirthDate
                 .toString()
               var options = {
-                url: url.toString(),
-                headers: {
-                  Authorization: `BEARER ${access_token}`
-                }
+                url: url.toString()
               }
               let before = new Date()
               request.get(options, (err, res, body) => {
@@ -386,37 +292,28 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
 
       })
     },
-
-    getDiseaseData: function (access_token, vimsDiseaseValSets, timrFacilityId, period, orchestrations, callback) {
+    getDiseaseData: function (vimsDiseaseValSets, timrFacilityId, timrFacilityName, period, orchestrations, callback) {
       var timrDiseaseConditions = {
-        "55607006": "case",
-        "184305005": "death"
+        "ObservationType-Problem": "case",
+        "ObservationType-CauseOfDeath": "death"
       }
-
       var values = {}
       var startDate = moment(period[0].periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
       var endDate = moment(period[0].periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-
       var me = this
       async.eachSeries(vimsDiseaseValSets, function (vimsDiseaseValSet, processNextValSet) {
         var vimsDiseaseCode = vimsDiseaseValSet.code
         me.getTimrCode(vimsDiseaseCode, timrVimsDiseaseConceptMap, (timrDisCode) => {
           winston.info("Fetching Data For Disease Code " + timrDisCode + " From TImR")
           async.eachOfSeries(timrDiseaseConditions, (conditionName, conditionCode, nxtCndtn) => {
-            let url = URI(timrconfig.url)
-              .segment('fhir')
-              .segment('Observation') +
-              '?' + 'value-concept=' + timrDisCode + '&code=' + conditionCode + '&location.identifier=HIE_FRID|' + timrFacilityId + '&date=ge' + startDate + 'T00:00' + '&date=le' + endDate + 'T23:59' + '&_format=json&_count=0'
-              .toString()
+            let url = `http://localhost:3000/disease?diseaseCode=${timrDisCode}&diseaseCond=${conditionCode}&`+
+                      `fac_id=${timrFacilityId}&fac_name=${timrFacilityName}&startDate=${startDate}&endDate=${endDate}`
             var options = {
-              url: url.toString(),
-              headers: {
-                Authorization: `BEARER ${access_token}`
-              }
+              url: url.toString()
             }
             let before = new Date()
             request.get(options, (err, res, body) => {
-              orchestrations.push(utils.buildOrchestration('Fetching TImR FHIR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
+              orchestrations.push(utils.buildOrchestration('Fetching TImR Disease Data', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
               if (err) {
                 winston.error(err)
               }
@@ -424,7 +321,8 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
                 winston.error("TImR has returned non JSON data which is " + body + ",stop processing")
                 return nxtCndtn()
               }
-              var value = JSON.parse(body).total
+              var value = JSON.parse(body).count
+              value = parseInt(value)
               if (!Number.isInteger(value)) {
                 winston.error("Diseases Sync " + body)
                 return nxtCndtn()
@@ -446,7 +344,6 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
       }, function () {
         return callback('', values)
       })
-
     },
 
     processColdChain: function (access_token, nexturl, orchestrations, callback) {
