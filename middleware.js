@@ -120,6 +120,22 @@ module.exports = {
     })
   },
 
+  getCTCReferal: (startDate, endDate, callback) => {
+    let query = `select
+      ext_id as facility_id,
+      pat_vw.gender_mnemonic,
+      ebf.ext_value,
+      count(*) as total
+    from
+      pat_vw
+      inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/contrib/timr/ctcReferral')
+      inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
+    where
+    pat_vw.dob - pat_vw.crt_utc < '12 MONTH'::INTERVAL and crt_utc::DATE between '2018-01-01' and '2019-06-30'
+    group by
+      ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id;`
+  },
+
   getDiseaseData: (startDate, endDate, callback) => {
     let query = `select 
       ext_id as facility_id, 
@@ -466,7 +482,7 @@ module.exports = {
         -- in a supply the source entity is the facility 
         inner join fac_vw on (src_ent_id = fac_id)
         -- fetch HIE FRID for the facility
-        inner join fac_id_tbl on (fac_vw.fac_id = fac_id_tbl.fac_id and nsid = 'HIE_FRID')
+        inner join fac_id_tbl on (fac_vw.fac_id = fac_id_tbl.fac_id and nsid = 'TZ_HFR_ID')
         -- in a supply the target entity is the patient (i.e. the facility is supplying to the patient)
         inner join enc_tbl using (enc_id)
         inner join pat_Vw on (enc_tbl.pat_id = pat_vw.pat_id)
@@ -488,62 +504,86 @@ module.exports = {
     })
   },
 
-  getStockONHAND: (startDate, endDate, callback) => {
+  getStockONHAND: (firstDateNewMonth, callback) => {
     let query = `WITH ordered_ledger AS (
         SELECT fac_id, mmat_id, bal_eol
         FROM 
             fac_mat_ldgr_tbl
         WHERE 
-            crt_utc < '2019-06-01T00:00:00Z'
+            crt_utc < '${firstDateNewMonth}'
         ORDER BY seq_id DESC
     ), distinct_stock AS (
         SELECT DISTINCT fac_id, mmat_id
         FROM 
             fac_mat_ldgr_tbl
     ), by_mmat AS (
-        SELECT ext_id, mmat_id, COALESCE(FIRST(bal_eol), 0) AS balance_eom
+        SELECT ext_id as facility_id, mmat_id, COALESCE(FIRST(bal_eol), 0) AS balance_eom
         FROM
             distinct_stock
             LEFT JOIN ordered_ledger USING (fac_id, mmat_id)
-            INNER JOIN fac_id_tbl ON (distinct_stock.fac_id = fac_id_tbl.fac_id AND nsid = 'HIE_FRID')
+            INNER JOIN fac_id_tbl ON (distinct_stock.fac_id = fac_id_tbl.fac_id AND nsid = 'TZ_HFR_ID')
         GROUP BY ext_id, mmat_id
     ) 
-    SELECT ext_id, type_mnemonic, SUM(balance_eom) as balance_eom
+    SELECT facility_id, type_mnemonic, SUM(balance_eom) as balance_eom
     FROM by_mmat
         INNER JOIN mmat_tbl USING (mmat_id)
-    GROUP BY ext_id, type_mnemonic`
+    GROUP BY facility_id, type_mnemonic`
+
+    pool.query(query, (err, response) => {
+      if(err) {
+        winston.error(err)
+        return callback([])
+      }
+      if(response && response.hasOwnProperty('rows')) {
+        return callback(response.rows)
+      } else {
+        return callback([])
+      }
+    })
   },
 
   getStockAdjustments: (startDate, endDate) => {
-    let query = `SELECT ext_id, type_mnemonic, ct.* 
+    let query = `SELECT ext_id as facility_id, ct.* 
     FROM 
-        crosstab($$
-            SELECT 
-                fac_id::text || type_mnemonic::text as k,
-                fac_id, 
-                type_mnemonic, 
-                rsn_desc,
-                sum(abs(qty))
-            FROM 
-                fac_mat_ldgr_tbl
-                INNER JOIN mmat_tbl USING (mmat_id)
-            WHERE
-                rsn_desc in ('REASON-ColdStorageFailure','REASON-Wasted','REASON-Expired', 'REASON-VVM', 'REASON-Broken', 'REASON-FROZEN', 'REASON-OPENWASTE')
-                AND fac_mat_ldgr_tbl.crt_utc::DATE BETWEEN '2019-05-01' AND '2019-05-31'
-            GROUP BY fac_id, type_mnemonic, rsn_desc
-            ORDER BY 1, 2, 3
-            $$, $$VALUES ('REASON-Broken'), ('REASON-ColdStorageFailure'), ('REASON-Expired'), ('REASON-FROZEN'), ('REASON-OPENWASTE'), ('REASON-VVM'),('REASON-Wasted') $$) ct (
-                key text, 
-                fac_id uuid,
-                type_mnemonic text,
-                "REASON-Broken" INT, 
-                "REASON-ColdStorageFailure" INT,
-                "REASON-Expired" INT, 
-                "REASON-FROZEN" INT, 
-                "REASON-OPENWASTE" INT,
-                "REASON-VVM" INT, 
-                "REASON-Wasted" INT
-        )
-        INNER JOIN fac_id_tbl ON (fac_id_tbl.fac_id = ct.fac_id AND nsid = 'HIE_FRID')`
+      crosstab($$
+        SELECT 
+          fac_id::text || type_mnemonic::text as k,
+          fac_id, 
+          type_mnemonic, 
+          rsn_desc,
+          sum(abs(qty))
+        FROM 
+          fac_mat_ldgr_tbl
+          INNER JOIN mmat_tbl USING (mmat_id)
+        WHERE
+          rsn_desc in ('REASON-ColdStorageFailure','REASON-Wasted','REASON-Expired', 'REASON-VVM', 'REASON-Broken', 'REASON-FROZEN', 'REASON-OPENWASTE')
+          AND fac_mat_ldgr_tbl.crt_utc::DATE BETWEEN '${startDate}' AND '${endDate}'
+        GROUP BY fac_id, type_mnemonic, rsn_desc
+        ORDER BY 1, 2, 3
+        $$, $$VALUES ('REASON-Broken'), ('REASON-ColdStorageFailure'), ('REASON-Expired'), ('REASON-FROZEN'), ('REASON-OPENWASTE'), ('REASON-VVM'),('REASON-Wasted') $$) ct (
+          key text, 
+          fac_id uuid,
+          type_mnemonic text,
+          "REASON-Broken" INT, 
+          "REASON-ColdStorageFailure" INT,
+          "REASON-Expired" INT, 
+          "REASON-FROZEN" INT, 
+          "REASON-OPENWASTE" INT,
+          "REASON-VVM" INT, 
+          "REASON-Wasted" INT
+      )
+      INNER JOIN fac_id_tbl ON (fac_id_tbl.fac_id = ct.fac_id AND nsid = 'TZ_HFR_ID')`
+
+    pool.query(query, (err, response) => {
+      if(err) {
+        winston.error(err)
+        return callback([])
+      }
+      if(response && response.hasOwnProperty('rows')) {
+        return callback(response.rows)
+      } else {
+        return callback([])
+      }
+    })
   }
 }

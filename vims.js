@@ -1377,6 +1377,119 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
+    saveStockONHAND: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.each(facData, (data, nxtData) => {
+          let vimsVaccCode
+          getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+            vimsVaccCode = code
+          })
+          let logisticsLineItem = report.report.logisticsLineItems.find((lineItem) => {
+            return lineItem.productId == vimsVaccCode
+          })
+          if(logisticsLineItem) {
+            logisticsLineItem.closingBalance = data.balance_eom
+            winston.info("Updating Stock ON_HAND " + JSON.stringify({
+              product: data.type_mnemonic,
+              ON_HAND: logisticsLineItem.closingBalance
+            }))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "logisticsLineItems": [logisticsLineItem]
+            }
+            saveVIMSReport(updatedReport, "Stock ON_HAND", orchestrations, (err, res, body) => {
+              if (err) {
+                return callback(err)
+              }
+              return nxtData()
+            })
+          } else {
+            return nxtData()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
+    saveStockAdjustments: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.each(facData, (data, nxtData) => {
+          let vimsVaccCode
+          getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+            vimsVaccCode = code
+          })
+          let logisticsLineItem = report.report.logisticsLineItems.find((lineItem) => {
+            return lineItem.productId == vimsVaccCode
+          })
+          if(logisticsLineItem) {
+
+            /*
+            currently vims combines quantityExpired,quantityWastedOther,quantityFreezed and quantityVvmAlerted
+            into quantityDiscardedUnopened,so we are also combining them until when vims accepts them separately
+            */
+            let found = false
+            let discardedUnopened = 0
+            if (!Number.isNaN(Number.parseInt(data['REASON-Expired']))) {
+              discardedUnopened += parseInt(data['REASON-Expired'])
+              found = true
+            }
+            if (!Number.isNaN(Number.parseInt(data['REASON-Broken']))) {
+              discardedUnopened += parseInt(data['REASON-Broken'])
+              found = true
+            }
+            if (!Number.isNaN(Number.parseInt(data['REASON-Wasted']))) {
+              discardedUnopened += parseInt(data['REASON-Wasted'])
+              found = true
+            }
+            if (!Number.isNaN(Number.parseInt(data['REASON-VVM']))) {
+              discardedUnopened += parseInt(data['REASON-VVM'])
+              found = true
+            }
+            if (!Number.isNaN(Number.parseInt(data['REASON-FROZEN']))) {
+              discardedUnopened += parseInt(data['REASON-FROZEN'])
+              found = true
+            }
+
+            lineItem.quantityDiscardedUnopened = discardedUnopened
+            if (!Number.isNaN(Number.parseInt(data['REASON-OPENWASTE']))) {
+              lineItem.quantityDiscardedOpened = data['REASON-OPENWASTE']
+              found = true
+            }
+            winston.info("Updating Stock Adjustments " + JSON.stringify({
+              product: data.type_mnemonic,
+              'Discarded Opened': logisticsLineItem.quantityDiscardedOpened,
+              'Discarded UnOpened': logisticsLineItem.quantityDiscardedUnopened
+            }))
+            var updatedReport = {
+              "id": report.report.id,
+              "facilityId": report.report.facilityId,
+              "periodId": report.report.periodId,
+              "logisticsLineItems": [logisticsLineItem]
+            }
+            saveVIMSReport(updatedReport, "Stock Adjustments", orchestrations, (err, res, body) => {
+              if (err) {
+                return callback(err)
+              }
+              return nxtData()
+            })
+          } else {
+            return nxtData()
+          }
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
     saveStockData: function (period, timrStockData, stockCodes, vimsItemCode, orchestrations, callback) {
       /**
         push stock report to VIMS

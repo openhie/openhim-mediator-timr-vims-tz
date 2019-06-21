@@ -686,6 +686,91 @@ function setupApp() {
       })
     }),
 
+    app.get('/syncStockOnHand', (req, res) => {
+      const oim = OIM(config.openinfoman)
+      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+      res.end()
+      updateTransaction(req, "Still Processing", "Processing", "200", "")
+      req.timestamp = new Date()
+      let orchestrations = []
+
+      oim.getVimsFacilities(orchestrations, (err, facilities) => {
+        vims.getFacilityWithLatestPeriod(facilities, (period) => {
+          var firstDateNewMonth = moment(period.periodName, "MMM YYYY").startOf('month').add(1, 'month').format("YYYY-MM-DD")
+          middleware.getStockONHAND(firstDateNewMonth, (rows) => {
+            if(rows.length === 0) {
+              winston.info("No Stock ON_HAND data found on TImR for period " + period.periodName)
+              return
+            }
+            async.eachSeries(facilities, (facility, nxtFacility) => {
+              winston.info("Sync Stock ON_HAND data for " + facility.facilityName)
+              if(facility.periodId) {
+                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                  if(facData.length > 0) {
+                    vims.saveStockONHAND(facData, facility, orchestrations, () => {
+                      winston.info("Done synchronizing Stock ON_HAND data" + " for " + facility.facilityName)
+                      return nxtFacility()
+                    })
+                  } else {
+                    winston.info("No data for " + facility.facilityName + " Skip processing Stock ON_HAND data")
+                    return nxtFacility()
+                  }
+                })
+              } else {
+                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing Stock ON_HAND data")
+                return nxtFacility()
+              }
+            }, () => {
+              winston.info("Done synchronizing Stock ON_HAND data")
+            })
+          })
+        })
+      })
+    }),
+
+    app.get('/syncStockAdjustments', (req, res) => {
+      const oim = OIM(config.openinfoman)
+      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+      res.end()
+      updateTransaction(req, "Still Processing", "Processing", "200", "")
+      req.timestamp = new Date()
+      let orchestrations = []
+
+      oim.getVimsFacilities(orchestrations, (err, facilities) => {
+        vims.getFacilityWithLatestPeriod(facilities, (period) => {
+          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+          middleware.getStockAdjustments(startDate, endDate, (rows) => {
+            if(rows.length === 0) {
+              winston.info("No Stock Adjustments data found on TImR for period " + period.periodName)
+              return
+            }
+            async.eachSeries(facilities, (facility, nxtFacility) => {
+              winston.info("Sync Stock Adjustments data for " + facility.facilityName)
+              if(facility.periodId) {
+                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                  if(facData.length > 0) {
+                    vims.saveStockAdjustments(facData, facility, orchestrations, () => {
+                      winston.info("Done synchronizing Stock Adjustments data" + " for " + facility.facilityName)
+                      return nxtFacility()
+                    })
+                  } else {
+                    winston.info("No data for " + facility.facilityName + " Skip processing Stock Adjustments data")
+                    return nxtFacility()
+                  }
+                })
+              } else {
+                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing Stock Adjustments data")
+                return nxtFacility()
+              }
+            }, () => {
+              winston.info("Done synchronizing Stock Adjustments data")
+            })
+          })
+        })
+      })
+    }),
+
     app.get('/syncStock', (req, res) => {
       const oim = OIM(config.openinfoman)
       const vims = VIMS(config.vims)
