@@ -3,10 +3,10 @@ const async = require('async')
 const winston = require('winston')
 
 const pool = new Pool({
-  user: 'postgres',
+  user: 'timr',
   host: 'localhost',
   database: 'timrdwh_latest',
-  password: 'tajiri',
+  password: 'timr',
   port: 5432,
 })
 
@@ -121,6 +121,7 @@ module.exports = {
   },
 
   getCTCReferal: (startDate, endDate, callback) => {
+    //add pat_vw.dob - pat_vw.crt_utc < '12 MONTH'::INTERVAL to filter by age
     let query = `select
       ext_id as facility_id,
       pat_vw.gender_mnemonic,
@@ -131,9 +132,21 @@ module.exports = {
       inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/contrib/timr/ctcReferral')
       inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
     where
-    pat_vw.dob - pat_vw.crt_utc < '12 MONTH'::INTERVAL and crt_utc::DATE between '2018-01-01' and '2019-06-30'
+    crt_utc::DATE between '${startDate}' and '${endDate}'
     group by
       ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id;`
+    
+    pool.query(query, (err, response) => {
+      if(err) {
+        winston.error(err)
+        return callback([])
+      }
+      if(response && response.hasOwnProperty('rows')) {
+        return callback(response.rows)
+      } else {
+        return callback([])
+      }
+    })
   },
 
   getDiseaseData: (startDate, endDate, callback) => {

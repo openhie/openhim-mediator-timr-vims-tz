@@ -28,9 +28,6 @@ var eventEmitter = new events.EventEmitter()
 var Spinner = require('cli-spinner').Spinner
 
 const port = 9000
-const vimsDiseaseValueSet = require('./terminologies/vims-diseases-valuesets.json')
-const vimsImmValueSets = require('./terminologies/vims-immunization-valuesets.json')
-const vimsVitaminValueSets = require('./terminologies/vims-vitamin-valuesets.json')
 const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
 const timrVimsDwhImmConceptMap = require('./terminologies/timr-vims-dwh-immunization-conceptmap.json')
 const imm_doses = require("./config/doses.json")
@@ -1074,6 +1071,7 @@ function setupApp() {
           updateTransaction(req, "", "Completed", "200", orchestrations)
           return
         }
+        winston.info("Getting access token from TImR")
         timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
           if (err) {
             winston.error("An error occured while getting access token from TImR")
