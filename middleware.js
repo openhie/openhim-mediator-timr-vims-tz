@@ -1,12 +1,14 @@
-const { Pool } = require('pg')
+const {
+  Pool
+} = require('pg')
 const async = require('async')
 const winston = require('winston')
 
 const pool = new Pool({
-  user: 'timr',
-  host: 'localhost',
+  user: 'postgres',
+  host: '192.168.43.241',
   database: 'timrdwh_latest',
-  password: 'timr',
+  password: 'tajiri',
   port: 5432,
 })
 
@@ -44,32 +46,32 @@ module.exports = {
       and sbadm_tbl.act_utc::DATE between '${startDate}' and '${endDate}'
     group by ext_id, mat_tbl.type_mnemonic, pat_vw.gender_mnemonic, sbadm_tbl.seq_id, population.ext_value`
 
-      pool.query(query, (err, response) => {
-        if(err) {
-          winston.error(err)
-          return callback([])
-        }
-        if(response && response.hasOwnProperty('rows')) {
-          return callback(response.rows)
-        } else {
-          return callback([])
-        }
-      })
+    pool.query(query, (err, response) => {
+      if (err) {
+        winston.error(err)
+        return callback([])
+      }
+      if (response && response.hasOwnProperty('rows')) {
+        return callback(response.rows)
+      } else {
+        return callback([])
+      }
+    })
   },
 
   getImmunizationCoverageByAge: (ages, startDate, endDate, callback) => {
     let ageQuery = ''
-    if(ages.length = 2) {
+    if (ages.length = 2) {
       let age1 = ages[0]
       let age2 = ages[1]
-      if(age1<age2) {
+      if (age1 < age2) {
         ageQuery = `sbadm_tbl.act_utc - pat_vw.dob BETWEEN '${age1.age}'::INTERVAL AND '${age2.age}'::INTERVAL`
       } else {
         ageQuery = `sbadm_tbl.act_utc - pat_vw.dob BETWEEN '${age2.age}'::INTERVAL AND '${age1.age}'::INTERVAL`
       }
     } else {
       async.eachSeries(ages, (age, nxtAge) => {
-        if(ageQuery) {
+        if (ageQuery) {
           ageQuery += 'and ' + `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
         } else {
           ageQuery += `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
@@ -108,11 +110,12 @@ module.exports = {
       and ${ageQuery}
     group by ext_id, mat_tbl.type_mnemonic, pat_vw.gender_mnemonic, sbadm_tbl.seq_id`
     pool.query(query, (err, response) => {
-      if(err) {
+      winston.error(JSON.stringify(response))
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -134,14 +137,14 @@ module.exports = {
     where
     crt_utc::DATE between '${startDate}' and '${endDate}'
     group by
-      ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id;`
-    
+      ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
+
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -150,25 +153,25 @@ module.exports = {
   },
 
   getDiseaseData: (startDate, endDate, callback) => {
-    let query = `select 
-      ext_id as facility_id, 
-      prob_mnemonic,  
+    let query = `select
+      ext_id as facility_id,
+      prob_mnemonic,
       typ_mnemonic,
       count(*) as total
-    from               
+    from
       cond_tbl
       inner join pat_vw using (pat_id)
       inner join fac_vw on (cond_tbl.fac_id = fac_vw.fac_id)
       inner join fac_id_tbl on (fac_id_tbl.fac_id = fac_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where                                                                                
+    where
       act_utc::DATE between '${startDate}' and '${endDate}'
     group by ext_id, prob_mnemonic, typ_mnemonic`
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -179,14 +182,14 @@ module.exports = {
   getWeightAgeRatio: (ages, startDate, endDate, callback) => {
     let ageQuery = ''
     async.eachSeries(ages, (age, nxtAge) => {
-      if(ageQuery) {
+      if (ageQuery) {
         ageQuery += ' and ' + `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       } else {
         ageQuery += `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       }
       return nxtAge()
     })
-    let query = `select 
+    let query = `select
         ext_id as facility_id,
         gender_mnemonic,
         int_cs as code,
@@ -203,11 +206,11 @@ module.exports = {
     group by ext_id, gender_mnemonic, int_cs`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -218,14 +221,14 @@ module.exports = {
   getChildVisitData: (ages, startDate, endDate, callback) => {
     let ageQuery = ''
     async.eachSeries(ages, (age, nxtAge) => {
-      if(ageQuery) {
+      if (ageQuery) {
         ageQuery += ' and ' + `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       } else {
         ageQuery += `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       }
       return nxtAge()
     })
-    let query = `select 
+    let query = `select
         ext_id as facility_id,
         gender_mnemonic,
         count(*) as total
@@ -241,11 +244,11 @@ module.exports = {
     group by ext_id, gender_mnemonic`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -255,19 +258,19 @@ module.exports = {
 
   getSupplementsData: (ages, startDate, endDate, callback) => {
     let ageQuery = ''
-    if(ages.length == 2) {
+    if (ages.length == 2) {
       let age1 = ages[0]
       let age2 = ages[1]
       let ageNumber1 = parseFloat(age1.age.split(' ').shift())
       let ageNumber2 = parseFloat(age2.age.split(' ').shift())
-      if(ageNumber1<ageNumber2) {
+      if (ageNumber1 < ageNumber2) {
         ageQuery = `act_utc - dob BETWEEN '${age1.age}'::INTERVAL AND '${age2.age}'::INTERVAL`
       } else {
         ageQuery = `act_utc - dob BETWEEN '${age2.age}'::INTERVAL AND '${age1.age}'::INTERVAL`
       }
     } else {
       async.eachSeries(ages, (age, nxtAge) => {
-        if(ageQuery) {
+        if (ageQuery) {
           ageQuery += ' and ' + `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
         } else {
           ageQuery += `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
@@ -275,8 +278,8 @@ module.exports = {
         return nxtAge()
       })
     }
-    let query = `select 
-        ext_id as facility_id, 
+    let query = `select
+        ext_id as facility_id,
         mat_tbl.type_mnemonic as code,
         gender_mnemonic,
         count(*) as total
@@ -293,11 +296,11 @@ module.exports = {
     group by ext_id, mat_tbl.type_mnemonic, gender_mnemonic`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -322,11 +325,11 @@ module.exports = {
     group by ext_id, mat_tbl.type_mnemonic,start`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -335,8 +338,8 @@ module.exports = {
   },
 
   getColdChainData: (year_month, callback) => {
-    let query = `select 
-        ext_id as facility_id, 
+    let query = `select
+        ext_id as facility_id,
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'coldStoreMin' as coldStoreMinTemp,
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'coldStoreMax' as coldStoreMaxTemp,
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'coldStoreLow' as coldStoreLowTempAlert,
@@ -346,16 +349,16 @@ module.exports = {
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'outreachCancel' as outreachCancelled,
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'sessions' as sessions,
         encode(decode(substr(ext_value, 3), 'hex'), 'escape')::JSON->'${year_month}'->'status' as status
-    from 
+    from
         fac_vw
         inner join ent_ext_tbl on (fac_vw.fac_id = ent_ext_tbl.ent_id and ext_typ = 'http://openiz.org/extensions/contrib/bid/ivdExtendedData')
         inner join fac_id_tbl on (fac_id_tbl.fac_id = fac_vw.fac_id and nsid = 'TZ_HFR_ID')`
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -366,33 +369,33 @@ module.exports = {
   getBreastFeedingData: (ages, startDate, endDate, callback) => {
     let ageQuery = ''
     async.eachSeries(ages, (age, nxtAge) => {
-      if(ageQuery) {
+      if (ageQuery) {
         ageQuery += 'and ' + `pat_vw.dob - pat_vw.crt_utc ${age.operator} '${age.age}'::INTERVAL`
       } else {
         ageQuery += `pat_vw.dob - pat_vw.crt_utc ${age.operator} '${age.age}'::INTERVAL`
       }
       return nxtAge()
     })
-    let query = `select 
+    let query = `select
       ext_id as facility_id,
       pat_vw.gender_mnemonic,
       ebf.ext_value,
       count(*) as total
-    from 
-      pat_vw 
+    from
+      pat_vw
       inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/breastFeedingStatus')
       inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where 
+    where
     ${ageQuery} and crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='1' or ext_value='2')
-    group by 
+    group by
       ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -401,26 +404,26 @@ module.exports = {
   },
 
   getPMTCTData: (startDate, endDate, callback) => {
-    let query = `select 
+    let query = `select
       ext_id as facility_id,
       pat_vw.gender_mnemonic,
       ebf.ext_value,
       count(*) as total
-    from 
-      pat_vw 
+    from
+      pat_vw
       inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/pctmtStatus')
       inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where 
+    where
       crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1')
-    group by 
+    group by
       ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -429,25 +432,25 @@ module.exports = {
   },
 
   getTTData: (startDate, endDate, callback) => {
-    let query = `select 
+    let query = `select
       ext_id as facility_id,
       pat_vw.gender_mnemonic,
       ebf.ext_value,
       count(*) as total
-    from 
-      pat_vw 
+    from
+      pat_vw
       inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/tetanusStatus')
       inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where 
+    where
       crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1' or ext_value='2')
-    group by 
+    group by
       ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -456,43 +459,43 @@ module.exports = {
   },
 
   getChildrUsingMosqNetAtRegData: (startDate, endDate, callback) => {
-    let query = `select 
+    let query = `select
       ext_id as facility_id,
       pat_vw.gender_mnemonic,
       ebf.ext_value,
       count(*) as total
-    from 
-      pat_vw 
+    from
+      pat_vw
       inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/mosquitoNetStatus')
       inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where 
+    where
       crt_utc::DATE between '${startDate}' and '${endDate}'
-    group by 
+    group by
       ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
       }
     })
   },
-  
+
   getDispLLINMosqNet: (startDate, endDate, callback) => {
-    let query = `select 
+    let query = `select
     ext_id as facility_id,
     gender_mnemonic,
     count(*) as total
     from
-        sply_tbl 
+        sply_tbl
         -- ensure that the material given was a mosquito net
         left join sply_mat_tbl on (sply_tbl.sply_id = sply_mat_tbl.sply_id and sply_mat_tbl.mat_id = '276d2ce0-6504-11e9-a923-1681be663d3e')
-        -- in a supply the source entity is the facility 
+        -- in a supply the source entity is the facility
         inner join fac_vw on (src_ent_id = fac_id)
         -- fetch HIE FRID for the facility
         inner join fac_id_tbl on (fac_vw.fac_id = fac_id_tbl.fac_id and nsid = 'TZ_HFR_ID')
@@ -505,11 +508,11 @@ module.exports = {
     group by ext_id, gender_mnemonic`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -520,14 +523,14 @@ module.exports = {
   getStockONHAND: (firstDateNewMonth, callback) => {
     let query = `WITH ordered_ledger AS (
         SELECT fac_id, mmat_id, bal_eol
-        FROM 
+        FROM
             fac_mat_ldgr_tbl
-        WHERE 
+        WHERE
             crt_utc < '${firstDateNewMonth}'
         ORDER BY seq_id DESC
     ), distinct_stock AS (
         SELECT DISTINCT fac_id, mmat_id
-        FROM 
+        FROM
             fac_mat_ldgr_tbl
     ), by_mmat AS (
         SELECT ext_id as facility_id, mmat_id, COALESCE(FIRST(bal_eol), 0) AS balance_eom
@@ -536,18 +539,18 @@ module.exports = {
             LEFT JOIN ordered_ledger USING (fac_id, mmat_id)
             INNER JOIN fac_id_tbl ON (distinct_stock.fac_id = fac_id_tbl.fac_id AND nsid = 'TZ_HFR_ID')
         GROUP BY ext_id, mmat_id
-    ) 
+    )
     SELECT facility_id, type_mnemonic, SUM(balance_eom) as balance_eom
     FROM by_mmat
         INNER JOIN mmat_tbl USING (mmat_id)
     GROUP BY facility_id, type_mnemonic`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])
@@ -556,16 +559,16 @@ module.exports = {
   },
 
   getStockAdjustments: (startDate, endDate) => {
-    let query = `SELECT ext_id as facility_id, ct.* 
-    FROM 
+    let query = `SELECT ext_id as facility_id, ct.*
+    FROM
       crosstab($$
-        SELECT 
+        SELECT
           fac_id::text || type_mnemonic::text as k,
-          fac_id, 
-          type_mnemonic, 
+          fac_id,
+          type_mnemonic,
           rsn_desc,
           sum(abs(qty))
-        FROM 
+        FROM
           fac_mat_ldgr_tbl
           INNER JOIN mmat_tbl USING (mmat_id)
         WHERE
@@ -574,25 +577,25 @@ module.exports = {
         GROUP BY fac_id, type_mnemonic, rsn_desc
         ORDER BY 1, 2, 3
         $$, $$VALUES ('REASON-Broken'), ('REASON-ColdStorageFailure'), ('REASON-Expired'), ('REASON-FROZEN'), ('REASON-OPENWASTE'), ('REASON-VVM'),('REASON-Wasted') $$) ct (
-          key text, 
+          key text,
           fac_id uuid,
           type_mnemonic text,
-          "REASON-Broken" INT, 
+          "REASON-Broken" INT,
           "REASON-ColdStorageFailure" INT,
-          "REASON-Expired" INT, 
-          "REASON-FROZEN" INT, 
+          "REASON-Expired" INT,
+          "REASON-FROZEN" INT,
           "REASON-OPENWASTE" INT,
-          "REASON-VVM" INT, 
+          "REASON-VVM" INT,
           "REASON-Wasted" INT
       )
       INNER JOIN fac_id_tbl ON (fac_id_tbl.fac_id = ct.fac_id AND nsid = 'TZ_HFR_ID')`
 
     pool.query(query, (err, response) => {
-      if(err) {
+      if (err) {
         winston.error(err)
         return callback([])
       }
-      if(response && response.hasOwnProperty('rows')) {
+      if (response && response.hasOwnProperty('rows')) {
         return callback(response.rows)
       } else {
         return callback([])

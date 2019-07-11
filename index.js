@@ -138,47 +138,47 @@ function setupApp() {
   }
 
   app.get('/syncImmunizationCoverage', (req, res) => {
-    const oim = OIM(config.openinfoman)
-    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
-    res.end()
-    updateTransaction(req, "Still Processing", "Processing", "200", "")
-    req.timestamp = new Date()
-    let orchestrations = []
+      const oim = OIM(config.openinfoman)
+      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+      res.end()
+      updateTransaction(req, "Still Processing", "Processing", "200", "")
+      req.timestamp = new Date()
+      let orchestrations = []
 
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
-      vims.getFacilityWithLatestPeriod(facilities, (period) => {
-        var startDate = '2019-06-01'//moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-        var endDate = '2019-06-30'//moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-        middleware.getImmunizationCoverage(startDate, endDate, (rows) => {
-          if(rows.length === 0) {
-            winston.info("No Immunization Coverage data found on TImR for period " + period.periodName)
-            return
-          }
-          async.eachSeries(facilities, (facility, nxtFacility) => {
-            winston.info("Sync Immunization Coverage data for " + facility.facilityName)
-            if(facility.periodId) {
-              mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                if(facData.length > 0) {
-                  vims.saveImmunizationData(facData, facility, orchestrations, () => {
-                    winston.info("Done synchronizing Immunization Coverage data" + " for " + facility.facilityName)
-                    return nxtFacility()
-                  })
-                } else {
-                  winston.info("No data for " + facility.facilityName + " Skip processing Immunization Coverage data")
-                  return nxtFacility()
-                }
-              })
-            } else {
-              winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing Immunization Coverage data")
-              return nxtFacility()
+      oim.getVimsFacilities(orchestrations, (err, facilities) => {
+        vims.getFacilityWithLatestPeriod(facilities, (period) => {
+          var startDate = '2019-06-01' //moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+          var endDate = '2019-06-30' //moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+          middleware.getImmunizationCoverage(startDate, endDate, (rows) => {
+            if (rows.length === 0) {
+              winston.info("No Immunization Coverage data found on TImR for period " + period.periodName)
+              return
             }
-          }, () => {
-            winston.info("Done synchronizing Immunization Coverage data")
+            async.eachSeries(facilities, (facility, nxtFacility) => {
+              winston.info("Sync Immunization Coverage data for " + facility.facilityName)
+              if (facility.periodId) {
+                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                  if (facData.length > 0) {
+                    vims.saveImmunizationData(facData, facility, orchestrations, () => {
+                      winston.info("Done synchronizing Immunization Coverage data" + " for " + facility.facilityName)
+                      return nxtFacility()
+                    })
+                  } else {
+                    winston.info("No data for " + facility.facilityName + " Skip processing Immunization Coverage data")
+                    return nxtFacility()
+                  }
+                })
+              } else {
+                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing Immunization Coverage data")
+                return nxtFacility()
+              }
+            }, () => {
+              winston.info("Done synchronizing Immunization Coverage data")
+            })
           })
         })
       })
-    })
-  }),
+    }),
 
     app.get('/syncSupplements', (req, res) => {
       const oim = OIM(config.openinfoman)
@@ -201,15 +201,15 @@ function setupApp() {
               async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
                 mixin.translateAgeGroup(vimsAgeGroup, (timrAgeGroup) => {
                   middleware.getSupplementsData(timrAgeGroup, startDate, endDate, (rows) => {
-                    if(rows.length === 0) {
+                    if (rows.length === 0) {
                       winston.info("No Supplements data found on TImR for period " + period.periodName)
                       return
                     }
                     async.eachSeries(facilities, (facility, nxtFacility) => {
                       winston.info("Sync Supplements data for " + facility.facilityName + ' Age group ' + vimsAgeGroup)
-                      if(facility.periodId) {
+                      if (facility.periodId) {
                         mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                          if(facData.length > 0) {
+                          if (facData.length > 0) {
                             vims.saveSupplements(facData, facility, vimsAgeGroup, orchestrations, () => {
                               winston.info("Done synchronizing Supplements data age group " + vimsAgeGroup + " for " + facility.facilityName)
                               return nxtFacility()
@@ -250,15 +250,15 @@ function setupApp() {
           var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
           var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
           middleware.getAEFIData(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
+            if (rows.length === 0) {
               winston.info("No AEFI data found on TImR for period " + period.periodName)
               return
             }
             async.eachSeries(facilities, (facility, nxtFacility) => {
               winston.info("Sync AEFI data for " + facility.facilityName)
-              if(facility.periodId) {
+              if (facility.periodId) {
                 mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
+                  if (facData.length > 0) {
                     vims.saveAdverseEffectData(facData, facility, orchestrations, () => {
                       winston.info("Done synchronizing AEFI data" + " for " + facility.facilityName)
                       return nxtFacility()
@@ -280,7 +280,7 @@ function setupApp() {
       })
     })
 
-    app.get('/syncDiseases', (req, res) => {
+  app.get('/syncDiseases', (req, res) => {
       const oim = OIM(config.openinfoman)
       const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
       res.end()
@@ -293,15 +293,15 @@ function setupApp() {
           var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
           var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
           middleware.getDiseaseData(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
+            if (rows.length === 0) {
               winston.info("No Disease data found on TImR for period " + period.periodName)
               return
             }
             async.eachSeries(facilities, (facility, nxtFacility) => {
               winston.info("Sync Disease data for " + facility.facilityName)
-              if(facility.periodId) {
+              if (facility.periodId) {
                 mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
+                  if (facData.length > 0) {
                     vims.saveDiseaseData(facData, facility, orchestrations, () => {
                       winston.info("Done synchronizing Disease data" + " for " + facility.facilityName)
                       return nxtFacility()
@@ -317,6 +317,49 @@ function setupApp() {
               }
             }, () => {
               winston.info("Done synchronizing Disease data")
+            })
+          })
+        })
+      })
+    }),
+
+    app.get('/syncCTCReferal', (req, res) => {
+      const oim = OIM(config.openinfoman)
+      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+      res.end()
+      updateTransaction(req, "Still Processing", "Processing", "200", "")
+      req.timestamp = new Date()
+      let orchestrations = []
+
+      oim.getVimsFacilities(orchestrations, (err, facilities) => {
+        vims.getFacilityWithLatestPeriod(facilities, (period) => {
+          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+          middleware.getCTCReferal(startDate, endDate, (rows) => {
+            if (rows.length === 0) {
+              winston.info("No CTC Referal data found on TImR for period " + period.periodName)
+              return
+            }
+            async.eachSeries(facilities, (facility, nxtFacility) => {
+              winston.info("Sync CTC Referal data for " + facility.facilityName)
+              if (facility.periodId) {
+                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                  if (facData.length > 0) {
+                    vims.saveCTCReferalData(facData, facility, orchestrations, () => {
+                      winston.info("Done synchronizing CTC Referal data" + " for " + facility.facilityName)
+                      return nxtFacility()
+                    })
+                  } else {
+                    winston.info("No data for " + facility.facilityName + " Skip processing CTC Referal data")
+                    return nxtFacility()
+                  }
+                })
+              } else {
+                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing CTC Referal data")
+                return nxtFacility()
+              }
+            }, () => {
+              winston.info("Done synchronizing CTC Referal data")
             })
           })
         })
@@ -344,15 +387,15 @@ function setupApp() {
               async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
                 mixin.translateAgeGroup(vimsAgeGroup, (timrAgeGroup) => {
                   middleware.getBreastFeedingData(timrAgeGroup, startDate, endDate, (rows) => {
-                    if(rows.length === 0) {
+                    if (rows.length === 0) {
                       winston.info("No Breast Feeding data found on TImR for period " + period.periodName)
                       return
                     }
                     async.eachSeries(facilities, (facility, nxtFacility) => {
                       winston.info("Sync breast feeding data for " + facility.facilityName)
-                      if(facility.periodId) {
+                      if (facility.periodId) {
                         mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                          if(facData.length > 0) {
+                          if (facData.length > 0) {
                             vims.saveBreastFeeding(facData, facility, vimsAgeGroup, orchestrations, () => {
                               winston.info("Done synchronizing breast feeding data age group " + vimsAgeGroup + " for " + facility.facilityName)
                               return nxtFacility()
@@ -380,136 +423,136 @@ function setupApp() {
       })
     })
 
-    app.get('/syncPMTCT', (req, res) => {
-      const oim = OIM(config.openinfoman)
-      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
-      res.end()
-      updateTransaction(req, "Still Processing", "Processing", "200", "")
-      req.timestamp = new Date()
-      let orchestrations = []
+  app.get('/syncPMTCT', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+    res.end()
+    updateTransaction(req, "Still Processing", "Processing", "200", "")
+    req.timestamp = new Date()
+    let orchestrations = []
 
-      oim.getVimsFacilities(orchestrations, (err, facilities) => {
-        vims.getFacilityWithLatestPeriod(facilities, (period) => {
-          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-          middleware.getPMTCTData(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
-              winston.info("No PMTCT data found on TImR for period " + period.periodName)
-              return
-            }
-            async.eachSeries(facilities, (facility, nxtFacility) => {
-              winston.info("Sync PMTCT data for " + facility.facilityName)
-              if(facility.periodId) {
-                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
-                    vims.savePMTCT(facData, facility, orchestrations, () => {
-                      winston.info("Done synchronizing PMTCT data" + " for " + facility.facilityName)
-                      return nxtFacility()
-                    })
-                  } else {
-                    winston.info("No data for " + facility.facilityName + " Skip processing PMTCT data")
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+      vims.getFacilityWithLatestPeriod(facilities, (period) => {
+        var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+        middleware.getPMTCTData(startDate, endDate, (rows) => {
+          if (rows.length === 0) {
+            winston.info("No PMTCT data found on TImR for period " + period.periodName)
+            return
+          }
+          async.eachSeries(facilities, (facility, nxtFacility) => {
+            winston.info("Sync PMTCT data for " + facility.facilityName)
+            if (facility.periodId) {
+              mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                if (facData.length > 0) {
+                  vims.savePMTCT(facData, facility, orchestrations, () => {
+                    winston.info("Done synchronizing PMTCT data" + " for " + facility.facilityName)
                     return nxtFacility()
-                  }
-                })
-              } else {
-                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing PMTCT data")
-                return nxtFacility()
-              }
-            }, () => {
-              winston.info("Done synchronizing PMTCT data")
-            })
+                  })
+                } else {
+                  winston.info("No data for " + facility.facilityName + " Skip processing PMTCT data")
+                  return nxtFacility()
+                }
+              })
+            } else {
+              winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing PMTCT data")
+              return nxtFacility()
+            }
+          }, () => {
+            winston.info("Done synchronizing PMTCT data")
           })
         })
       })
     })
+  })
 
-    app.get('/syncMosquitoNet', (req, res) => {
-      const oim = OIM(config.openinfoman)
-      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
-      res.end()
-      updateTransaction(req, "Still Processing", "Processing", "200", "")
-      req.timestamp = new Date()
-      let orchestrations = []
+  app.get('/syncMosquitoNet', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+    res.end()
+    updateTransaction(req, "Still Processing", "Processing", "200", "")
+    req.timestamp = new Date()
+    let orchestrations = []
 
-      oim.getVimsFacilities(orchestrations, (err, facilities) => {
-        vims.getFacilityWithLatestPeriod(facilities, (period) => {
-          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-          middleware.getDispLLINMosqNet(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
-              winston.info("No MosquitoNet data found on TImR for period " + period.periodName)
-              return
-            }
-            async.eachSeries(facilities, (facility, nxtFacility) => {
-              winston.info("Sync MosquitoNet data for " + facility.facilityName)
-              if(facility.periodId) {
-                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
-                    vims.saveMosquitoNet(facData, facility, orchestrations, () => {
-                      winston.info("Done synchronizing MosquitoNet data" + " for " + facility.facilityName)
-                      return nxtFacility()
-                    })
-                  } else {
-                    winston.info("No data for " + facility.facilityName + " Skip processing MosquitoNet data")
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+      vims.getFacilityWithLatestPeriod(facilities, (period) => {
+        var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+        middleware.getDispLLINMosqNet(startDate, endDate, (rows) => {
+          if (rows.length === 0) {
+            winston.info("No MosquitoNet data found on TImR for period " + period.periodName)
+            return
+          }
+          async.eachSeries(facilities, (facility, nxtFacility) => {
+            winston.info("Sync MosquitoNet data for " + facility.facilityName)
+            if (facility.periodId) {
+              mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                if (facData.length > 0) {
+                  vims.saveMosquitoNet(facData, facility, orchestrations, () => {
+                    winston.info("Done synchronizing MosquitoNet data" + " for " + facility.facilityName)
                     return nxtFacility()
-                  }
-                })
-              } else {
-                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing MosquitoNet data")
-                return nxtFacility()
-              }
-            }, () => {
-              winston.info("Done synchronizing MosquitoNet data")
-            })
+                  })
+                } else {
+                  winston.info("No data for " + facility.facilityName + " Skip processing MosquitoNet data")
+                  return nxtFacility()
+                }
+              })
+            } else {
+              winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing MosquitoNet data")
+              return nxtFacility()
+            }
+          }, () => {
+            winston.info("Done synchronizing MosquitoNet data")
           })
         })
       })
     })
+  })
 
-    app.get('/syncTT', (req, res) => {
-      const oim = OIM(config.openinfoman)
-      const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
-      res.end()
-      updateTransaction(req, "Still Processing", "Processing", "200", "")
-      req.timestamp = new Date()
-      let orchestrations = []
+  app.get('/syncTT', (req, res) => {
+    const oim = OIM(config.openinfoman)
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
+    res.end()
+    updateTransaction(req, "Still Processing", "Processing", "200", "")
+    req.timestamp = new Date()
+    let orchestrations = []
 
-      oim.getVimsFacilities(orchestrations, (err, facilities) => {
-        vims.getFacilityWithLatestPeriod(facilities, (period) => {
-          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
-          middleware.getTTData(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
-              winston.info("No TT data found on TImR for period " + period.periodName)
-              return
-            }
-            async.eachSeries(facilities, (facility, nxtFacility) => {
-              winston.info("Sync TT data for " + facility.facilityName)
-              if(facility.periodId) {
-                mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
-                    vims.saveTT(facData, facility, orchestrations, () => {
-                      winston.info("Done synchronizing TT data" + " for " + facility.facilityName)
-                      return nxtFacility()
-                    })
-                  } else {
-                    winston.info("No data for " + facility.facilityName + " Skip processing TT data")
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+      vims.getFacilityWithLatestPeriod(facilities, (period) => {
+        var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+        var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+        middleware.getTTData(startDate, endDate, (rows) => {
+          if (rows.length === 0) {
+            winston.info("No TT data found on TImR for period " + period.periodName)
+            return
+          }
+          async.eachSeries(facilities, (facility, nxtFacility) => {
+            winston.info("Sync TT data for " + facility.facilityName)
+            if (facility.periodId) {
+              mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
+                if (facData.length > 0) {
+                  vims.saveTT(facData, facility, orchestrations, () => {
+                    winston.info("Done synchronizing TT data" + " for " + facility.facilityName)
                     return nxtFacility()
-                  }
-                })
-              } else {
-                winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing TT data")
-                return nxtFacility()
-              }
-            }, () => {
-              winston.info("Done synchronizing TT data")
-            })
+                  })
+                } else {
+                  winston.info("No data for " + facility.facilityName + " Skip processing TT data")
+                  return nxtFacility()
+                }
+              })
+            } else {
+              winston.warn("No DRAFT Report for " + facility.facilityName + " Skip processing TT data")
+              return nxtFacility()
+            }
+          }, () => {
+            winston.info("Done synchronizing TT data")
           })
         })
       })
     })
+  })
 
-    app.get('/syncChildVisit', (req, res) => {
+  app.get('/syncChildVisit', (req, res) => {
       const oim = OIM(config.openinfoman)
       const vims = VIMS(config.vims, '', config.timr, config.timrOauth2)
       res.end()
@@ -530,15 +573,15 @@ function setupApp() {
               async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
                 mixin.translateAgeGroup(vimsAgeGroup, (timrAgeGroup) => {
                   middleware.getChildVisitData(timrAgeGroup, startDate, endDate, (rows) => {
-                    if(rows.length === 0) {
+                    if (rows.length === 0) {
                       winston.info("No Child Visit data found on TImR for period " + period.periodName)
                       return
                     }
                     async.eachSeries(facilities, (facility, nxtFacility) => {
                       winston.info("Sync Child Visit data for " + facility.facilityName + ' Age group ' + vimsAgeGroup)
-                      if(facility.periodId) {
+                      if (facility.periodId) {
                         mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                          if(facData.length > 0) {
+                          if (facData.length > 0) {
                             vims.saveChildVisit(facData, facility, vimsAgeGroup, orchestrations, () => {
                               winston.info("Done synchronizing Child Visit data age group " + vimsAgeGroup + " for " + facility.facilityName)
                               return nxtFacility()
@@ -587,15 +630,15 @@ function setupApp() {
               async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
                 mixin.translateAgeGroup(vimsAgeGroup, (timrAgeGroup) => {
                   middleware.getWeightAgeRatio(timrAgeGroup, startDate, endDate, (rows) => {
-                    if(rows.length === 0) {
+                    if (rows.length === 0) {
                       winston.info("No Weight Age Ratio data found on TImR for period " + period.periodName)
                       return
                     }
                     async.eachSeries(facilities, (facility, nxtFacility) => {
                       winston.info("Sync Weight Age Ratio data for " + facility.facilityName + ' Age group ' + vimsAgeGroup)
-                      if(facility.periodId) {
+                      if (facility.periodId) {
                         mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                          if(facData.length > 0) {
+                          if (facData.length > 0) {
                             vims.saveWeightAgeRatio(facData, facility, vimsAgeGroup, orchestrations, () => {
                               winston.info("Done synchronizing Weight Age Ratio data age group " + vimsAgeGroup + " for " + facility.facilityName)
                               return nxtFacility()
@@ -640,22 +683,23 @@ function setupApp() {
           var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
           var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
           vims.getReport(period.periodId, orchestrations, (err, report) => {
+            winston.error(JSON.stringify(report.report))
             vims.extractAgeGroups(report.report.coverageAgeGroupLineItems).then((ageGroups) => {
-              if(ageGroups.length == 0) {
+              if (ageGroups.length == 0) {
                 winston.warn("No age group found, stop data sync for Immunization Coverage By Age")
               }
               async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
                 mixin.translateAgeGroup(vimsAgeGroup, (timrAgeGroup) => {
                   middleware.getImmunizationCoverageByAge(timrAgeGroup, startDate, endDate, (rows) => {
-                    if(rows.length === 0) {
+                    if (rows.length === 0) {
                       winston.info("No Immunization Coverage By Age data found on TImR for period " + period.periodName)
                       return
                     }
                     async.eachSeries(facilities, (facility, nxtFacility) => {
                       winston.info("Sync Immunization Coverage By Age data for " + facility.facilityName + ' Age group ' + vimsAgeGroup)
-                      if(facility.periodId) {
+                      if (facility.periodId) {
                         mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                          if(facData.length > 0) {
+                          if (facData.length > 0) {
                             vims.saveImmCoverAgeGrp(facData, facility, vimsAgeGroup, orchestrations, () => {
                               winston.info("Done synchronizing Immunization Coverage By Age data age group " + vimsAgeGroup + " for " + facility.facilityName)
                               return nxtFacility()
@@ -695,15 +739,15 @@ function setupApp() {
         vims.getFacilityWithLatestPeriod(facilities, (period) => {
           var firstDateNewMonth = moment(period.periodName, "MMM YYYY").startOf('month').add(1, 'month').format("YYYY-MM-DD")
           middleware.getStockONHAND(firstDateNewMonth, (rows) => {
-            if(rows.length === 0) {
+            if (rows.length === 0) {
               winston.info("No Stock ON_HAND data found on TImR for period " + period.periodName)
               return
             }
             async.eachSeries(facilities, (facility, nxtFacility) => {
               winston.info("Sync Stock ON_HAND data for " + facility.facilityName)
-              if(facility.periodId) {
+              if (facility.periodId) {
                 mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
+                  if (facData.length > 0) {
                     vims.saveStockONHAND(facData, facility, orchestrations, () => {
                       winston.info("Done synchronizing Stock ON_HAND data" + " for " + facility.facilityName)
                       return nxtFacility()
@@ -738,15 +782,15 @@ function setupApp() {
           var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
           var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
           middleware.getStockAdjustments(startDate, endDate, (rows) => {
-            if(rows.length === 0) {
+            if (rows.length === 0) {
               winston.info("No Stock Adjustments data found on TImR for period " + period.periodName)
               return
             }
             async.eachSeries(facilities, (facility, nxtFacility) => {
               winston.info("Sync Stock Adjustments data for " + facility.facilityName)
-              if(facility.periodId) {
+              if (facility.periodId) {
                 mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
+                  if (facData.length > 0) {
                     vims.saveStockAdjustments(facData, facility, orchestrations, () => {
                       winston.info("Done synchronizing Stock Adjustments data" + " for " + facility.facilityName)
                       return nxtFacility()
@@ -950,15 +994,15 @@ function setupApp() {
         vims.getFacilityWithLatestPeriod(facilities, (period) => {
           let year_month = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM")
           middleware.getColdChainData(year_month, (rows) => {
-            if(rows.length === 0) {
+            if (rows.length === 0) {
               winston.info("No Cold Chain/Session data found on TImR for period " + period.periodName)
               return
             }
             async.eachSeries(facilities, (facility, nxtFacility) => {
               winston.info("Sync Cold Chain/Session data for " + facility.facilityName)
-              if(facility.periodId) {
+              if (facility.periodId) {
                 mixin.extractFacilityData(facility.timrFacilityId, rows, (facData) => {
-                  if(facData.length > 0) {
+                  if (facData.length > 0) {
                     async.parallel({
                       coldChainSync: (callback) => {
                         vims.saveColdChain(facData, facility, orchestrations, () => {

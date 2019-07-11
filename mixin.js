@@ -1,4 +1,3 @@
-
 module.exports = {
   extractFacilityData: (facilityId, data, callback) => {
     let facData = data.filter((dt) => {
@@ -52,15 +51,24 @@ module.exports = {
           return callback('', 'Age group must contain either of the string Years or Months or Weeks')
 
         // convert weeks to days
-        if(dim.includes('week')) {
-          age = age*7
+        if (dim.includes('week')) {
+          age = age * 7
         }
         // for month, catch +30 days i.e if 3 months then get 3 and 1 day, 3 and 2 days etc
-        if(dimension == 'MONTH') {
-          ageOper.push({operator: '>=', age: age + ' ' + dimension})
-          ageOper.push({operator: '<=', age: age + '.9 ' + dimension})
+        if (dimension == 'MONTH') {
+          ageOper.push({
+            operator: '>=',
+            age: age + ' ' + dimension
+          })
+          ageOper.push({
+            operator: '<=',
+            age: age + '.9 ' + dimension
+          })
         } else {
-          ageOper.push({operator: operator, age: age + ' ' + dimension})
+          ageOper.push({
+            operator: operator,
+            age: age + ' ' + dimension
+          })
         }
       } else if (!isNaN(ageGroup.charAt(0))) {
         var ages = ageGroup.split('-')
@@ -85,16 +93,28 @@ module.exports = {
           else
             return callback('', 'Age group must contain either of the string Years or Months or Weeks ')
           // convert weeks to days
-          if(dim.includes('week')) {
-            age1 = age1*7
-            age2 = age2*7
+          if (dim.includes('week')) {
+            age1 = age1 * 7
+            age2 = age2 * 7
           }
-          if(age1 < age2) {
-            ageOper.push({operator: '>=', age: age1 + ' ' + dimension})
-            ageOper.push({operator: '<=', age: age2 + ' ' + dimension})
+          if (age1 < age2) {
+            ageOper.push({
+              operator: '>=',
+              age: age1 + ' ' + dimension
+            })
+            ageOper.push({
+              operator: '<=',
+              age: age2 + ' ' + dimension
+            })
           } else {
-            ageOper.push({operator: '<=', age: age1 + ' ' + dimension})
-            ageOper.push({operator: '>=', age: age2 + ' ' + dimension})
+            ageOper.push({
+              operator: '<=',
+              age: age1 + ' ' + dimension
+            })
+            ageOper.push({
+              operator: '>=',
+              age: age2 + ' ' + dimension
+            })
           }
         } else if (ages.length == 1) {
           for (let char of ages[0]) {
@@ -123,8 +143,8 @@ module.exports = {
           }
 
           // convert weeks to days
-          if(dim.includes('week')) {
-            age = age*7
+          if (dim.includes('week')) {
+            age = age * 7
           }
           //make sure the position of dimension is at 0
           if (position != 0) {
@@ -132,11 +152,20 @@ module.exports = {
           }
 
           // for month, catch +30 days i.e if 3 months then get 3 and 1 day, 3 and 2 days etc
-          if(dimension == 'MONTH') {
-            ageOper.push({operator: '>=', age: age + ' ' + dimension})
-            ageOper.push({operator: '<=', age: age + '.9 ' + dimension})
+          if (dimension == 'MONTH') {
+            ageOper.push({
+              operator: '>=',
+              age: age + ' ' + dimension
+            })
+            ageOper.push({
+              operator: '<=',
+              age: age + '.9 ' + dimension
+            })
           } else {
-            ageOper.push({operator: '=', age: age + ' ' + dimension})
+            ageOper.push({
+              operator: '=',
+              age: age + ' ' + dimension
+            })
           }
         } else {
 

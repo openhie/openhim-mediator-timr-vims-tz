@@ -40,7 +40,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       let element = groups.element.find(element => {
         return element.target[0].code == timrCode
       })
-      if(element) {
+      if (element) {
         return callback(element.code)
       } else {
         return nxtGrp()
@@ -371,8 +371,8 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
         this.countPeriods(facility.vimsFacilityId, [], (total, totalDraft, periodId, periodName) => {
           facility.periodId = periodId
           facility.periodName = periodName
-          if(totalDraft > 0) {
-            if(Object.keys(period).length == 0) {
+          if (totalDraft > 0) {
+            if (Object.keys(period).length == 0) {
               period.periodId = periodId
               period.periodName = periodName
               period.total = total
@@ -380,7 +380,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             } else {
               let periodDate1 = moment(periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
               let periodDate2 = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-              if(periodDate1 > periodDate2) {
+              if (periodDate1 > periodDate2) {
                 period.periodId = periodId
                 period.periodName = periodName
                 period.total = total
@@ -395,14 +395,14 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
-    extractAgeGroups: function(lineItems) {
+    extractAgeGroups: function (lineItems) {
       let ageGroups = []
       return new Promise((resolve, reject) => {
         async.eachSeries(lineItems, (lineItem, nxtLineitem) => {
           let exists = ageGroups.find((ageGroup) => {
             return ageGroup === lineItem.ageGroup
           })
-          if(!exists) {
+          if (!exists) {
             ageGroups.push(lineItem.ageGroup)
           }
           return nxtLineitem()
@@ -477,7 +477,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
 
           let vimsDoseId = covLineItem.doseId
           let timrDoseId
-          if(vimsProductId == '2413' || vimsProductId == '2412') {
+          if (vimsProductId == '2413' || vimsProductId == '2412') {
             timrDoseId = vimsDoseId - 1
           } else {
             timrDoseId = vimsDoseId
@@ -490,15 +490,15 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
            * "Concept (K:07898ff6-64f3-11e9-a923-1681be663d3e, V:c6a115ec-b2be-4ec1-b8e1-fd1120a911ad) [M: PopulationType-Newborns]"
            * "Concept (K:078992da-64f3-11e9-a923-1681be663d3e, V:a2608645-2648-4524-83fd-3fce315d6a6a) [M: PopulationType-InjuredPersons]"
            * "Concept (K:0789944c-64f3-11e9-a923-1681be663d3e, V:e6b6dcad-8cda-477b-be70-5fbf5f05464f) [M: PopulationType-PregnantWomen]"
-          */
-          if(vimsProductId == '2418') {
+           */
+          if (vimsProductId == '2418') {
             let maleValueData = facData.filter((data) => {
               return data.gender_mnemonic == 'Male' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
             let femaleValueData = facData.filter((data) => {
               return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
-            if(maleValueData.length > 0) {
+            if (maleValueData.length > 0) {
               updated = true
               let totalregular = 0
               let totalOutreach = 0
@@ -509,7 +509,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               covLineItem.regularMale = totalregular
               covLineItem.outreachMale = totalOutreach
             }
-            if(femaleValueData.length > 0) {
+            if (femaleValueData.length > 0) {
               updated = true
               let totalregular = 0
               let totalOutreach = 0
@@ -527,15 +527,15 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             let femaleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
-  
-            if(maleValueData) {
+
+            if (maleValueData) {
               updated = true
               let regular = maleValueData.in_service_area
               let outreach = maleValueData.in_catchment
               covLineItem.regularMale = regular
               covLineItem.outreachMale = outreach
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               updated = true
               let regular = femaleValueData.in_service_area
               let outreach = femaleValueData.in_catchment
@@ -543,16 +543,16 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               covLineItem.outreachFemale = outreach
             }
           }
-          if(!updated) {
+          if (!updated) {
             return nxtCovLineitem()
           }
-          winston.info("Saving Immunization Coverage Product " + covLineItem.product.primaryName + " Dose " + vimsDoseId + " " + 
-          JSON.stringify({
-            regularMale: covLineItem.regularMale,
-            regularFemale: covLineItem.regularFemale,
-            outreachMale: covLineItem.outreachMale,
-            outreachFemale: covLineItem.outreachFemale
-          }))
+          winston.info("Saving Immunization Coverage Product " + covLineItem.product.primaryName + " Dose " + vimsDoseId + " " +
+            JSON.stringify({
+              regularMale: covLineItem.regularMale,
+              regularFemale: covLineItem.regularFemale,
+              outreachMale: covLineItem.outreachMale,
+              outreachFemale: covLineItem.outreachFemale
+            }))
           var updatedReport = {
             "id": report.report.id,
             "facilityId": report.report.facilityId,
@@ -577,7 +577,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           return callback()
         }
         async.eachOf(report.report.coverageAgeGroupLineItems, (lineItem, lineItemIndex, nxtLineItem) => {
-          if(lineItem.ageGroup === vimsAgeGroup) {
+          if (lineItem.ageGroup === vimsAgeGroup) {
             let vimsProductId = lineItem.productId
             let timrProductId
             getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
@@ -586,7 +586,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
 
             let vimsDoseId = lineItem.doseId
             let timrDoseId
-            if(vimsProductId == '2413' || vimsProductId == '2412') {
+            if (vimsProductId == '2413' || vimsProductId == '2412') {
               timrDoseId = vimsDoseId - 1
             } else {
               timrDoseId = vimsDoseId
@@ -599,28 +599,28 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
 
-            if(maleValueData) {
+            if (maleValueData) {
               let regular = maleValueData.in_service_area
               let outreach = maleValueData.in_catchment
               lineItem.regularMale = regular
               lineItem.outreachMale = outreach
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               let regular = femaleValueData.in_service_area
               let outreach = femaleValueData.in_catchment
               lineItem.regularFemale = regular
               lineItem.outreachFemale = outreach
             }
-            if(!maleValueData && !femaleValueData) {
+            if (!maleValueData && !femaleValueData) {
               return nxtLineItem()
             }
-            winston.info("Saving Immunization Coverage By Age Product " + lineItem.product.primaryName + " Dose " + vimsDoseId + " " + 
-            JSON.stringify({
-              regularMale: lineItem.regularMale,
-              regularFemale: lineItem.regularFemale,
-              outreachMale: lineItem.outreachMale,
-              outreachFemale: lineItem.outreachFemale
-            }))
+            winston.info("Saving Immunization Coverage By Age Product " + lineItem.product.primaryName + " Dose " + vimsDoseId + " " +
+              JSON.stringify({
+                regularMale: lineItem.regularMale,
+                regularFemale: lineItem.regularFemale,
+                outreachMale: lineItem.outreachMale,
+                outreachFemale: lineItem.outreachFemale
+              }))
             var updatedReport = {
               "id": report.report.id,
               "facilityId": report.report.facilityId,
@@ -778,15 +778,13 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           return callback()
         }
         async.eachOf(report.report.vitaminSupplementationLineItems, (suppLineItem, supptLineItemIndex, nxtSupplmnt) => {
-          if(suppLineItem.ageGroup === vimsAgeGroup) {
+          if (suppLineItem.ageGroup === vimsAgeGroup) {
             let supplementCode
-            if (suppLineItem.vitaminName == "Vitamin A"){
+            if (suppLineItem.vitaminName == "Vitamin A") {
               supplementCode = 'Supplement-VitaminA'
-            }
-            else if (suppLineItem.vitaminName == "Mebendazole") {
+            } else if (suppLineItem.vitaminName == "Mebendazole") {
               supplementCode = 'Supplement-Mebendazole'
-            }
-            else {
+            } else {
               winston.error("Unknown code found on Vitamin line item " + JSON.stringify(suppLineItem))
               return nxtSupplmnt()
             }
@@ -797,20 +795,20 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             let femaleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Female' && data.code == supplementCode
             })
-            if(maleValueData) {
+            if (maleValueData) {
               let maleValue = maleValueData.total
               suppLineItem.maleValue = maleValue
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               let femaleValue = femaleValueData.total
               suppLineItem.femaleValue = femaleValue
             }
-            if(!maleValueData && !femaleValueData) {
+            if (!maleValueData && !femaleValueData) {
               return nxtSupplmnt()
             }
             winston.info("Saving Supplements " + facility.facilityName + " " + JSON.stringify({
-              maleValue: suppLineItem.maleValue, 
-              femaleValue: suppLineItem.femaleValue, 
+              maleValue: suppLineItem.maleValue,
+              femaleValue: suppLineItem.femaleValue,
               ageGroup: suppLineItem.ageGroup
             }))
             var updatedReport = {
@@ -848,7 +846,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let AEFILineItem = report.report.adverseEffectLineItems.find((AEFILineItem) => {
             return AEFILineItem.productId == vimsVaccCode && AEFILineItem.date == data.start_date
           })
-          if(AEFILineItem) {
+          if (AEFILineItem) {
             AEFILineItem.cases = data.total
             var updatedReport = {
               "id": report.report.id,
@@ -907,8 +905,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let diseaseCode
           if (lineItem.diseaseId == 1) {
             diseaseCode = 'DiagnosisCode-UnspecifiedFever'
-          }
-          else if (lineItem.diseaseId == 2) {
+          } else if (lineItem.diseaseId == 2) {
             diseaseCode = 'DiagnosisCode-FlaccidParaplegia'
           } else if (lineItem.diseaseId == 3) {
             diseaseCode = 'DiagnosisCode-NoenatalTetanus'
@@ -919,13 +916,13 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let deathValueData = facData.find((data) => {
             return data.typ_mnemonic == 'ObservationType-CauseOfDeath' && data.prob_mnemonic == diseaseCode
           })
-          if(caseValueData) {
+          if (caseValueData) {
             lineItem.cases = caseValueData.total
           }
-          if(deathValueData) {
+          if (deathValueData) {
             lineItem.death = deathValueData.total
           }
-          if(!caseValueData && !deathValueData) {
+          if (!caseValueData && !deathValueData) {
             return nxtLineitem()
           }
           winston.info("Saving Disease " + lineItem.diseaseName + " " + JSON.stringify({
@@ -950,18 +947,60 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
       })
     },
 
+    saveCTCReferalData: function (facData, facility, orchestrations, callback) {
+      this.getReport(facility.periodId, orchestrations, (err, report) => {
+        if (err || !report) {
+          return callback()
+        }
+        async.eachOf(report.report.ctcLineItems, (lineItem, lineItemIndex, nxtLineitem) => {
+          let maleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Male'
+          })
+          let femaleValueData = facData.find((data) => {
+            return data.gender_mnemonic == 'Female'
+          })
+          if (maleValueData) {
+            let maleValue = maleValueData.total
+            lineItem.maleValue = maleValue
+          }
+          if (femaleValueData) {
+            let femaleValue = femaleValueData.total
+            lineItem.femaleValue = femaleValue
+          }
+          if (!maleValueData && !femaleValueData) {
+            return nxtLineitem()
+          }
+          winston.info("Saving CTCReferal " + JSON.stringify({
+            maleValue: lineItem.maleValue,
+            femaleValue: lineItem.femaleValue
+          }))
+          var updatedReport = {
+            "id": report.report.id,
+            "facilityId": report.report.facilityId,
+            "periodId": report.report.periodId,
+            "ctcLineItems": [report.report.ctcLineItems[lineItemIndex]]
+          }
+          saveVIMSReport(updatedReport, "ctcLineItems", orchestrations, (err, res, body) => {
+
+          })
+          return nxtLineitem()
+        }, () => {
+          return callback()
+        })
+      })
+    },
+
     saveBreastFeeding: function (facData, facility, vimsAgeGroup, orchestrations, callback) {
       this.getReport(facility.periodId, orchestrations, (err, report) => {
         if (err || !report) {
           return callback()
         }
         async.eachOf(report.report.breastFeedingLineItems, (bfLineItem, bfLineItemIndex, nxtBfLineitem) => {
-          if(bfLineItem.ageGroup === vimsAgeGroup) {
+          if (bfLineItem.ageGroup === vimsAgeGroup) {
             let bfCode
             if (bfLineItem.category == "EBF") {
               bfCode = 1
-            }
-            else if (bfLineItem.category == "RF") {
+            } else if (bfLineItem.category == "RF") {
               bfCode = 2
             }
 
@@ -971,18 +1010,22 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             let femaleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Female' && data.ext_value == bfCode
             })
-            if(maleValueData) {
+            if (maleValueData) {
               let maleValue = maleValueData.total
               bfLineItem.maleValue = maleValue
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               let femaleValue = femaleValueData.total
               bfLineItem.femaleValue = femaleValue
             }
-            if(!maleValueData && !femaleValueData) {
+            if (!maleValueData && !femaleValueData) {
               return nxtBfLineitem()
             }
-            winston.info("Saving Breast Feeding " + JSON.stringify({maleValue: bfLineItem.maleValue, femaleValue: bfLineItem.femaleValue, ageGroup: bfLineItem.ageGroup}))
+            winston.info("Saving Breast Feeding " + JSON.stringify({
+              maleValue: bfLineItem.maleValue,
+              femaleValue: bfLineItem.femaleValue,
+              ageGroup: bfLineItem.ageGroup
+            }))
             var updatedReport = {
               "id": report.report.id,
               "facilityId": report.report.facilityId,
@@ -1008,25 +1051,29 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           return callback()
         }
         async.eachOf(report.report.childVisitLineItems, (cvLineItem, cvLineItemIndex, nxtCvLineitem) => {
-          if(cvLineItem.ageGroup === vimsAgeGroup) {
+          if (cvLineItem.ageGroup === vimsAgeGroup) {
             let maleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Male'
             })
             let femaleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Female'
             })
-            if(maleValueData) {
+            if (maleValueData) {
               let maleValue = maleValueData.total
               cvLineItem.maleValue = maleValue
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               let femaleValue = femaleValueData.total
               cvLineItem.femaleValue = femaleValue
             }
-            if(!maleValueData && !femaleValueData) {
+            if (!maleValueData && !femaleValueData) {
               return nxtCvLineitem()
             }
-            winston.info("Saving Child Visit " + JSON.stringify({maleValue: cvLineItem.maleValue, femaleValue: cvLineItem.femaleValue, ageGroup: cvLineItem.ageGroup}))
+            winston.info("Saving Child Visit " + JSON.stringify({
+              maleValue: cvLineItem.maleValue,
+              femaleValue: cvLineItem.femaleValue,
+              ageGroup: cvLineItem.ageGroup
+            }))
             var updatedReport = {
               "id": report.report.id,
               "facilityId": report.report.facilityId,
@@ -1052,18 +1099,15 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           return callback()
         }
         async.eachOf(report.report.weightAgeRatioLineItems, (warLineItem, ageWeightLineItemIndex, nxtAWRLineitem) => {
-          if(warLineItem.ageGroup === vimsAgeGroup) {
+          if (warLineItem.ageGroup === vimsAgeGroup) {
             let weightageratiocode
-            if (warLineItem.category == "80% - 2SD"){
+            if (warLineItem.category == "80% - 2SD") {
               weightageratiocode = 'AbnormalHigh'
-            }
-            else if (warLineItem.category == "60% - 3SD") {
+            } else if (warLineItem.category == "60% - 3SD") {
               weightageratiocode = 'AbnormalLow'
-            }
-            else if (warLineItem.category == "60%-80% - 2-3SD") {
+            } else if (warLineItem.category == "60%-80% - 2-3SD") {
               weightageratiocode = 'Normal'
-            }
-            else {
+            } else {
               winston.error("Unknown code found on Age Weight Ratio line item " + JSON.stringify(warLineItem))
               return nxtAWRLineitem()
             }
@@ -1074,18 +1118,22 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             let femaleValueData = facData.find((data) => {
               return data.gender_mnemonic == 'Female' && data.code == weightageratiocode
             })
-            if(maleValueData) {
+            if (maleValueData) {
               let maleValue = maleValueData.total
               warLineItem.maleValue = maleValue
             }
-            if(femaleValueData) {
+            if (femaleValueData) {
               let femaleValue = femaleValueData.total
               warLineItem.femaleValue = femaleValue
             }
-            if(!maleValueData && !femaleValueData) {
+            if (!maleValueData && !femaleValueData) {
               return nxtAWRLineitem()
             }
-            winston.info("Saving Weight Age Ratio " + JSON.stringify({maleValue: warLineItem.maleValue, femaleValue: warLineItem.femaleValue, ageGroup: warLineItem.ageGroup}))
+            winston.info("Saving Weight Age Ratio " + JSON.stringify({
+              maleValue: warLineItem.maleValue,
+              femaleValue: warLineItem.femaleValue,
+              ageGroup: warLineItem.ageGroup
+            }))
             var updatedReport = {
               "id": report.report.id,
               "facilityId": report.report.facilityId,
@@ -1114,14 +1162,11 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let ttcode
           if (ttLineitem.category == "Vaccinated") {
             ttcode = '2'
-          }
-          else if (ttLineitem.category == "Not Vaccinated") {
+          } else if (ttLineitem.category == "Not Vaccinated") {
             ttcode = '1'
-          }
-          else if (ttLineitem.category == "Unknown") {
+          } else if (ttLineitem.category == "Unknown") {
             ttcode = '0'
-          }
-          else {
+          } else {
             winston.error("Unknown code found on TT line item " + JSON.stringify(ttLineitem))
             return nxtTTLineitem()
           }
@@ -1132,20 +1177,23 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let femaleValueData = facData.find((data) => {
             return data.gender_mnemonic == 'Female' && data.ext_value == ttcode
           })
-          if(maleValueData) {
+          if (maleValueData) {
             let maleValue = maleValueData.total
             ttLineitem.maleValue = maleValue
           }
-          if(femaleValueData) {
+          if (femaleValueData) {
             let femaleValue = femaleValueData.total
             ttLineitem.femaleValue = femaleValue
           }
 
-          if(!maleValueData && !femaleValueData) {
+          if (!maleValueData && !femaleValueData) {
             return nxtTTLineitem()
           }
 
-          winston.info("Saving TT " + JSON.stringify({maleValue: ttLineitem.maleValue, femaleValue: ttLineitem.femaleValue}))
+          winston.info("Saving TT " + JSON.stringify({
+            maleValue: ttLineitem.maleValue,
+            femaleValue: ttLineitem.femaleValue
+          }))
           var updatedReport = {
             "id": report.report.id,
             "facilityId": report.report.facilityId,
@@ -1181,18 +1229,21 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let femaleValueData = facData.find((data) => {
             return data.gender_mnemonic == 'Female' && data.ext_value == pmtctStatus
           })
-          if(maleValueData) {
+          if (maleValueData) {
             let maleValue = maleValueData.total
             pmtctLineItem.maleValue = maleValue
           }
-          if(femaleValueData) {
+          if (femaleValueData) {
             let femaleValue = femaleValueData.total
             pmtctLineItem.femaleValue = femaleValue
           }
-          if(!maleValueData && !femaleValueData) {
+          if (!maleValueData && !femaleValueData) {
             return nxtPMTCTLineitem()
           }
-          winston.info("Saving PMTCT " + JSON.stringify({maleValue: pmtctLineItem.maleValue, femaleValue: pmtctLineItem.femaleValue}))
+          winston.info("Saving PMTCT " + JSON.stringify({
+            maleValue: pmtctLineItem.maleValue,
+            femaleValue: pmtctLineItem.femaleValue
+          }))
           var updatedReport = {
             "id": report.report.id,
             "facilityId": report.report.facilityId,
@@ -1221,18 +1272,21 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let femaleValueData = facData.find((data) => {
             return data.gender_mnemonic == 'Female'
           })
-          if(maleValueData) {
+          if (maleValueData) {
             let maleValue = maleValueData.total
             mnLineItem.maleValue = maleValue
           }
-          if(femaleValueData) {
+          if (femaleValueData) {
             let femaleValue = femaleValueData.total
             mnLineItem.femaleValue = femaleValue
           }
-          if(!maleValueData && !femaleValueData) {
+          if (!maleValueData && !femaleValueData) {
             return nxtMNLineitem()
           }
-          winston.info("Saving Mosquito Data " + JSON.stringify({maleValue: mnLineItem.maleValue, femaleValue: mnLineItem.femaleValue}))
+          winston.info("Saving Mosquito Data " + JSON.stringify({
+            maleValue: mnLineItem.maleValue,
+            femaleValue: mnLineItem.femaleValue
+          }))
           var updatedReport = {
             "id": report.report.id,
             "facilityId": report.report.facilityId,
@@ -1254,7 +1308,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
         if (err || !report) {
           return callback()
         }
-        if(facData.length > 1) {
+        if (facData.length > 1) {
           winston.error("Multiple cold chain data returned for " + facility.facilityName + " stoping data sync")
           return
         }
@@ -1283,18 +1337,18 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           }
           if (!Number.isNaN(Number.parseFloat(timrStatusCode))) {
             let vimsStatusCode
-            if(timrStatusCode == 1) {
+            if (timrStatusCode == 1) {
               vimsStatusCode = 10
-            } else if(timrStatusCode == 0) {
+            } else if (timrStatusCode == 0) {
               vimsStatusCode = 12
             }
-            if(vimsStatusCode) {
+            if (vimsStatusCode) {
               report.report.coldChainLineItems[lineItemIndex].operationalStatusId = vimsStatusCode
               found = true
             }
           }
 
-          if(!found) {
+          if (!found) {
             return nxtlineitem()
           }
           winston.info("Saving Cold Chain " + JSON.stringify({
@@ -1311,7 +1365,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             "coldChainLineItems": [report.report.coldChainLineItems[lineItemIndex]]
           }
           saveVIMSReport(coldChainUpdatedReport, "Cold Chain", orchestrations, (err, res, body) => {
-            
+
           })
           return nxtlineitem()
         }, () => {
@@ -1325,7 +1379,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
         if (err || !report) {
           return callback()
         }
-        if(facData.length > 1) {
+        if (facData.length > 1) {
           winston.error("Multiple Session data returned for " + facility.facilityName + " stoping data sync")
           return
         }
@@ -1359,7 +1413,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           sessionsUpdatedReport.fixedImmunizationSessions = report.report.fixedImmunizationSessions
           found = true
         }
-        if(!found) {
+        if (!found) {
           return callback()
         }
         winston.info("Saving Session " + JSON.stringify({
@@ -1390,7 +1444,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let logisticsLineItem = report.report.logisticsLineItems.find((lineItem) => {
             return lineItem.productId == vimsVaccCode
           })
-          if(logisticsLineItem) {
+          if (logisticsLineItem) {
             logisticsLineItem.closingBalance = data.balance_eom
             winston.info("Updating Stock ON_HAND " + JSON.stringify({
               product: data.type_mnemonic,
@@ -1430,7 +1484,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
           let logisticsLineItem = report.report.logisticsLineItems.find((lineItem) => {
             return lineItem.productId == vimsVaccCode
           })
-          if(logisticsLineItem) {
+          if (logisticsLineItem) {
 
             /*
             currently vims combines quantityExpired,quantityWastedOther,quantityFreezed and quantityVvmAlerted
