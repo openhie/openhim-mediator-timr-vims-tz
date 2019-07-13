@@ -29,9 +29,6 @@ var Spinner = require('cli-spinner').Spinner
 
 const port = 9000
 const vimsItemsValueSets = require('./terminologies/vims-items-valuesets.json')
-const timrVimsDwhImmConceptMap = require('./terminologies/timr-vims-dwh-immunization-conceptmap.json')
-const imm_doses = require("./config/doses.json")
-const vacc_doses_mapping = require("./config/vaccine-doses-mapping.json")
 const vacc_diseases_mapping = require("./config/vaccine-diseases-mapping.json")
 
 // Config
@@ -147,8 +144,8 @@ function setupApp() {
 
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         vims.getFacilityWithLatestPeriod(facilities, (period) => {
-          var startDate = '2019-06-01' //moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-          var endDate = '2019-06-30' //moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
+          var startDate = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+          var endDate = moment(period.periodName, "MMM YYYY").endOf('month').format('YYYY-MM-DD')
           middleware.getImmunizationCoverage(startDate, endDate, (rows) => {
             if (rows.length === 0) {
               winston.info("No Immunization Coverage data found on TImR for period " + period.periodName)

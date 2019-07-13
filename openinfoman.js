@@ -76,7 +76,7 @@ module.exports = function (oimconf) {
             )
               DVS = true
           }
-          if (DVS === false && (timrFacilityId === '92189')) {
+          if (DVS === false) {
             facilities.push({
               "timrFacilityId": timrFacilityId,
               "timrFacilityUUID": timrFacilityUUID,
