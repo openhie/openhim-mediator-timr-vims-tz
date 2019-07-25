@@ -16,8 +16,6 @@ const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
 const timrVimsDwhImmConceptMap = require('./terminologies/timr-vims-dwh-immunization-conceptmap.json')
 module.exports = function (vimscnf, oimcnf, timrcnf) {
   const vimsconfig = vimscnf
-  const timrconfig = timrcnf
-  const oimconfig = oimcnf
   const oim = OIM(oimcnf)
 
   function getTimrCode(vimsCode, conceptMapName, callback) {
@@ -366,32 +364,51 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
     },
 
     getFacilityWithLatestPeriod: function (facilities, callback) {
-      let period = {}
+      let periods = []
       async.each(facilities, (facility, nxtFac) => {
         this.countPeriods(facility.vimsFacilityId, [], (total, totalDraft, periodId, periodName) => {
           facility.periodId = periodId
           facility.periodName = periodName
+          let periodExist = periods.find((capturedPeriod) => {
+            return capturedPeriod.periodName === periodName
+          })
+          if (periodExist) {
+            return nxtFac()
+          }
           if (totalDraft > 0) {
-            if (Object.keys(period).length == 0) {
+            if (periods.length < 2) {
+              let period = {}
               period.periodId = periodId
               period.periodName = periodName
               period.total = total
-              period.facility = facility
+              periods.push(period)
+              return nxtFac()
             } else {
               let periodDate1 = moment(periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-              let periodDate2 = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
-              if (periodDate1 > periodDate2) {
-                period.periodId = periodId
-                period.periodName = periodName
-                period.total = total
-                period.facility = facility
-              }
+              let updated = false
+              async.eachOfSeries(periods, (period, index, nxtPeriod) => {
+                let periodDate2 = moment(period.periodName, "MMM YYYY").startOf('month').format("YYYY-MM-DD")
+                if (periodDate1 > periodDate2 && !updated) {
+                  let newPeriod = {}
+                  newPeriod.periodId = periodId
+                  newPeriod.periodName = periodName
+                  newPeriod.total = total
+                  periods[index] = newPeriod
+                  updated = true
+                  return nxtPeriod()
+                } else {
+                  return nxtPeriod()
+                }
+              }, () => {
+                return nxtFac()
+              })
             }
+          } else {
+            return nxtFac()
           }
-          return nxtFac()
         })
       }, () => {
-        return callback(period)
+        return callback(periods)
       })
     },
 
@@ -878,7 +895,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
                 "isInvestigated": true
               }]
             }
-            winston.info("Saving New With " + JSON.stringify({
+            winston.info("Saving New AEFI With " + JSON.stringify({
               product: data.type_mnemonic,
               cases: data.total,
               date: data.start_date

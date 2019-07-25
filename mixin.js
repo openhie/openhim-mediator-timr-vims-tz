@@ -1,4 +1,60 @@
+const OIM = require('./openinfoman');
+const VIMS = require('./vims');
+const middleware = require('./middleware');
+const winston = require('winston')
 module.exports = {
+  prepareDataSync: ({
+    config,
+    orchestrations,
+    middlewareCallFunction
+  }, callback) => {
+    const oim = OIM(config.openinfoman);
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
+    winston.info('Getting facilities from openinfoman');
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+      winston.info('Getting latest period')
+      vims.getFacilityWithLatestPeriod(facilities, periods => {
+        winston.info('Getting data from timr for periods ' + JSON.stringify(periods))
+        middleware[middlewareCallFunction](periods, rows => {
+          async.each(rows, (row, nxtRow) => {
+            if (row.data.length === 0) {
+              winston.warn("Middleware call for " + middlewareCallFunction + " returned no data for period " + row.periodName)
+            }
+            return nxtRow()
+          }, () => {
+            return callback(facilities, rows)
+          })
+        })
+      })
+    })
+  },
+  prepareDataSyncWithAgeGrp: ({
+    config,
+    orchestrations,
+    lineItem,
+  }, callback) => {
+    const oim = OIM(config.openinfoman);
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
+    winston.info('Getting facilities from openinfoman');
+    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+      winston.info('Getting latest period')
+      vims.getFacilityWithLatestPeriod(facilities, periods => {
+        if (periods.length === 0) {
+          winston.warn('No facility with DRAFT report, stoping data sync');
+          return callback([], [])
+        }
+        vims.getReport(periods[0].periodId, orchestrations, (err, report) => {
+          vims.extractAgeGroups(report.report[lineItem]).then(ageGroups => {
+            if (ageGroups.length == 0) {
+              winston.warn('No age group found, stop data sync');
+              return callback([], [])
+            }
+            return callback(facilities, ageGroups, periods)
+          })
+        })
+      })
+    })
+  },
   extractFacilityData: (facilityId, data, callback) => {
     let facData = data.filter((dt) => {
       return dt.facility_id === facilityId
