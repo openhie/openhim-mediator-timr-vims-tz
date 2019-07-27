@@ -2,6 +2,7 @@ const OIM = require('./openinfoman');
 const VIMS = require('./vims');
 const middleware = require('./middleware');
 const winston = require('winston')
+const async = require('async')
 module.exports = {
   prepareDataSync: ({
     config,

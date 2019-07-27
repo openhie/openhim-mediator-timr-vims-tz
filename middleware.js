@@ -16,7 +16,7 @@ const pool = new Pool({
 module.exports = {
   getImmunizationCoverage: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -65,12 +65,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -104,7 +106,7 @@ module.exports = {
       })
     }
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let query = `select
         ext_id as facility_id,
         mat_tbl.type_mnemonic,
@@ -145,12 +147,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -166,7 +170,7 @@ module.exports = {
   getCTCReferal: (periods, callback) => {
     //add pat_vw.dob - pat_vw.crt_utc < '12 MONTH'::INTERVAL to filter by age
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -197,12 +201,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -217,7 +223,7 @@ module.exports = {
 
   getDiseaseData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -247,12 +253,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -276,7 +284,7 @@ module.exports = {
       return nxtAge()
     })
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let query = `select
         ext_id as facility_id,
         gender_mnemonic,
@@ -303,12 +311,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -332,7 +342,7 @@ module.exports = {
       return nxtAge()
     })
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let query = `select
           ext_id as facility_id,
           gender_mnemonic,
@@ -358,12 +368,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -399,7 +411,7 @@ module.exports = {
       })
     }
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let query = `select
           ext_id as facility_id,
           mat_tbl.type_mnemonic as code,
@@ -427,12 +439,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -447,7 +461,7 @@ module.exports = {
 
   getAEFIData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -479,12 +493,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -499,7 +515,7 @@ module.exports = {
 
   getColdChainData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let year_month = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM');
@@ -528,12 +544,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -557,7 +575,7 @@ module.exports = {
       return nxtAge()
     })
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let query = `select
         ext_id as facility_id,
         pat_vw.gender_mnemonic,
@@ -582,12 +600,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -602,7 +622,7 @@ module.exports = {
 
   getPMTCTData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -610,18 +630,18 @@ module.exports = {
         .endOf('month')
         .format('YYYY-MM-DD');
       let query = `select
-      ext_id as facility_id,
-      pat_vw.gender_mnemonic,
-      ebf.ext_value,
-      count(*) as total
-    from
-      pat_vw
-      inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/pctmtStatus')
-      inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where
-      crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1')
-    group by
-      ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
+        ext_id as facility_id,
+        pat_vw.gender_mnemonic,
+        ebf.ext_value,
+        count(*) as total
+      from
+        pat_vw
+        inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/pctmtStatus')
+        inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
+      where
+        crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1')
+      group by
+        ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
 
       pool.query(query, (err, response) => {
         if (err) {
@@ -633,12 +653,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -653,7 +675,7 @@ module.exports = {
 
   getTTData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -683,12 +705,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -703,7 +727,7 @@ module.exports = {
 
   getChildrUsingMosqNetAtRegData: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -734,12 +758,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -754,7 +780,7 @@ module.exports = {
 
   getDispLLINMosqNet: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -791,12 +817,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -811,7 +839,7 @@ module.exports = {
 
   getStockONHAND: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       var firstDateNewMonth = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .add(1, 'month')
@@ -850,12 +878,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
@@ -870,7 +900,7 @@ module.exports = {
 
   getStockAdjustments: (periods, callback) => {
     let rows = []
-    async.each(periods, (period, nxtPeriod) => {
+    async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
         .startOf('month')
         .format('YYYY-MM-DD');
@@ -918,12 +948,14 @@ module.exports = {
           return nxtPeriod()
         }
         if (response && response.hasOwnProperty('rows')) {
+          winston.info("TImR has returned with " + response.rows.length + " rows for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: response.rows
           })
           return nxtPeriod()
         } else {
+          winston.warn("Invalid response has been received from TImR for period " + period.periodName)
           rows.push({
             periodName: period.periodName,
             data: []
