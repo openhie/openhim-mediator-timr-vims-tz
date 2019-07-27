@@ -107,6 +107,12 @@ module.exports = {
     }
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
+      let startDate = moment(period.periodName, 'MMM YYYY')
+        .startOf('month')
+        .format('YYYY-MM-DD');
+      let endDate = moment(period.periodName, 'MMM YYYY')
+        .endOf('month')
+        .format('YYYY-MM-DD');
       let query = `select
         ext_id as facility_id,
         mat_tbl.type_mnemonic,
@@ -285,6 +291,12 @@ module.exports = {
     })
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
+      let startDate = moment(period.periodName, 'MMM YYYY')
+        .startOf('month')
+        .format('YYYY-MM-DD');
+      let endDate = moment(period.periodName, 'MMM YYYY')
+        .endOf('month')
+        .format('YYYY-MM-DD');
       let query = `select
         ext_id as facility_id,
         gender_mnemonic,
@@ -343,6 +355,12 @@ module.exports = {
     })
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
+      let startDate = moment(period.periodName, 'MMM YYYY')
+        .startOf('month')
+        .format('YYYY-MM-DD');
+      let endDate = moment(period.periodName, 'MMM YYYY')
+        .endOf('month')
+        .format('YYYY-MM-DD');
       let query = `select
           ext_id as facility_id,
           gender_mnemonic,
@@ -412,6 +430,12 @@ module.exports = {
     }
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
+      let startDate = moment(period.periodName, 'MMM YYYY')
+        .startOf('month')
+        .format('YYYY-MM-DD');
+      let endDate = moment(period.periodName, 'MMM YYYY')
+        .endOf('month')
+        .format('YYYY-MM-DD');
       let query = `select
           ext_id as facility_id,
           mat_tbl.type_mnemonic as code,
@@ -576,6 +600,12 @@ module.exports = {
     })
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
+      let startDate = moment(period.periodName, 'MMM YYYY')
+        .startOf('month')
+        .format('YYYY-MM-DD');
+      let endDate = moment(period.periodName, 'MMM YYYY')
+        .endOf('month')
+        .format('YYYY-MM-DD');
       let query = `select
         ext_id as facility_id,
         pat_vw.gender_mnemonic,

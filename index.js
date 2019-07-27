@@ -221,7 +221,7 @@ function setupApp() {
       mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
         async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
           mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
-            middleware.getSupplementsData(timrAgeGroup, startDate, endDate, rows => {
+            middleware.getSupplementsData(timrAgeGroup, periods, rows => {
               async.eachSeries(facilities, (facility, nxtFacility) => {
                 winston.info('Sync Supplements data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                 if (facility.periodId) {
@@ -468,7 +468,7 @@ function setupApp() {
       mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
         async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
           mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
-            middleware.getBreastFeedingData(timrAgeGroup, startDate, endDate, rows => {
+            middleware.getBreastFeedingData(timrAgeGroup, periods, rows => {
               async.eachSeries(facilities, (facility, nxtFacility) => {
                 winston.info('Sync breast feeding data for ' + facility.facilityName);
                 if (facility.periodId) {
@@ -673,7 +673,7 @@ function setupApp() {
       mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
         async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
             mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
-              middleware.getChildVisitData(timrAgeGroup, startDate, endDate, rows => {
+              middleware.getChildVisitData(timrAgeGroup, periods, rows => {
                 async.eachSeries(facilities, (facility, nxtFacility) => {
                     winston.info('Sync Child Visit data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                     if (facility.periodId) {
@@ -1165,23 +1165,12 @@ function setupApp() {
                   if (period.id == null && period.status == null) {
                     //lets initialize only one report on index 0
                     if (index == 0)
-                      vims.initializeReport(
-                        vimsFacilityId,
-                        period.periodId,
-                        orchestrations,
-                        (err, body) => {
-                          if (err) {
-                            winston.error(err);
-                          }
-                          winston.info(
-                            'Report for ' +
-                            period.periodName +
-                            ' Facility ' +
-                            facilityName +
-                            ' Initialized'
-                          );
+                      vims.initializeReport(vimsFacilityId, period.periodId, orchestrations, (err, body) => {
+                        if (err) {
+                          winston.error(err);
                         }
-                      );
+                        winston.info('Report for ' + period.periodName + ' Facility ' + facilityName + ' Initialized');
+                      });
                   }
                   if (index == body.periods.length - 1) {
                     return processNextFacility();
@@ -1343,15 +1332,7 @@ function setupApp() {
           let before = new Date();
           request.get(options, (err, res, body) => {
             orchestrations.push(
-              utils.buildOrchestration(
-                'Fetching Distribution',
-                before,
-                'GET',
-                options.url,
-                JSON.stringify(options.headers),
-                res,
-                body
-              )
+              utils.buildOrchestration('Fetching Distribution', before, 'GET', options.url, JSON.stringify(options.headers), res, body)
             );
             if (isJSON(body)) {
               var distribution = JSON.parse(body).distribution;
@@ -1365,33 +1346,17 @@ function setupApp() {
             ) {
               //in case we dont get the distribution id we expected then try fetching distr by id
               if (timr_distributionId != distribution.id) {
-                winston.info(
-                  'VIMS Distribution ID ' +
-                  distribution.id +
-                  ' Mismatch distribution ID ' +
-                  timr_distributionId +
-                  ',that we are looking,trying fetching by distribution ID'
-                );
-                getDistributionById(
-                  timr_distributionId,
-                  orchestrations,
-                  (distribution, err) => {
-                    return callback(distribution, err);
-                  }
-                );
+                winston.info('VIMS Distribution ID ' + distribution.id + ' Mismatch distribution ID ' + timr_distributionId + ',that we are looking,trying fetching by distribution ID');
+                getDistributionById(timr_distributionId, orchestrations, (distribution, err) => {
+                  return callback(distribution, err);
+                });
               } else return callback(distribution, err);
             } else {
               //in case we dont get any distribution then may be lets try fetching distr by id
-              winston.info(
-                'No distribution received from VIMS,try fetching by distribution ID'
-              );
-              getDistributionById(
-                timr_distributionId,
-                orchestrations,
-                (distribution, err) => {
-                  return callback(distribution, err);
-                }
-              );
+              winston.info('No distribution received from VIMS,try fetching by distribution ID');
+              getDistributionById(timr_distributionId, orchestrations, (distribution, err) => {
+                return callback(distribution, err);
+              });
             }
           });
         });
@@ -1410,250 +1375,137 @@ function setupApp() {
       }
 
       var ast = XmlReader.parseSync(distr);
-      var distributionid = xmlQuery(ast)
-        .find('receivingAdvice')
-        .children()
-        .find('despatchAdvice')
-        .children()
-        .find('entityIdentification')
-        .text();
-      var shiptoLength = xmlQuery(ast)
-        .find('receivingAdvice')
-        .children()
-        .find('shipTo')
-        .children()
-        .size();
-      var shipto = xmlQuery(ast)
-        .find('receivingAdvice')
-        .children()
-        .find('shipTo')
-        .children();
+      var distributionid = xmlQuery(ast).find('receivingAdvice').children().find('despatchAdvice').children().find('entityIdentification').text();
+      var shiptoLength = xmlQuery(ast).find('receivingAdvice').children().find('shipTo').children().size();
+      var shipto = xmlQuery(ast).find('receivingAdvice').children().find('shipTo').children();
       var toFacilityId = '';
       for (var counter = 0; counter < shiptoLength; counter++) {
-        if (
-          shipto.eq(counter).attr('additionalPartyIdentificationTypeCode') ==
-          'HIE_FRID'
-        )
-          toFacilityId = shipto
-          .eq(counter)
-          .find('additionalPartyIdentification')
-          .text();
+        if (shipto.eq(counter).attr('additionalPartyIdentificationTypeCode') == 'HIE_FRID')
+          toFacilityId = shipto.eq(counter).find('additionalPartyIdentification').text();
       }
 
-      if (
-        toFacilityId == '' ||
-        toFacilityId == null ||
-        toFacilityId == undefined
-      ) {
-        winston.error(
-          'Empty Destination Facility found in TImR Receiving Advice,stop processing'
-        );
-        return updateTransaction(
-          req,
-          'Empty Destination Facility found in TImR Receiving Advice',
-          'Completed',
-          '200',
-          ''
-        );
+      if (toFacilityId == '' || toFacilityId == null || toFacilityId == undefined) {
+        winston.error('Empty Destination Facility found in TImR Receiving Advice,stop processing');
+        return updateTransaction(req, 'Empty Destination Facility found in TImR Receiving Advice', 'Completed', '200', '');
       }
 
-      var shipfromLength = xmlQuery(ast)
-        .find('receivingAdvice')
-        .children()
-        .find('shipper')
-        .children()
-        .size();
-      var shipfrom = xmlQuery(ast)
-        .find('receivingAdvice')
-        .children()
-        .find('shipper')
-        .children();
+      var shipfromLength = xmlQuery(ast).find('receivingAdvice').children().find('shipper').children().size();
+      var shipfrom = xmlQuery(ast).find('receivingAdvice').children().find('shipper').children();
       var fromFacilityId = '';
       for (var counter = 0; counter < shipfromLength; counter++) {
-        if (
-          shipfrom.eq(counter).attr('additionalPartyIdentificationTypeCode') ==
-          'HIE_FRID'
-        )
-          fromFacilityId = shipfrom
-          .eq(counter)
-          .find('additionalPartyIdentification')
-          .text();
+        if (shipfrom.eq(counter).attr('additionalPartyIdentificationTypeCode') == 'HIE_FRID')
+          fromFacilityId = shipfrom.eq(counter).find('additionalPartyIdentification').text();
       }
 
-      if (
-        fromFacilityId == '' ||
-        fromFacilityId == null ||
-        fromFacilityId == undefined
-      ) {
-        winston.error(
-          'Empty Source Facility found in TImR Receiving Advice,stop processing'
-        );
-        return updateTransaction(
-          req,
-          'Empty Source Facility found in TImR Receiving Advice',
-          'Completed',
-          '200',
-          ''
-        );
+      if (fromFacilityId == '' || fromFacilityId == null || fromFacilityId == undefined) {
+        winston.error('Empty Source Facility found in TImR Receiving Advice,stop processing');
+        return updateTransaction(req, 'Empty Source Facility found in TImR Receiving Advice', 'Completed', '200', '');
       }
 
       var vimsToFacilityId = null;
       winston.info('Getting VIMS facility ID');
       oim.getVimsFacilityId(toFacilityId, orchestrations, (err, vimsFacId) => {
         if (err) {
-          winston.error(
-            'An Error Occured While Trying To Access OpenInfoMan,Stop Processing'
-          );
+          winston.error('An Error Occured While Trying To Access OpenInfoMan,Stop Processing');
           return;
         }
         if (vimsFacId == '' || vimsFacId == null || vimsFacId == undefined) {
-          winston.error(
-            'No matching VIMS Facility ID for ' +
-            toFacilityId +
-            ',Stop Processing'
-          );
-          return updateTransaction(
-            req,
-            'No matching VIMS Facility ID for ' + toFacilityId,
-            'Completed',
-            '200',
-            ''
-          );
+          winston.error('No matching VIMS Facility ID for ' + toFacilityId + ',Stop Processing');
+          return updateTransaction(req, 'No matching VIMS Facility ID for ' + toFacilityId, 'Completed', '200', '');
         }
         winston.info('Received VIMS facility ID');
         vimsToFacilityId = vimsFacId;
         winston.info('Getting Distribution From VIMS For Receiving Advice');
         if (vimsToFacilityId)
-          getDistributionByFacilityId(
-            vimsToFacilityId,
-            distributionid,
-            orchestrations,
-            (distribution, err) => {
-              winston.info(
-                'Received Distribution From VIMS For Receiving Advice'
-              );
-              if (!distribution) {
-                winston.warn('No matching DespatchAdvice in VIMS!!!');
-                updateTransaction(
-                  req,
-                  'No matching DespatchAdvice in VIMS!!!',
-                  'Completed',
-                  '200',
-                  orchestrations
+          getDistributionByFacilityId(vimsToFacilityId, distributionid, orchestrations, (distribution, err) => {
+            winston.info('Received Distribution From VIMS For Receiving Advice');
+            if (!distribution) {
+              winston.warn('No matching DespatchAdvice in VIMS!!!');
+              updateTransaction(req, 'No matching DespatchAdvice in VIMS!!!', 'Completed', '200', orchestrations);
+            }
+            if (distribution) {
+              if (distributionid == distribution.id) {
+                distribution.status = 'RECEIVED';
+                async.eachSeries(distribution.lineItems, function (lineItems, nextlineItems) {
+                    var lineItemQuantity = 0;
+                    async.eachSeries(lineItems.lots, function (lot, nextLot) {
+                        var lotId = lot.lotId;
+                        var lotQuantity = lot.quantity;
+
+                        //find quantity accepted for this lot
+                        var productsLength = xmlQuery(ast)
+                          .find('receivingAdvice')
+                          .children()
+                          .find('receivingAdviceLogisticUnit')
+                          .children()
+                          .size();
+                        var products = xmlQuery(ast)
+                          .find('receivingAdvice')
+                          .children()
+                          .find('receivingAdviceLogisticUnit')
+                          .children();
+                        var quantityAcc = 0;
+                        for (
+                          var counter = 0; counter < productsLength; counter++
+                        ) {
+                          if (
+                            products
+                            .eq(counter)
+                            .find('receivingAdviceLineItem')
+                            .children()
+                            .find('transactionalTradeItem')
+                            .children()
+                            .find('additionalTradeItemIdentification')
+                            .attr(
+                              'additionalTradeItemIdentificationTypeCode'
+                            ) == 'VIMS_STOCK_ID' &&
+                            products
+                            .eq(counter)
+                            .find('receivingAdviceLineItem')
+                            .children()
+                            .find('transactionalTradeItem')
+                            .children()
+                            .find('additionalTradeItemIdentification')
+                            .text() == lotId
+                          )
+                            quantityAcc = products
+                            .eq(counter)
+                            .find('receivingAdviceLineItem')
+                            .children()
+                            .find('quantityAccepted')
+                            .text();
+                        }
+                        //set this lot to quantity Accepted
+                        lot.quantity = Number(quantityAcc);
+
+                        lineItemQuantity =
+                          Number(lineItemQuantity) + Number(quantityAcc);
+                        nextLot();
+                      },
+                      function () {
+                        lineItems.quantity = lineItemQuantity;
+                        nextlineItems();
+                      }
+                    );
+                  },
+                  function () {
+                    //submit Receiving Advice To VIMS
+                    winston.info('Sending Receiving Advice To VIMS');
+                    vims.sendReceivingAdvice(distribution, orchestrations, res => {
+                      winston.info(res);
+                      winston.info('Receiving Advice Submitted To VIMS!!!');
+                      updateTransaction(req, '', 'Successful', '200', orchestrations);
+                      orchestrations = [];
+                    });
+                  }
                 );
-              }
-              if (distribution) {
-                if (distributionid == distribution.id) {
-                  distribution.status = 'RECEIVED';
-                  async.eachSeries(
-                    distribution.lineItems,
-                    function (lineItems, nextlineItems) {
-                      var lineItemQuantity = 0;
-                      async.eachSeries(
-                        lineItems.lots,
-                        function (lot, nextLot) {
-                          var lotId = lot.lotId;
-                          var lotQuantity = lot.quantity;
-
-                          //find quantity accepted for this lot
-                          var productsLength = xmlQuery(ast)
-                            .find('receivingAdvice')
-                            .children()
-                            .find('receivingAdviceLogisticUnit')
-                            .children()
-                            .size();
-                          var products = xmlQuery(ast)
-                            .find('receivingAdvice')
-                            .children()
-                            .find('receivingAdviceLogisticUnit')
-                            .children();
-                          var quantityAcc = 0;
-                          for (
-                            var counter = 0; counter < productsLength; counter++
-                          ) {
-                            if (
-                              products
-                              .eq(counter)
-                              .find('receivingAdviceLineItem')
-                              .children()
-                              .find('transactionalTradeItem')
-                              .children()
-                              .find('additionalTradeItemIdentification')
-                              .attr(
-                                'additionalTradeItemIdentificationTypeCode'
-                              ) == 'VIMS_STOCK_ID' &&
-                              products
-                              .eq(counter)
-                              .find('receivingAdviceLineItem')
-                              .children()
-                              .find('transactionalTradeItem')
-                              .children()
-                              .find('additionalTradeItemIdentification')
-                              .text() == lotId
-                            )
-                              quantityAcc = products
-                              .eq(counter)
-                              .find('receivingAdviceLineItem')
-                              .children()
-                              .find('quantityAccepted')
-                              .text();
-                          }
-                          //set this lot to quantity Accepted
-                          lot.quantity = Number(quantityAcc);
-
-                          lineItemQuantity =
-                            Number(lineItemQuantity) + Number(quantityAcc);
-                          nextLot();
-                        },
-                        function () {
-                          lineItems.quantity = lineItemQuantity;
-                          nextlineItems();
-                        }
-                      );
-                    },
-                    function () {
-                      //submit Receiving Advice To VIMS
-                      winston.info('Sending Receiving Advice To VIMS');
-                      vims.sendReceivingAdvice(
-                        distribution,
-                        orchestrations,
-                        res => {
-                          winston.info(res);
-                          winston.info('Receiving Advice Submitted To VIMS!!!');
-                          updateTransaction(
-                            req,
-                            '',
-                            'Successful',
-                            '200',
-                            orchestrations
-                          );
-                          orchestrations = [];
-                        }
-                      );
-                    }
-                  );
-                } else {
-                  winston.error(
-                    'VIMS has responded with Despatch Advice ID ' +
-                    distribution.id +
-                    ' Which Does Not Match TImR Receiving Advice ID ' +
-                    distributionid
-                  );
-                  return updateTransaction(
-                    req,
-                    'VIMS has responded with Despatch Advice ID ' +
-                    distribution.id +
-                    ' Which Does Not Match TImR Receiving Advice ID ' +
-                    distributionid,
-                    'Completed',
-                    '200',
-                    orchestrations
-                  );
-                  orchestrations = [];
-                }
+              } else {
+                winston.error('VIMS has responded with Despatch Advice ID ' + distribution.id + ' Which Does Not Match TImR Receiving Advice ID ' + distributionid);
+                return updateTransaction(req, 'VIMS has responded with Despatch Advice ID ' + distribution.id + ' Which Does Not Match TImR Receiving Advice ID ' + distributionid, 'Completed', '200', orchestrations);
+                orchestrations = [];
               }
             }
-          );
+          });
       });
     }),
     app.post('/orderRequest', (req, res) => {
@@ -1670,17 +1522,11 @@ function setupApp() {
     function getVaccDiseaseMapping(vacc, callback) {
       var diseases = [];
       var vacc_arr = vacc.split(',');
-      async.eachSeries(
-        vacc_arr,
-        (vacc, nxtVacc) => {
-          async.eachOfSeries(
-            vacc_diseases_mapping,
-            (vacc_diseases, vacc_diseases_key, nxtVaccDiseases) => {
+      async.eachSeries(vacc_arr, (vacc, nxtVacc) => {
+          async.eachOfSeries(vacc_diseases_mapping, (vacc_diseases, vacc_diseases_key, nxtVaccDiseases) => {
               if (vacc_diseases_key == vacc && vacc_diseases != '') {
                 if (vacc_diseases.length) {
-                  async.eachSeries(
-                    vacc_diseases,
-                    (dis, nxt) => {
+                  async.eachSeries(vacc_diseases, (dis, nxt) => {
                       diseases.push(dis);
                       nxt();
                     },
@@ -1742,58 +1588,52 @@ function setupApp() {
         var missed_doses;
         var days;
         for (var def_id in defaulters) {
-          promises.push(
-            new Promise((resolve, reject) => {
-              async.eachSeries(
-                defaulters[def_id].p,
-                (defDet, nxtDefDet) => {
-                  if (defDet.Name == 'days_overdue') days = defDet.Value;
-                  if (defDet.Name == 'missed_doses')
-                    missed_doses = defDet.Value;
-                  if (defDet.Name == 'tel') child_tel = defDet.Value;
-                  if (defDet.Name == 'mth_tel') mth_tel = defDet.Value;
-                  if (defDet.Name == 'nok_tel') nok_tel = defDet.Value;
-                  return nxtDefDet();
-                },
-                function () {
-                  var phone = null;
-                  if (child_tel != null) phone = child_tel;
-                  else if (mth_tel != null) phone = mth_tel;
-                  else if (nok_tel != null) phone = nok_tel;
+          promises.push(new Promise((resolve, reject) => {
+            async.eachSeries(defaulters[def_id].p, (defDet, nxtDefDet) => {
+              if (defDet.Name == 'days_overdue') days = defDet.Value;
+              if (defDet.Name == 'missed_doses')
+                missed_doses = defDet.Value;
+              if (defDet.Name == 'tel') child_tel = defDet.Value;
+              if (defDet.Name == 'mth_tel') mth_tel = defDet.Value;
+              if (defDet.Name == 'nok_tel') nok_tel = defDet.Value;
+              return nxtDefDet();
+            }, function () {
+              var phone = null;
+              if (child_tel != null) phone = child_tel;
+              else if (mth_tel != null) phone = mth_tel;
+              else if (nok_tel != null) phone = nok_tel;
 
-                  if (phone == null) {
-                    resolve();
-                  } else {
-                    if (phone.indexOf('0') === 0) {
-                      phone = phone.replace('0', '255');
-                    } else if (
-                      phone.indexOf('0') !== 0 &&
-                      phone.indexOf('255') !== 0 &&
-                      phone.indexOf('+255') !== 0
-                    ) {
-                      if (phone.length == 9) phone = '255' + phone;
-                    }
-
-                    getVaccDiseaseMapping(missed_doses, diseases => {
-                      var day_name = moment().format('dddd');
-                      if (day_name == 'Saturday' || day_name == 'Sunday')
-                        var day = 'JUMATATU';
-                      else var day = 'LEO';
-
-                      var msg =
-                        'MTOTO WAKO HAKUPATA CHANJO YA ' +
-                        missed_doses +
-                        '.INAYOKINGA DHIDI YA MAGONJWA YA ' +
-                        diseases +
-                        '.TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI';
-                      smsAggregator.broadcast(phone, msg, orchestrations);
-                      resolve();
-                    });
-                  }
+              if (phone == null) {
+                resolve();
+              } else {
+                if (phone.indexOf('0') === 0) {
+                  phone = phone.replace('0', '255');
+                } else if (
+                  phone.indexOf('0') !== 0 &&
+                  phone.indexOf('255') !== 0 &&
+                  phone.indexOf('+255') !== 0
+                ) {
+                  if (phone.length == 9) phone = '255' + phone;
                 }
-              );
-            })
-          );
+
+                getVaccDiseaseMapping(missed_doses, diseases => {
+                  var day_name = moment().format('dddd');
+                  if (day_name == 'Saturday' || day_name == 'Sunday')
+                    var day = 'JUMATATU';
+                  else var day = 'LEO';
+
+                  var msg =
+                    'MTOTO WAKO HAKUPATA CHANJO YA ' +
+                    missed_doses +
+                    '.INAYOKINGA DHIDI YA MAGONJWA YA ' +
+                    diseases +
+                    '.TAFADHALI HUDHURIA KITUO CHA CHANJO CHA KARIBU KWA AJILI YA CHANJO NA USHAURI ZAIDI';
+                  smsAggregator.broadcast(phone, msg, orchestrations);
+                  resolve();
+                });
+              }
+            });
+          }));
         }
 
         Promise.all(promises).then(() => {
@@ -1836,9 +1676,7 @@ function start(callback) {
             let configEmitter = medUtils.activateHeartbeat(apiConf.api);
             configEmitter.on('error', error => {
               winston.error(error);
-              winston.error(
-                'an error occured while trying to activate heartbeat'
-              );
+              winston.error('an error occured while trying to activate heartbeat');
             });
             configEmitter.on('config', newConfig => {
               winston.info('Received updated config:', newConfig);

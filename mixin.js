@@ -44,12 +44,15 @@ module.exports = {
           winston.warn('No facility with DRAFT report, stoping data sync');
           return callback([], [])
         }
+        winston.info('Getting vims report for period ID ' + periods[0].periodId)
         vims.getReport(periods[0].periodId, orchestrations, (err, report) => {
+          winston.info('Extracting age groups')
           vims.extractAgeGroups(report.report[lineItem]).then(ageGroups => {
             if (ageGroups.length == 0) {
               winston.warn('No age group found, stop data sync');
               return callback([], [])
             }
+            winston.info('returning age groups and periods')
             return callback(facilities, ageGroups, periods)
           })
         })
