@@ -387,22 +387,14 @@ function setupApp() {
         middlewareCallFunction: 'getCTCReferal'
       }
       mixin.prepareDataSync(parameters, (facilities, rows) => {
-        async.eachSeries(
-          facilities,
-          (facility, nxtFacility) => {
-            winston.info(
-              'Sync CTC Referal data for ' + facility.facilityName
-            );
+        async.eachSeries(facilities, (facility, nxtFacility) => {
+            winston.info('Sync CTC Referal data for ' + facility.facilityName);
             if (facility.periodId) {
               let periodRow = rows.find((row) => {
                 return row.periodName == facility.periodName
               })
               if (!periodRow) {
-                winston.warn(
-                  'No data for ' +
-                  facility.facilityName +
-                  ' Skip processing CTC Referal data until this facility submit previous month data'
-                );
+                winston.warn('No data for ' + facility.facilityName + ' Skip processing CTC Referal data until this facility submit previous month data');
                 return nxtFacility();
               }
               mixin.extractFacilityData(
@@ -410,35 +402,18 @@ function setupApp() {
                 periodRow.data,
                 facData => {
                   if (facData.length > 0) {
-                    vims.saveCTCReferalData(
-                      facData,
-                      facility,
-                      orchestrations,
-                      () => {
-                        winston.info(
-                          'Done synchronizing CTC Referal data' +
-                          ' for ' +
-                          facility.facilityName
-                        );
-                        return nxtFacility();
-                      }
-                    );
+                    vims.saveCTCReferalData(facData, facility, orchestrations, () => {
+                      winston.info('Done synchronizing CTC Referal data' + ' for ' + facility.facilityName);
+                      return nxtFacility();
+                    });
                   } else {
-                    winston.info(
-                      'No data for ' +
-                      facility.facilityName +
-                      ' Skip processing CTC Referal data'
-                    );
+                    winston.info('No data for ' + facility.facilityName + ' Skip processing CTC Referal data');
                     return nxtFacility();
                   }
                 }
               );
             } else {
-              winston.warn(
-                'No DRAFT Report for ' +
-                facility.facilityName +
-                ' Skip processing CTC Referal data'
-              );
+              winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing CTC Referal data');
               return nxtFacility();
             }
           },

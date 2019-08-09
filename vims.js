@@ -1475,10 +1475,10 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             }
             saveVIMSReport(updatedReport, "Stock ON_HAND", orchestrations, (err, res, body) => {
               if (err) {
-                return callback(err)
+                winston.error(err)
               }
-              return nxtData()
             })
+            return nxtData()
           } else {
             return nxtData()
           }
@@ -1548,10 +1548,10 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             }
             saveVIMSReport(updatedReport, "Stock Adjustments", orchestrations, (err, res, body) => {
               if (err) {
-                return callback(err)
+                winston.error(err)
               }
-              return nxtData()
             })
+            return nxtData()
           } else {
             return nxtData()
           }

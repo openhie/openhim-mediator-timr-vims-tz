@@ -87,24 +87,14 @@ module.exports = {
 
   getImmunizationCoverageByAge: (ages, periods, callback) => {
     let ageQuery = ''
-    if (ages.length = 2) {
-      let age1 = ages[0]
-      let age2 = ages[1]
-      if (age1 < age2) {
-        ageQuery = `sbadm_tbl.act_utc - pat_vw.dob BETWEEN '${age1.age}'::INTERVAL AND '${age2.age}'::INTERVAL`
+    async.eachSeries(ages, (age, nxtAge) => {
+      if (ageQuery) {
+        ageQuery += 'and ' + `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
       } else {
-        ageQuery = `sbadm_tbl.act_utc - pat_vw.dob BETWEEN '${age2.age}'::INTERVAL AND '${age1.age}'::INTERVAL`
+        ageQuery += `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
       }
-    } else {
-      async.eachSeries(ages, (age, nxtAge) => {
-        if (ageQuery) {
-          ageQuery += 'and ' + `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
-        } else {
-          ageQuery += `sbadm_tbl.act_utc - pat_vw.dob ${age.operator} '${age.age}'::INTERVAL`
-        }
-        return nxtAge()
-      })
-    }
+      return nxtAge()
+    })
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
@@ -408,26 +398,14 @@ module.exports = {
 
   getSupplementsData: (ages, periods, callback) => {
     let ageQuery = ''
-    if (ages.length == 2) {
-      let age1 = ages[0]
-      let age2 = ages[1]
-      let ageNumber1 = parseFloat(age1.age.split(' ').shift())
-      let ageNumber2 = parseFloat(age2.age.split(' ').shift())
-      if (ageNumber1 < ageNumber2) {
-        ageQuery = `act_utc - dob BETWEEN '${age1.age}'::INTERVAL AND '${age2.age}'::INTERVAL`
+    async.eachSeries(ages, (age, nxtAge) => {
+      if (ageQuery) {
+        ageQuery += ' and ' + `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       } else {
-        ageQuery = `act_utc - dob BETWEEN '${age2.age}'::INTERVAL AND '${age1.age}'::INTERVAL`
+        ageQuery += `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
       }
-    } else {
-      async.eachSeries(ages, (age, nxtAge) => {
-        if (ageQuery) {
-          ageQuery += ' and ' + `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
-        } else {
-          ageQuery += `act_utc - dob ${age.operator} '${age.age}'::INTERVAL`
-        }
-        return nxtAge()
-      })
-    }
+      return nxtAge()
+    })
     let rows = []
     async.eachSeries(periods, (period, nxtPeriod) => {
       let startDate = moment(period.periodName, 'MMM YYYY')
@@ -669,7 +647,7 @@ module.exports = {
         inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/pctmtStatus')
         inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
       where
-        crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1')
+        crt_utc::DATE between '${startDate}' and '${endDate}' and ext_value='1'
       group by
         ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
 
@@ -713,18 +691,19 @@ module.exports = {
         .endOf('month')
         .format('YYYY-MM-DD');
       let query = `select
-      ext_id as facility_id,
-      pat_vw.gender_mnemonic,
-      ebf.ext_value,
-      count(*) as total
-    from
-      pat_vw
-      inner join ent_ext_tbl as ebf on (pat_vw.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/tetanusStatus')
-      inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_vw.fac_id and nsid = 'TZ_HFR_ID')
-    where
-      crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1' or ext_value='2')
-    group by
-      ext_id, ebf.ext_value, pat_vw.gender_mnemonic order by ext_id`
+        ext_id as facility_id,
+        pat_tbl.gender_mnemonic,
+        ebf.ext_value,
+        count(*) as total
+      from
+        pat_tbl
+        inner join psn_tbl using (psn_id)
+        inner join ent_ext_tbl as ebf on (pat_tbl.pat_id = ebf.ent_id and ebf.ext_typ = 'http://openiz.org/extensions/patient/contrib/timr/tetanusStatus')
+        inner join fac_id_tbl on (fac_id_tbl.fac_id = pat_tbl.reg_fac_id and nsid = 'TZ_HFR_ID')
+      where
+        crt_utc::DATE between '${startDate}' and '${endDate}' and (ext_value='0' or ext_value='1' or ext_value='2')
+      group by
+        ext_id, ebf.ext_value, pat_tbl.gender_mnemonic order by ext_id`
       pool.query(query, (err, response) => {
         if (err) {
           winston.error(err)

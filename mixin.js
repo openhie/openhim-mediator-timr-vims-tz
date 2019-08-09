@@ -90,6 +90,10 @@ module.exports = {
       var dimension = null
       var operator = ageGroup.charAt(0)
       if (operator == '<' || operator == '>') {
+        // if the operator was >= or <= then get the = sign
+        if (ageGroup.charAt(1) === '=') {
+          operator += '='
+        }
         for (let char of ageGroup) {
           if (!isNaN(char)) {
             age += char
