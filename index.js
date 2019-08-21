@@ -1177,48 +1177,35 @@ function setupApp() {
       let orchestrations = [];
 
       var distribution = req.rawBody;
-      vims.convertDistributionToGS1(
-        distribution,
-        orchestrations,
-        (err, despatchAdviceBaseMessage) => {
-          if (err) {
-            winston.error(
-              'An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR'
-            );
-            updateTransaction(req, '', 'Completed', '200', orchestrations);
-            return;
-          }
-          if (despatchAdviceBaseMessage == false) {
-            winston.info('Failed to convert VIMS Distribution to GS1');
-            updateTransaction(req, '', 'Completed', '200', orchestrations);
-            return;
-          }
-          winston.info('Getting access token from TImR');
-          timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
-            if (err) {
-              winston.error(
-                'An error occured while getting access token from TImR'
-              );
-              updateTransaction(req, '', 'Completed', '200', orchestrations);
-              return;
-            }
-            winston.info('Received GS1 Access Token From TImR');
-            var access_token = JSON.parse(body).access_token;
-            winston.info('Saving Despatch Advice To TImR');
-            timr.saveDistribution(
-              despatchAdviceBaseMessage,
-              access_token,
-              orchestrations,
-              res => {
-                winston.info('Saved Despatch Advice To TImR');
-                winston.info(res);
-                updateTransaction(req, '', 'Successful', '200', orchestrations);
-                orchestrations = [];
-              }
-            );
-          });
+      vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage) => {
+        if (err) {
+          winston.error('An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR');
+          updateTransaction(req, '', 'Completed', '200', orchestrations);
+          return;
         }
-      );
+        if (despatchAdviceBaseMessage == false) {
+          winston.info('Failed to convert VIMS Distribution to GS1');
+          updateTransaction(req, '', 'Completed', '200', orchestrations);
+          return;
+        }
+        winston.info('Getting access token from TImR');
+        timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
+          if (err) {
+            winston.error('An error occured while getting access token from TImR');
+            updateTransaction(req, '', 'Completed', '200', orchestrations);
+            return;
+          }
+          winston.info('Received GS1 Access Token From TImR');
+          var access_token = JSON.parse(body).access_token;
+          winston.info('Saving Despatch Advice To TImR');
+          timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, res => {
+            winston.info('Saved Despatch Advice To TImR');
+            winston.info(res);
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+            orchestrations = [];
+          });
+        });
+      });
     }),
     app.post('/receivingAdvice', (req, res) => {
       req.timestamp = new Date();

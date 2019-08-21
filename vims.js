@@ -1684,6 +1684,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
                 winston.error("VIMS Facility with ID " + distribution.fromFacilityId + " Was not found on the system,stop processing")
                 return callback(err)
               }
+              winston.info(`Sending Distribution From ${facName1} To ${facName}`)
               fromFacilityName = facName1
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data, timrToFacilityId, timrFromFacilityId, fromFacilityName, distributionDate, distributionId, timrToFacilityId, timrFromFacilityId, timrToFacilityId, distributionDate, creationDate)
