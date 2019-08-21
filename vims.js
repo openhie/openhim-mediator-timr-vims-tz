@@ -1757,7 +1757,6 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
                 }
               }, function () {
                 despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s", "")
-                winston.info(despatchAdviceBaseMessage)
                 if (timrToFacilityId)
                   callback(err, despatchAdviceBaseMessage)
                 else {

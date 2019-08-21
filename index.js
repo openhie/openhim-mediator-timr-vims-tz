@@ -925,122 +925,71 @@ function setupApp() {
 
       oim.getVimsFacilities(orchestrations, (err, facilities) => {
         if (err) {
-          winston.error(
-            'An Error Occured While Trying To Access OpenInfoMan,Stop Processing'
-          );
+          winston.error('An Error Occured While Trying To Access OpenInfoMan,Stop Processing');
           return;
         }
-        async.eachSeries(
-          facilities,
-          function (facility, processNextFacility) {
-            var vimsFacilityId = facility.vimsFacilityId;
-            var facilityName = facility.facilityName;
-            vims.checkDistribution(
-              vimsFacilityId,
-              orchestrations,
-              (err, distribution) => {
-                if (err) {
-                  winston.error(
-                    'An error occured while checking distribution for ' +
-                    facilityName
-                  );
-                  return processNextFacility();
-                }
-                if (
-                  distribution == false ||
-                  distribution == null ||
-                  distribution == undefined
-                ) {
-                  winston.info('No Distribution For ' + facilityName);
-                  return processNextFacility();
-                } else {
-                  winston.info('Found distribution for ' + facilityName);
-                }
-                winston.info('Now Converting Distribution To GS1');
-                distribution = JSON.stringify(distribution);
-                vims.convertDistributionToGS1(
-                  distribution,
-                  orchestrations,
-                  (err, despatchAdviceBaseMessage) => {
-                    if (err) {
-                      winston.error(
-                        'An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR'
-                      );
-                      return processNextFacility();
-                    }
-                    if (
-                      despatchAdviceBaseMessage == false ||
-                      despatchAdviceBaseMessage == null ||
-                      despatchAdviceBaseMessage == undefined
-                    ) {
-                      winston.error(
-                        'Failed to convert VIMS Distribution to GS1'
-                      );
-                      return processNextFacility();
-                    }
-                    winston.info('Done Converting Distribution To GS1');
-                    winston.info('Getting GS1 Access Token From TImR');
-                    timr.getAccessToken(
-                      'gs1',
-                      orchestrations,
-                      (err, res, body) => {
-                        winston.info('Received GS1 Access Token From TImR');
-                        if (err) {
-                          winston.error(
-                            'An error occured while getting access token from TImR'
-                          );
-                          return processNextFacility();
-                        }
-                        var access_token = JSON.parse(body).access_token;
-                        winston.info('Saving Despatch Advice To TImR');
-                        timr.saveDistribution(
-                          despatchAdviceBaseMessage,
-                          access_token,
-                          orchestrations,
-                          res => {
-                            if (res) {
-                              winston.error(
-                                'An error occured while saving despatch advice to TImR'
-                              );
-                              winston.error(distribution);
-                              winston.error(despatchAdviceBaseMessage);
-                              winston.error(res);
-                              let msg =
-                                'Distribution to facility ' + facilityName + '<br><br>'
-                              distribution +
-                                '<br><p>' +
-                                despatchAdviceBaseMessage;
-                              send_email.send(
-                                'Stock Rejected By TImR',
-                                msg,
-                                () => {
-                                  return processNextFacility();
-                                }
-                              );
-                            } else {
-                              winston.info(
-                                'Despatch Advice Saved To TImR Successfully'
-                              );
-                              return processNextFacility();
-                            }
-                          }
-                        );
-                      }
-                    );
-                  }
-                );
+        async.eachSeries(facilities, function (facility, processNextFacility) {
+          var vimsFacilityId = facility.vimsFacilityId;
+          var facilityName = facility.facilityName;
+          vims.checkDistribution(vimsFacilityId, orchestrations, (err, distribution) => {
+            if (err) {
+              winston.error('An error occured while checking distribution for ' + facilityName);
+              return processNextFacility();
+            }
+            if (distribution == false || distribution == null || distribution == undefined) {
+              winston.info('No Distribution For ' + facilityName);
+              return processNextFacility();
+            } else {
+              winston.info('Found distribution for ' + facilityName);
+            }
+            winston.info('Now Converting Distribution To GS1');
+            distribution = JSON.stringify(distribution);
+            vims.convertDistributionToGS1(distribution, orchestrations, (err, despatchAdviceBaseMessage) => {
+              if (err) {
+                winston.error('An Error occured while trying to convert Distribution From VIMS,stop sending Distribution to TImR');
+                return processNextFacility();
               }
-            );
-          },
-          function () {
-            winston.info('Done Getting Despatch Advice!!!');
-            //first update transaction without orchestrations
-            updateTransaction(req, '', 'Successful', '200', '');
-            //update transaction with orchestration data
-            updateTransaction(req, '', 'Successful', '200', orchestrations);
-            orchestrations = [];
-          }
-        );
+              if (despatchAdviceBaseMessage == false || despatchAdviceBaseMessage == null || despatchAdviceBaseMessage == undefined) {
+                winston.error(despatchAdviceBaseMessage)
+                winston.error('Failed to convert VIMS Distribution to GS1');
+                return processNextFacility();
+              }
+              winston.info('Done Converting Distribution To GS1');
+              winston.info('Getting GS1 Access Token From TImR');
+              timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
+                winston.info('Received GS1 Access Token From TImR');
+                if (err) {
+                  winston.error('An error occured while getting access token from TImR');
+                  return processNextFacility();
+                }
+                var access_token = JSON.parse(body).access_token;
+                winston.info('Saving Despatch Advice To TImR');
+                timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, res => {
+                  if (res) {
+                    winston.error('An error occured while saving despatch advice to TImR');
+                    winston.error(distribution);
+                    winston.error(despatchAdviceBaseMessage);
+                    winston.error(res);
+                    let msg = 'Distribution to facility ' + facilityName + '<br><br>' + distribution + '<br><p>' + despatchAdviceBaseMessage;
+                    send_email.send('Stock Rejected By TImR', msg, () => {
+                      return processNextFacility();
+                    });
+                  } else {
+                    winston.info('Despatch Advice Saved To TImR Successfully');
+                    return processNextFacility();
+                  }
+                });
+              });
+            });
+          });
+        }, function () {
+          winston.info('Done Getting Despatch Advice!!!');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        });
       });
     }),
     app.get('/syncColdChain', (req, res) => {
@@ -1184,6 +1133,7 @@ function setupApp() {
           return;
         }
         if (despatchAdviceBaseMessage == false) {
+          winston.error(JSON.stringify(distribution))
           winston.info('Failed to convert VIMS Distribution to GS1');
           updateTransaction(req, '', 'Completed', '200', orchestrations);
           return;
@@ -1191,6 +1141,7 @@ function setupApp() {
         winston.info('Getting access token from TImR');
         timr.getAccessToken('gs1', orchestrations, (err, res, body) => {
           if (err) {
+            winston.error(despatchAdviceBaseMessage)
             winston.error('An error occured while getting access token from TImR');
             updateTransaction(req, '', 'Completed', '200', orchestrations);
             return;
@@ -1200,7 +1151,10 @@ function setupApp() {
           winston.info('Saving Despatch Advice To TImR');
           timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, res => {
             winston.info('Saved Despatch Advice To TImR');
-            winston.info(res);
+            if (res) {
+              winston.error(despatchAdviceBaseMessage)
+              winston.info(res);
+            }
             updateTransaction(req, '', 'Successful', '200', orchestrations);
             orchestrations = [];
           });
