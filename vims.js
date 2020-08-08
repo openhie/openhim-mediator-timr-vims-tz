@@ -574,7 +574,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               }
               let outreach = maleValueData.in_catchment
               covLineItem.regularMale = regular
-              covLineItem.campaignMale = campaign
+              covLineItem.regularOutReachMale = campaign
               covLineItem.outreachMale = outreach
             }
             if (femaleValueData) {
@@ -595,7 +595,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
               }
               let outreach = femaleValueData.in_catchment
               covLineItem.regularFemale = regular
-              covLineItem.campaignFemale = campaign
+              covLineItem.regularOutReachFeMale = campaign
               covLineItem.outreachFemale = outreach
             }
           }
@@ -606,8 +606,8 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             JSON.stringify({
               regularMale: covLineItem.regularMale,
               regularFemale: covLineItem.regularFemale,
-              campaignMale: covLineItem.campaignMale,
-              campaignFemale: covLineItem.campaignFemale,
+              regularOutReachMale: covLineItem.regularOutReachMale,
+              regularOutReachFeMale: covLineItem.regularOutReachFeMale,
               outreachMale: covLineItem.outreachMale,
               outreachFemale: covLineItem.outreachFemale
             }))
