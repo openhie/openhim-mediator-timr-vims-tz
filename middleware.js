@@ -50,7 +50,7 @@ module.exports = {
       left join act_ext_tbl population ON (population.act_id = sbadm_tbl.act_id and population.ext_typ = 'http://openiz.org/extensions/contrib/timr/batchPopulationType')
     where
       -- we don't want back-entered data
-      sbadm_tbl.act_id not in (select act_id from act_tag_tbl where tag_name = 'backEntry' and lower(tag_value) = 'true')
+      sbadm_tbl.enc_id is not null
       -- we dont want supplements
       and sbadm_tbl.type_mnemonic != 'DrugTherapy'
       -- we don't want those vaccinations not done
@@ -128,7 +128,7 @@ module.exports = {
         left join act_tag_tbl catchment on (catchment.act_id = sbadm_tbl.act_id and catchment.tag_name = 'catchmentIndicator')
       where
         -- we don't want back-entered data
-        sbadm_tbl.act_id not in (select act_id from act_tag_tbl where tag_name = 'backEntry' and lower(tag_value) = 'true')
+        sbadm_tbl.enc_id is not null
         -- we dont want supplements
         and sbadm_tbl.type_mnemonic != 'DrugTherapy'
         -- we don't want those vaccinations not done
