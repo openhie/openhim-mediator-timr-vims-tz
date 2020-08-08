@@ -518,45 +518,84 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             if (maleValueData.length > 0) {
               updated = true
               let totalregular = 0
+              let totalCampaign = 0
               let totalOutreach = 0
               maleValueData.forEach((data) => {
-                totalregular += parseInt(data.in_service_area)
+                if (data.typ_mnemonic === 'ActType-TimrFixedSession') {
+                  totalregular += parseInt(data.in_service_area)
+                } else if (data.typ_mnemonic === 'ActType-TimrOutreachSession') {
+                  totalCampaign += parseInt(data.in_service_area)
+                }
                 totalOutreach = parseInt(data.in_catchment)
               })
               covLineItem.regularMale = totalregular
+              covLineItem.campaignMale = totalCampaign
               covLineItem.outreachMale = totalOutreach
             }
             if (femaleValueData.length > 0) {
               updated = true
               let totalregular = 0
+              let totalCampaign = 0
               let totalOutreach = 0
               femaleValueData.forEach((data) => {
-                totalregular += parseInt(data.in_service_area)
+                if (data.typ_mnemonic === 'ActType-TimrFixedSession') {
+                  totalregular += parseInt(data.in_service_area)
+                } else if (data.typ_mnemonic === 'ActType-TimrOutreachSession') {
+                  totalCampaign += parseInt(data.in_service_area)
+                }
                 totalOutreach = parseInt(data.in_catchment)
               })
               covLineItem.regularFemale = totalregular
+              covLineItem.campaignFemale = totalCampaign
               covLineItem.outreachFemale = totalOutreach
             }
           } else {
-            let maleValueData = facData.find((data) => {
+            let maleValueData = facData.filter((data) => {
               return data.gender_mnemonic == 'Male' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
-            let femaleValueData = facData.find((data) => {
+            let femaleValueData = facData.filter((data) => {
               return data.gender_mnemonic == 'Female' && data.seq_id == timrDoseId && data.type_mnemonic == timrProductId
             })
-
             if (maleValueData) {
               updated = true
-              let regular = maleValueData.in_service_area
+              let regular = 0
+              let campaign = 0
+              let fixedSession = maleValueData.find((mValue) => {
+                return mValue.typ_mnemonic === 'ActType-TimrFixedSession'
+              })
+              let outreachSession = maleValueData.find((mValue) => {
+                return mValue.typ_mnemonic === 'ActType-TimrOutreachSession'
+              })
+              if (fixedSession) {
+                regular += parseInt(fixedSession.in_service_area)
+              }
+              if (outreachSession) {
+                campaign += parseInt(outreachSession.in_service_area)
+              }
               let outreach = maleValueData.in_catchment
               covLineItem.regularMale = regular
+              covLineItem.campaignMale = campaign
               covLineItem.outreachMale = outreach
             }
             if (femaleValueData) {
               updated = true
-              let regular = femaleValueData.in_service_area
+              let regular = 0
+              let campaign = 0
+              let fixedSession = femaleValueData.find((mValue) => {
+                return mValue.typ_mnemonic === 'ActType-TimrFixedSession'
+              })
+              let outreachSession = femaleValueData.find((mValue) => {
+                return mValue.typ_mnemonic === 'ActType-TimrOutreachSession'
+              })
+              if (fixedSession) {
+                regular += parseInt(fixedSession.in_service_area)
+              }
+              if (outreachSession) {
+                campaign += parseInt(outreachSession.in_service_area)
+              }
               let outreach = femaleValueData.in_catchment
               covLineItem.regularFemale = regular
+              covLineItem.campaignFemale = campaign
               covLineItem.outreachFemale = outreach
             }
           }
@@ -567,6 +606,8 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             JSON.stringify({
               regularMale: covLineItem.regularMale,
               regularFemale: covLineItem.regularFemale,
+              campaignMale: covLineItem.campaignMale,
+              campaignFemale: covLineItem.campaignFemale,
               outreachMale: covLineItem.outreachMale,
               outreachFemale: covLineItem.outreachFemale
             }))
@@ -1761,7 +1802,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
                   callback(err, despatchAdviceBaseMessage)
                 else {
                   err = true
-                  winston.info("TImR Facility ID is Missing,skip sending Despatch Advise")
+                  winston.warn("TImR Facility ID is Missing,skip sending Despatch Advise")
                   callback(err, "")
                 }
               })

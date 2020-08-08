@@ -7,9 +7,9 @@ const moment = require('moment');
 
 const pool = new Pool({
   user: 'postgres',
-  host: '192.168.43.241',
-  database: 'timrdwh_latest',
-  password: 'tajiri',
+  password: '',
+  database: 'timr',
+  host: 'localhost',
   port: 5432,
 })
 
@@ -26,6 +26,7 @@ module.exports = {
       let query = `select
       ext_id as facility_id,
       mat_tbl.type_mnemonic,
+      act_list_tbl.typ_mnemonic,
       sbadm_tbl.seq_id,
       pat_vw.gender_mnemonic,
       population.ext_value,
@@ -41,6 +42,9 @@ module.exports = {
       inner join fac_id_tbl on (fac_vw.fac_id = fac_id_tbl.fac_id and nsid = 'TZ_HFR_ID')
           -- Fetch patient information for gender
       inner join pat_vw on (pat_vw.pat_id = sbadm_tbl.pat_id)
+      inner join enc_tbl using (enc_id)
+      inner join act_list_act_rel_tbl on (enc_tbl.enc_id = sbadm_act_id)
+      inner join act_list_tbl on (act_list_tbl.act_id = act_list_act_rel_Tbl.act_id)
           -- fetch catchment indicator extension
       left join act_tag_tbl catchment on (catchment.act_id = sbadm_tbl.act_id and catchment.tag_name = 'catchmentIndicator')
       left join act_ext_tbl population ON (population.act_id = sbadm_tbl.act_id and population.ext_typ = 'http://openiz.org/extensions/contrib/timr/batchPopulationType')
@@ -53,7 +57,7 @@ module.exports = {
       and not sbadm_tbl.neg_ind
       -- action occurred during month
       and sbadm_tbl.act_utc::DATE between '${startDate}' and '${endDate}'
-    group by ext_id, mat_tbl.type_mnemonic, pat_vw.gender_mnemonic, sbadm_tbl.seq_id, population.ext_value`
+    group by ext_id, mat_tbl.type_mnemonic, act_list_tbl.typ_mnemonic, pat_vw.gender_mnemonic, sbadm_tbl.seq_id, population.ext_value`
 
       pool.query(query, (err, response) => {
         if (err) {
@@ -974,6 +978,92 @@ module.exports = {
       })
     }, () => {
       return callback(rows)
+    })
+  },
+
+  getDefaulters(defDays, schedualeDate, callback) {
+    let query = `SELECT
+      location_id,
+      patient_id,
+      MAX(act_date) AS act_date,
+      MAX(-(act_date + '${defDays} day'::INTERVAL - CURRENT_DATE)) AS days_overdue,
+      string_agg(DISTINCT replace(mat_tbl.type_mnemonic, 'VaccineType-',''), ',') as missed_doses,
+      FIRST(gender_mnemonic) as gender_mnemonic,
+      FIRST(dob) as DOB,
+      first(family)
+  as family,
+      first(given) as given,
+      first(tel) as tel,
+      first(mth_family) as mth_family,
+      first(mth_given) as mth_given,
+      first(mth_tel) as mth_tel,
+      first(nok_family) as nok_family,
+      first(nok_given) as nok_given,
+      first(nok_tel) as nok_tel
+    FROM
+      oizcp
+      INNER JOIN pat_vw ON (patient_id = pat_id)
+      INNER JOIN mat_tbl ON (mat_id = product_id)
+    WHERE
+      act_date = '${schedualeDate}'
+      AND (fulfilled IS NULL OR fulfilled = FALSE)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM
+          sbadm_tbl
+        WHERE
+          mat_id = product_id AND
+          pat_id = patient_id AND
+          seq_id = dose_seq AND
+          (neg_ind IS NULL OR neg_ind = FALSE)
+          AND enc_id IS NOT NULL
+
+      )
+    GROUP BY location_id, patient_id`
+    pool.query(query, (err, response) => {
+      if (err) {
+        winston.error(err)
+        return callback(err, [])
+      }
+      if (response && response.hasOwnProperty('rows')) {
+        winston.info("TImR has returned with " + response.rows.length + " list of defaulters")
+        return callback(false, response.rows)
+      } else {
+        winston.warn("Invalid response has been received from TImR while getting defaulters list " + response)
+        return callback(err, [])
+      }
+    })
+  },
+
+  getMsgs(callback) {
+    winston.info("Getting message queue from timr")
+    let query = `select msg_id, to_addr, body_txt, sent_utc from msg_queue_tbl where sent_utc is NULL`
+    pool.query(query, (err, response) => {
+      if (err) {
+        winston.error(err)
+        return callback(err, [])
+      }
+      if (response && response.hasOwnProperty('rows')) {
+        winston.info("TImR has returned with " + response.rows.length + " messages")
+        return callback(false, response.rows)
+      } else {
+        winston.warn("Invalid response has been received from TImR while getting message queue " + response)
+        return callback(err, [])
+      }
+    })
+  },
+
+  markMsgSent(msg_id) {
+    winston.info("Marking message as being sent")
+    let sent = moment().format("YYYY-MM-DD hh:mm:ss.SSSZ")
+    let query = `update msg_queue_tbl set sent_utc='${sent}' where msg_id='${msg_id}'`
+    pool.query(query, (err, response) => {
+      if (err) {
+        winston.error('An error occured while marking timr message as sent')
+        winston.error(err)
+        return
+      }
+      winston.info("Done marking message as sent")
     })
   }
 }
