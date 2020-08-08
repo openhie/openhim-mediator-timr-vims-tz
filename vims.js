@@ -376,7 +376,7 @@ module.exports = function (vimscnf, oimcnf, timrcnf) {
             return nxtFac()
           }
           if (totalDraft > 0) {
-            if (periods.length < 2) {
+            if (periods.length < 3) {
               let period = {}
               period.periodId = periodId
               period.periodName = periodName
