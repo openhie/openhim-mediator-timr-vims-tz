@@ -26,7 +26,6 @@ module.exports = {
       let query = `select
       ext_id as facility_id,
       mat_tbl.type_mnemonic,
-      act_list_tbl.typ_mnemonic,
       coalesce(act_list_tbl.typ_mnemonic , enc_or.typ_mnemonic, 'ActType-TimrFixedSession') as typ_mnemonic,
       sbadm_tbl.seq_id,
       pat_vw.gender_mnemonic,
@@ -59,7 +58,7 @@ module.exports = {
       and not sbadm_tbl.neg_ind
       -- action occurred during month
       and sbadm_tbl.act_utc::DATE between '${startDate}' and '${endDate}'
-    group by ext_id, mat_tbl.type_mnemonic, act_list_tbl.typ_mnemonic, pat_vw.gender_mnemonic, sbadm_tbl.seq_id, population.ext_value`
+    group by ext_id, mat_tbl.type_mnemonic, coalesce(act_list_tbl.typ_mnemonic, enc_or.typ_mnemonic, 'ActType-TimrFixedSession'), pat_vw.gender_mnemonic, sbadm_tbl.seq_id, population.ext_value`
 
       pool.query(query, (err, response) => {
         if (err) {
