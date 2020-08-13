@@ -27,6 +27,7 @@ module.exports = {
       ext_id as facility_id,
       mat_tbl.type_mnemonic,
       act_list_tbl.typ_mnemonic,
+      coalesce(act_list_tbl.typ_mnemonic , enc_or.typ_mnemonic, 'ActType-TimrFixedSession') as typ_mnemonic,
       sbadm_tbl.seq_id,
       pat_vw.gender_mnemonic,
       population.ext_value,
@@ -47,6 +48,7 @@ module.exports = {
       inner join act_list_tbl on (act_list_tbl.act_id = act_list_act_rel_Tbl.act_id)
           -- fetch catchment indicator extension
       left join act_tag_tbl catchment on (catchment.act_id = sbadm_tbl.act_id and catchment.tag_name = 'catchmentIndicator')
+      left join (SELECT act_id, CASE WHEN tag_value = '1' THEN 'ActType-TimrOutreachSession' END AS typ_mnemonic FROM act_tag_tbl WHERE tag_name = 'outreach') enc_or ON (enc_or.act_id = sbadm_tbl.enc_id )
       left join act_ext_tbl population ON (population.act_id = sbadm_tbl.act_id and population.ext_typ = 'http://openiz.org/extensions/contrib/timr/batchPopulationType')
     where
       -- we don't want back-entered data
