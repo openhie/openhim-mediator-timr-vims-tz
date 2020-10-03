@@ -13,7 +13,7 @@ module.exports = function (aggregatorconf) {
         .addQuery("action", "compose")
         .addQuery("username", "timr")
         .addQuery("api_key", "fcdd31373486aab75aa9510351c0d262:oss0H7yxTh2BkESeQIN4C07tuGJWrpLE")
-        .addQuery("sender", "EVMAKTEST")
+        .addQuery("sender", "CHANJO")
         .addQuery("to", phone)
         .addQuery("message", msg)
         .toString()

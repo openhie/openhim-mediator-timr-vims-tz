@@ -34,7 +34,6 @@ module.exports = function () {
             smtp_secured = true
           var emails = Object.values(email_settings.emails)
           var to = emails.join(",")
-          console.log(smtp_host + " " + smtp_port + " " + smtp_secured + " " + username + " " + password + " " + to)
           let transporter = nodemailer.createTransport({
             host: smtp_host,
             port: smtp_port,
@@ -51,7 +50,6 @@ module.exports = function () {
             subject: subject,
             text: text,
           };
-          console.log(mailOptions)
           transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
               console.log(error);

@@ -16,11 +16,15 @@ exports.buildOrchestration = (name, beforeTimestamp, method, url, requestContent
       "response_header": "Empty Header Returned"
     })
     var time = moment().format()
-    send_email.send("Empty Response Data", "Res===>" + res + "Body===>" + body + "Req===>" + requestContent + "Time===>" + time, () => {
+    send_email.send("Empty Response Data", "URL===> " + url + " Res===> " + res + " Body===> " + body + " Req===> " + requestContent + " Time===> " + time, () => {
 
     })
-  } else if ('statusCode' in res) {
-    var statusCode = res.statusCode
+  } else if ('statusCode' in res || 'status' in res) {
+    if(res.statusCode) {
+      var statusCode = res.statusCode
+    } else if (res.status) {
+      var statusCode = res.status
+    }
     var header = res.headers
   }
   return {

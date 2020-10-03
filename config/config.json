@@ -3,7 +3,7 @@
     "username": "root@openhim.org",
     "password": "tajiri",
     "apiURL": "https://localhost:8080",
-    "trustSelfSigned": true    
+    "trustSelfSigned": true
   },
   "register": true
 }

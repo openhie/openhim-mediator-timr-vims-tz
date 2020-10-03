@@ -1,4 +1,4 @@
-const OIM = require('./openinfoman');
+const FHIR = require('./fhir');
 const VIMS = require('./vims');
 const middleware = require('./middleware');
 const winston = require('winston')
@@ -9,10 +9,10 @@ module.exports = {
     orchestrations,
     middlewareCallFunction
   }, callback) => {
-    const oim = OIM(config.openinfoman);
+    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     winston.info('Getting facilities from openinfoman');
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info('Getting latest period')
       vims.getFacilityWithLatestPeriod(facilities, periods => {
         winston.info('Getting data from timr for periods ' + JSON.stringify(periods))
@@ -34,10 +34,10 @@ module.exports = {
     orchestrations,
     lineItem,
   }, callback) => {
-    const oim = OIM(config.openinfoman);
+    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     winston.info('Getting facilities from openinfoman');
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info('Getting latest period')
       vims.getFacilityWithLatestPeriod(facilities, periods => {
         if (periods.length === 0) {

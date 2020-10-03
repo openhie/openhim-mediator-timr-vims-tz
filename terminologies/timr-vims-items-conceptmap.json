@@ -33,7 +33,7 @@
           "code": "2434",
           "target": [
             {
-              "code": "",
+              "code": "MaterialType-Diluent",
               "equivalence":"wider"
             }
           ]

@@ -16,9 +16,9 @@ const XmlReader = require('xml-reader');
 const xmlQuery = require('xml-query');
 const TImR = require('./timr');
 const VIMS = require('./vims');
+const FHIR = require('./fhir');
 const mixin = require('./mixin');
 const middleware = require('./middleware');
-const OIM = require('./openinfoman');
 const SMSAGGREGATOR = require('./smsAggregator');
 const async = require('async');
 const bodyParser = require('body-parser');
@@ -155,6 +155,16 @@ function setupApp() {
     });
   }
 
+  app.get('/test', (req, res) => {
+    const fhir = FHIR(config.fhir)
+    let orchestrations = []
+    let uuid = 'urn:uuid:2ab07dde-fd2e-3704-9b7f-8329ff5549f3'
+    fhir.getFacilityUUIDFromVimsId(20086, orchestrations, (err, id, name) => {
+      console.log(JSON.stringify(orchestrations,0,2));
+      winston.error(id + ' ' + name)
+    })
+  })
+
   app.get('/syncImmunizationCoverage', (req, res) => {
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
@@ -262,7 +272,6 @@ function setupApp() {
     });
   })
   app.get('/syncAdverseEffects', (req, res) => {
-    const oim = OIM(config.openinfoman);
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
@@ -374,7 +383,6 @@ function setupApp() {
     });
   })
   app.get('/syncCTCReferal', (req, res) => {
-    const oim = OIM(config.openinfoman);
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
@@ -534,7 +542,6 @@ function setupApp() {
   });
 
   app.get('/syncMosquitoNet', (req, res) => {
-    const oim = OIM(config.openinfoman);
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
@@ -914,7 +921,7 @@ function setupApp() {
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
-    const oim = OIM(config.openinfoman);
+    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, config.openinfoman);
     const timr = TImR(config.timr, config.oauth2);
     let orchestrations = [];
@@ -922,7 +929,7 @@ function setupApp() {
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
 
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       if (err) {
         winston.error('An Error Occured While Trying To Access OpenInfoMan,Stop Processing');
         return;
@@ -1053,13 +1060,13 @@ function setupApp() {
     });
   })
   app.get('/initializeReport', (req, res) => {
-    const oim = OIM(config.openinfoman);
+    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, config.openinfoman);
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
 
     let orchestrations = [];
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       if (err) {
         winston.error(
           'An Error Occured While Trying To Access OpenInfoMan,Stop Processing'
@@ -1119,7 +1126,6 @@ function setupApp() {
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
     winston.info('Received Despactch Advise From VIMS');
-    const oim = OIM(config.openinfoman);
     const vims = VIMS(config.vims, config.openinfoman);
     const timr = TImR(config.timr, config.oauth2);
     let orchestrations = [];
@@ -1163,7 +1169,7 @@ function setupApp() {
   app.post('/receivingAdvice', (req, res) => {
     req.timestamp = new Date();
     let orchestrations = [];
-    const oim = OIM(config.openinfoman);
+    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims);
     //get the distribution
 
@@ -1319,7 +1325,7 @@ function setupApp() {
 
     var vimsToFacilityId = null;
     winston.info('Getting VIMS facility ID');
-    oim.getVimsFacilityId(toFacilityId, orchestrations, (err, vimsFacId) => {
+    fhir.getVimsFacilityId(toFacilityId, orchestrations, (err, vimsFacId) => {
       if (err) {
         winston.error('An Error Occured While Trying To Access OpenInfoMan,Stop Processing');
         return;
