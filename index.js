@@ -155,16 +155,6 @@ function setupApp() {
     });
   }
 
-  app.get('/test', (req, res) => {
-    const fhir = FHIR(config.fhir)
-    let orchestrations = []
-    let uuid = 'urn:uuid:2ab07dde-fd2e-3704-9b7f-8329ff5549f3'
-    fhir.getFacilityUUIDFromVimsId(20086, orchestrations, (err, id, name) => {
-      console.log(JSON.stringify(orchestrations,0,2));
-      winston.error(id + ' ' + name)
-    })
-  })
-
   app.get('/syncImmunizationCoverage', (req, res) => {
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();

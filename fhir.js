@@ -82,7 +82,7 @@ module.exports = function (fhirconf) {
           return callback(null, url)
         })
       }, () => {
-        winston.error("returning " + facilities.length + " VIMS facilities")
+        winston.info("returning " + facilities.length + " VIMS facilities")
         return callback(error, facilities)
       })
     },
@@ -139,7 +139,7 @@ module.exports = function (fhirconf) {
           winston.error(`Something is wrong, facility with identifier https://vims.moh.go.tz|${vimsFacId} not found`)
           return callback(true)
         }
-        return callback(false, response.data.entry[0].resource.id, response.data.entry[0].resource.name)
+        return callback(false, 'urn:uuid:' + response.data.entry[0].resource.id, response.data.entry[0].resource.name)
       }).catch((err) => {
         winston.error('Error occured while getting resource from FHIR server');
         winston.error(err);
