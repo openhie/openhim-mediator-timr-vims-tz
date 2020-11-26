@@ -8,7 +8,7 @@ const winston = require('winston')
 const moment = require("moment")
 const TImR = require('./timr')
 const VIMS = require('./vims_force_pod')
-const OIM = require('./openinfoman')
+const FHIR = require('./fhir');
 const async = require('async')
 const bodyParser = require('body-parser')
 const SENDEMAIL = require('./send_email')
@@ -65,14 +65,14 @@ function setupApp() {
     /*loop through all districts
     Getting stock distribution from DVS (VIMS)
     */
-    const oim = OIM(config.openinfoman)
-    const vims = VIMS(config.vims, config.openinfoman)
+    const fhir = FHIR(config.fhir)
+    const vims = VIMS(config.vims, config.fhir)
     const timr = TImR(config.timr, config.oauth2)
     let orchestrations = []
 
     res.end()
     winston.info("getting openinfoman facilities")
-    oim.getVimsFacilities(orchestrations, (err, facilities) => {
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info("Done receiving openinfoman facilities")
       if (err) {
         winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")

@@ -912,7 +912,7 @@ function setupApp() {
     Getting stock distribution from DVS (VIMS)
     */
     const fhir = FHIR(config.fhir)
-    const vims = VIMS(config.vims, config.openinfoman);
+    const vims = VIMS(config.vims, config.fhir);
     const timr = TImR(config.timr, config.oauth2);
     let orchestrations = [];
 
@@ -1051,7 +1051,7 @@ function setupApp() {
   })
   app.get('/initializeReport', (req, res) => {
     const fhir = FHIR(config.fhir)
-    const vims = VIMS(config.vims, config.openinfoman);
+    const vims = VIMS(config.vims, config.fhir);
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
 
@@ -1116,7 +1116,7 @@ function setupApp() {
     res.end();
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
     winston.info('Received Despactch Advise From VIMS');
-    const vims = VIMS(config.vims, config.openinfoman);
+    const vims = VIMS(config.vims, config.fhir);
     const timr = TImR(config.timr, config.oauth2);
     let orchestrations = [];
 

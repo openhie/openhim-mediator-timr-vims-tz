@@ -7,13 +7,13 @@ const async = require('async')
 const querystring = require('querystring')
 const util = require('util')
 const utils = require('./utils')
-const OIM = require('./openinfoman')
+const FHIR = require('./fhir');
 const fs = require('fs')
 const isJSON = require('is-json')
 const timrVimsItems = require('./terminologies/timr-vims-items-conceptmap.json')
-module.exports = function (vimscnf, oimcnf) {
+module.exports = function (vimscnf, fhircnf) {
   const vimsconfig = vimscnf
-  const oim = OIM(oimcnf)
+  const fhir = FHIR(fhircnf)
 
   return {
     j_spring_security_check: function (orchestrations, callback) {
@@ -59,7 +59,7 @@ module.exports = function (vimscnf, oimcnf) {
           var distributionDate = distribution.distributionDate
           var creationDate = moment().format()
           var distributionId = distribution.id
-          oim.getFacilityUUIDFromVimsId(distribution.toFacilityId, orchestrations, (err, facId, facName) => {
+          fhir.getFacilityUUIDFromVimsId(distribution.toFacilityId, orchestrations, (err, facId, facName) => {
             if (err) {
               winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
               return callback(err, "")
@@ -71,7 +71,7 @@ module.exports = function (vimscnf, oimcnf) {
             }
             var toFacilityName = facName
             var timrToFacilityId = facId
-            oim.getFacilityUUIDFromVimsId(distribution.fromFacilityId, orchestrations, (err, facId1, facName1) => {
+            fhir.getFacilityUUIDFromVimsId(distribution.fromFacilityId, orchestrations, (err, facId1, facName1) => {
               if (err) {
                 winston.error("An Error Occured While Trying To Access OpenInfoMan,Stop Processing")
                 return callback(err, "")
