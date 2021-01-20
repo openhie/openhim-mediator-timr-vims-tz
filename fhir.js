@@ -121,7 +121,6 @@ module.exports = function (fhirconf) {
     getFacilityUUIDFromVimsId: (vimsFacId, orchestrations, callback) => {
 
       let url = new URI(config.baseURL).segment("Location").addQuery("identifier", `https://vims.moh.go.tz|${vimsFacId}`).toString()
-
       let before = new Date()
       axios.get(url, {
         withCredentials: true,
