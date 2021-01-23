@@ -167,42 +167,60 @@ function setupApp() {
       middlewareCallFunction: 'getImmunizationCoverage'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-          winston.info('Sync Immunization Coverage data for ' + facility.facilityName);
-          if (facility.periodId) {
-            let periodRow = rows.find((row) => {
-              return row.periodName == facility.periodName
-            })
-            if (!periodRow) {
-              winston.warn('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage data until this facility submit previous month data');
-              return nxtFacility();
-            }
-            mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
-              if (facData.length > 0) {
-                vims.saveImmunizationData(facData, facility, orchestrations, () => {
-                  winston.info('Done synchronizing Immunization Coverage data' + ' for ' + facility.facilityName);
-                  return nxtFacility();
-                });
-              } else {
-                winston.info('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage data');
-                return nxtFacility();
-              }
-            });
-          } else {
-            winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Immunization Coverage data');
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
+        winston.info('Sync Immunization Coverage data for ' + facility.facilityName);
+        if (facility.periodId) {
+          let periodRow = rows.find((row) => {
+            return row.periodName == facility.periodName
+          })
+          if (!periodRow) {
+            winston.warn('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage data until this facility submit previous month data');
             return nxtFacility();
           }
-        },
-        () => {
-          winston.info('Done synchronizing Immunization Coverage data');
+          mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
+            if (facData.length > 0) {
+              vims.populateImmLineItem(facData, facility, updatedLineItems, orchestrations, () => {
+                return nxtFacility();
+              });
+            } else {
+              winston.info('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage data');
+              return nxtFacility();
+            }
+          });
+        } else {
+          winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Immunization Coverage data');
+          return nxtFacility();
+        }
+      }, () => {
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Immunization Coverage", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Immunization Coverage');
           //first update transaction without orchestrations
           updateTransaction(req, '', 'Successful', '200', '');
           //update transaction with orchestration data
           updateTransaction(req, '', 'Successful', '200', orchestrations);
           orchestrations = [];
-          rows = []
-        }
-      );
+        })
+        rows = []
+      });
     })
   })
   app.get('/syncSupplements', (req, res) => {
@@ -218,10 +236,17 @@ function setupApp() {
       lineItem: 'vitaminSupplementationLineItems'
     }
     mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
+      let updatedLineItems = []
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getSupplementsData(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
+              if(facility.vimsFacilityId != '14625'){
+                return nxtFacility()
+              } else {
+                facility.periodId = "238898"
+                facility.periodName = "January 2021"
+              }
               winston.info('Sync Supplements data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -233,7 +258,7 @@ function setupApp() {
                 }
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
-                    vims.saveSupplements(facData, facility, vimsAgeGroup, orchestrations, () => {
+                    vims.populateSuppLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
                       winston.info('Done synchronizing Supplements data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
                       return nxtFacility();
                     });
@@ -252,12 +277,26 @@ function setupApp() {
           });
         });
       }, () => {
-        winston.info('Done synchronizing Supplements data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Supplements", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Supplements data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   })
@@ -274,7 +313,14 @@ function setupApp() {
       middlewareCallFunction: 'getAEFIData'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
           winston.info('Sync AEFI data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -286,7 +332,7 @@ function setupApp() {
             }
             mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
               if (facData.length > 0) {
-                vims.saveAdverseEffectData(facData, facility, orchestrations, () => {
+                vims.populateAdverseEffectLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                   winston.info('Done synchronizing AEFI data' + ' for ' + facility.facilityName);
                   return nxtFacility();
                 });
@@ -301,12 +347,26 @@ function setupApp() {
           }
         },
         () => {
-          winston.info('Done synchronizing AEFI data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
-          orchestrations = [];
+          let checkUpdatedLines = new Promise((resolve) => {
+            if(updatedLineItems.length > 0) {
+              vims.saveVIMSReport(updatedLineItems, "Adverse Effect", orchestrations, (err, res, body) => {
+                if (err) {
+                  winston.error(err)
+                }
+                return resolve()
+              })
+            } else {
+              return resolve()
+            }
+          })
+          checkUpdatedLines.then(() => {
+            winston.info('Done synchronizing AEFI data');
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+            orchestrations = [];
+          })
         }
       );
     });
@@ -325,7 +385,14 @@ function setupApp() {
       middlewareCallFunction: 'getDiseaseData'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync Disease data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -341,12 +408,8 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.saveDiseaseData(facData, facility, orchestrations, () => {
-                winston.info(
-                  'Done synchronizing Disease data' +
-                  ' for ' +
-                  facility.facilityName
-                );
+              vims.populateDiseaseLineItems(facData, facility, updatedLineItems, orchestrations, () => {
+                winston.info('Done synchronizing Disease data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
             } else {
@@ -355,20 +418,30 @@ function setupApp() {
             }
           });
         } else {
-          winston.warn(
-            'No DRAFT Report for ' +
-            facility.facilityName +
-            ' Skip processing Disease data'
-          );
+          winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Disease data');
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing Disease data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "diseaseLineItems", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Disease data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   })
@@ -384,7 +457,14 @@ function setupApp() {
       middlewareCallFunction: 'getCTCReferal'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
           winston.info('Sync CTC Referal data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -394,33 +474,43 @@ function setupApp() {
               winston.warn('No data for ' + facility.facilityName + ' Skip processing CTC Referal data until this facility submit previous month data');
               return nxtFacility();
             }
-            mixin.extractFacilityData(
-              facility.timrFacilityId,
-              periodRow.data,
-              facData => {
-                if (facData.length > 0) {
-                  vims.saveCTCReferalData(facData, facility, orchestrations, () => {
-                    winston.info('Done synchronizing CTC Referal data' + ' for ' + facility.facilityName);
-                    return nxtFacility();
-                  });
-                } else {
-                  winston.info('No data for ' + facility.facilityName + ' Skip processing CTC Referal data');
+            mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
+              if (facData.length > 0) {
+                vims.populateCTCReferalLineItem(facData, facility, updatedLineItems, orchestrations, () => {
+                  winston.info('Done synchronizing CTC Referal data' + ' for ' + facility.facilityName);
                   return nxtFacility();
-                }
+                });
+              } else {
+                winston.info('No data for ' + facility.facilityName + ' Skip processing CTC Referal data');
+                return nxtFacility();
               }
-            );
+            });
           } else {
             winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing CTC Referal data');
             return nxtFacility();
           }
         },
         () => {
-          winston.info('Done synchronizing CTC Referal data');
+          let checkUpdatedLines = new Promise((resolve) => {
+            if(updatedLineItems.length > 0) {
+              vims.saveVIMSReport(updatedLineItems, "ctcLineItems", orchestrations, (err, res, body) => {
+                if (err) {
+                  winston.error(err)
+                }
+                return resolve()
+              })
+            } else {
+              return resolve()
+            }
+          })
+          checkUpdatedLines.then(() => {
+            winston.info('Done synchronizing CTC Referal data');
           //first update transaction without orchestrations
           updateTransaction(req, '', 'Successful', '200', '');
           //update transaction with orchestration data
           updateTransaction(req, '', 'Successful', '200', orchestrations);
           orchestrations = [];
+          })
         }
       );
     })
@@ -438,10 +528,17 @@ function setupApp() {
       lineItem: 'breastFeedingLineItems'
     }
     mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
+      let updatedLineItems = []
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getBreastFeedingData(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
+              if(facility.vimsFacilityId != '14625'){
+                return nxtFacility()
+              } else {
+                facility.periodId = "238898"
+                facility.periodName = "January 2021"
+              }
               winston.info('Sync breast feeding data for ' + facility.facilityName);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -453,7 +550,7 @@ function setupApp() {
                 }
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
-                    vims.saveBreastFeeding(facData, facility, vimsAgeGroup, orchestrations, () => {
+                    vims.populateBreastFeedingLineItems(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
                       winston.info('Done synchronizing breast feeding data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
                       return nxtFacility();
                     });
@@ -472,12 +569,26 @@ function setupApp() {
           });
         });
       }, () => {
-        winston.info('Done synchronizing breast feeding data');
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "breastFeedingLineItems", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing breast feeding data');
         //first update transaction without orchestrations
         updateTransaction(req, '', 'Successful', '200', '');
         //update transaction with orchestration data
         updateTransaction(req, '', 'Successful', '200', orchestrations);
         orchestrations = [];
+        })
       });
     });
   });
@@ -495,7 +606,14 @@ function setupApp() {
       middlewareCallFunction: 'getPMTCTData'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync PMTCT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -507,7 +625,7 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.savePMTCT(facData, facility, orchestrations, () => {
+              vims.populatePMTCTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                 winston.info('Done synchronizing PMTCT data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
@@ -521,12 +639,26 @@ function setupApp() {
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing PMTCT data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "pmtctLineItems", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing PMTCT data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   });
@@ -544,7 +676,14 @@ function setupApp() {
       middlewareCallFunction: 'getDispLLINMosqNet'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync MosquitoNet data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -556,7 +695,7 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.saveMosquitoNet(facData, facility, orchestrations, () => {
+              vims.populateMosquitoNetLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                 winston.info('Done synchronizing MosquitoNet data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
@@ -570,12 +709,26 @@ function setupApp() {
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing MosquitoNet data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "llInLineItemLists", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing MosquitoNet data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   });
@@ -593,7 +746,14 @@ function setupApp() {
       middlewareCallFunction: 'getTTData'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync TT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -605,7 +765,7 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.saveTT(facData, facility, orchestrations, () => {
+              vims.populateTTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                 winston.info('Done synchronizing TT data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
@@ -619,12 +779,26 @@ function setupApp() {
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing TT data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "ttStatusLineItems", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing TT data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   });
@@ -642,10 +816,17 @@ function setupApp() {
       lineItem: 'childVisitLineItems'
     }
     mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
+      let updatedLineItems = []
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
           mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
             middleware.getChildVisitData(timrAgeGroup, periods, rows => {
               async.eachSeries(facilities, (facility, nxtFacility) => {
+                if(facility.vimsFacilityId != '14625'){
+                  return nxtFacility()
+                } else {
+                  facility.periodId = "238898"
+                  facility.periodName = "January 2021"
+                }
                   winston.info('Sync Child Visit data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                   if (facility.periodId) {
                     let periodRow = rows.find((row) => {
@@ -657,7 +838,7 @@ function setupApp() {
                     }
                     mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                       if (facData.length > 0) {
-                        vims.saveChildVisit(facData, facility, vimsAgeGroup, orchestrations, () => {
+                        vims.populateChildVisitLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
                           winston.info('Done synchronizing Child Visit data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
                           return nxtFacility();
                         });
@@ -679,12 +860,26 @@ function setupApp() {
           });
         },
         () => {
-          winston.info('Done synchronizing Child Visit data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
-          orchestrations = [];
+          let checkUpdatedLines = new Promise((resolve) => {
+            if(updatedLineItems.length > 0) {
+              vims.saveVIMSReport(updatedLineItems, "childVisitLineItems", orchestrations, (err, res, body) => {
+                if (err) {
+                  winston.error(err)
+                }
+                return resolve()
+              })
+            } else {
+              return resolve()
+            }
+          })
+          checkUpdatedLines.then(() => {
+            winston.info('Done synchronizing Child Visit data');
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+            orchestrations = [];
+          })
         }
       );
     });
@@ -702,10 +897,17 @@ function setupApp() {
       lineItem: 'weightAgeRatioLineItems'
     }
     mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
+      let updatedLineItems = []
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getWeightAgeRatio(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
+              if(facility.vimsFacilityId != '14625'){
+                return nxtFacility()
+              } else {
+                facility.periodId = "238898"
+                facility.periodName = "January 2021"
+              }
                 winston.info('Sync Weight Age Ratio data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                 if (facility.periodId) {
                   let periodRow = rows.find((row) => {
@@ -717,7 +919,7 @@ function setupApp() {
                   }
                   mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                     if (facData.length > 0) {
-                      vims.saveWeightAgeRatio(facData, facility, vimsAgeGroup, orchestrations, () => {
+                      vims.populateWeightAgeRatioLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
                         winston.info('Done synchronizing Weight Age Ratio data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
                         return nxtFacility();
                       });
@@ -738,15 +940,127 @@ function setupApp() {
           });
         });
       }, () => {
-        winston.info('Done synchronizing Weight Age Ratio data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Weight Age Ratio data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   })
+
+  app.get('/syncColdChain', (req, res) => {
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
+    res.end();
+    updateTransaction(req, 'Still Processing', 'Processing', '200', '');
+    req.timestamp = new Date();
+    let orchestrations = [];
+
+    let parameters = {
+      config,
+      orchestrations,
+      middlewareCallFunction: 'getColdChainData'
+    }
+    mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
+      async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
+        if (facility.periodId) {
+          let periodRow = rows.find((row) => {
+            return row.periodName == facility.periodName
+          })
+          if (!periodRow) {
+            winston.warn('No data for ' + facility.facilityName + ' Skip processing Cold Chain data until this facility submit previous month data');
+            return nxtFacility();
+          }
+          mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
+            if (facData.length > 0) {
+              vims.getReport(facility.periodId, orchestrations, (err, lineItemsReport) => {
+                if (err || !lineItemsReport) {
+                  return nxtFacility();
+                }
+                let report = {
+                  "id": lineItemsReport.report.id,
+                  "facilityId": lineItemsReport.report.facilityId,
+                  "periodId": lineItemsReport.report.periodId,
+                  "coldChainLineItems": lineItemsReport.report.coldChainLineItems,
+                  "adverseEffectLineItems": lineItemsReport.report.adverseEffectLineItems
+                }
+                vims.createPartialReport(report, lineItemsReport)
+                async.parallel({
+                  sessionSync: callback => {
+                    vims.populateSessionsDataLineItem(facData, report, () => {
+                      winston.info('Done Populating Session data' + ' for ' + facility.facilityName);
+                      return callback(null);
+                    });
+                  },
+                  coldChainSync: callback => {
+                    vims.populateColdChainLineItem(facData, report, () => {
+                      winston.info('Done Populating Cold Chain data' + ' for ' + facility.facilityName);
+                      return callback(null);
+                    });
+                  }
+                  },
+                  () => {
+                    updatedLineItems.push(report)
+                    return nxtFacility();
+                  }
+                );
+              })
+            } else {
+              winston.info('No data for ' + facility.facilityName + ' Skip processing Cold Chain/Session data');
+              return nxtFacility();
+            }
+          });
+        } else {
+          winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Cold Chain/Session data');
+          return nxtFacility();
+        }
+      }, () => {
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Cold Chain", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Cold Chain/Session data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
+      });
+    });
+  })
+
   app.get('/syncImmCovAgeGrp', (req, res) => {
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
@@ -760,10 +1074,17 @@ function setupApp() {
       lineItem: 'coverageAgeGroupLineItems'
     }
     mixin.prepareDataSyncWithAgeGrp(parameters, (facilities, ageGroups, periods) => {
+      let updatedLineItems = []
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getImmunizationCoverageByAge(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
+              if(facility.vimsFacilityId != '14625'){
+                return nxtFacility()
+              } else {
+                facility.periodId = "238898"
+                facility.periodName = "January 2021"
+              }
               winston.info('Sync Immunization Coverage By Age data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -775,8 +1096,8 @@ function setupApp() {
                 }
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
-                    vims.saveImmCoverAgeGrp(facData, facility, vimsAgeGroup, orchestrations, () => {
-                      winston.info('Done synchronizing Immunization Coverage By Age data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
+                    vims.populateImmCoverAgeGrpLineItem(facData, facility, vimsAgeGroup, orchestrations, () => {
+                      winston.info('Done populating Immunization Coverage By Age data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
                       return nxtFacility();
                     });
                   } else {
@@ -794,12 +1115,26 @@ function setupApp() {
           });
         });
       }, () => {
-        winston.info('Done synchronizing Immunization Coverage By Age data');
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Immunization Coverage By Age Group", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Immunization Coverage By Age data');
         //first update transaction without orchestrations
         updateTransaction(req, '', 'Successful', '200', '');
         //update transaction with orchestration data
         updateTransaction(req, '', 'Successful', '200', orchestrations);
         orchestrations = [];
+        })
       });
     });
   })
@@ -816,7 +1151,14 @@ function setupApp() {
       middlewareCallFunction: 'getStockONHAND'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync Stock ON_HAND data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -828,7 +1170,7 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.saveStockONHAND(facData, facility, orchestrations, () => {
+              vims.populateStockONHANDLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                 winston.info('Done synchronizing Stock ON_HAND data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
@@ -842,12 +1184,26 @@ function setupApp() {
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing Stock ON_HAND data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Stock ON_HAND", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Stock ON_HAND data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   })
@@ -864,7 +1220,14 @@ function setupApp() {
       middlewareCallFunction: 'getStockAdjustments'
     }
     mixin.prepareDataSync(parameters, (facilities, rows) => {
+      let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
+        if(facility.vimsFacilityId != '14625'){
+          return nxtFacility()
+        } else {
+          facility.periodId = "238898"
+          facility.periodName = "January 2021"
+        }
         winston.info('Sync Stock Adjustments data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -876,34 +1239,40 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.saveStockAdjustments(facData, facility, orchestrations, () => {
+              vims.populateStockAdjustmentsLineItem(facData, facility, updatedLineItems, orchestrations, () => {
                 winston.info('Done synchronizing Stock Adjustments data' + ' for ' + facility.facilityName);
                 return nxtFacility();
               });
             } else {
-              winston.info(
-                'No data for ' +
-                facility.facilityName +
-                ' Skip processing Stock Adjustments data'
-              );
+              winston.info('No data for ' + facility.facilityName +' Skip processing Stock Adjustments data');
               return nxtFacility();
             }
           });
         } else {
-          winston.warn(
-            'No DRAFT Report for ' +
-            facility.facilityName +
-            ' Skip processing Stock Adjustments data'
-          );
+          winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Stock Adjustments data');
           return nxtFacility();
         }
       }, () => {
-        winston.info('Done synchronizing Stock Adjustments data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+        let checkUpdatedLines = new Promise((resolve) => {
+          if(updatedLineItems.length > 0) {
+            vims.saveVIMSReport(updatedLineItems, "Stock Adjustments", orchestrations, (err, res, body) => {
+              if (err) {
+                winston.error(err)
+              }
+              return resolve()
+            })
+          } else {
+            return resolve()
+          }
+        })
+        checkUpdatedLines.then(() => {
+          winston.info('Done synchronizing Stock Adjustments data');
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          orchestrations = [];
+        })
       });
     });
   })
@@ -988,67 +1357,7 @@ function setupApp() {
       });
     });
   })
-  app.get('/syncColdChain', (req, res) => {
-    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
-    res.end();
-    updateTransaction(req, 'Still Processing', 'Processing', '200', '');
-    req.timestamp = new Date();
-    let orchestrations = [];
 
-    let parameters = {
-      config,
-      orchestrations,
-      middlewareCallFunction: 'getColdChainData'
-    }
-    mixin.prepareDataSync(parameters, (facilities, rows) => {
-      async.eachSeries(facilities, (facility, nxtFacility) => {
-        if (facility.periodId) {
-          let periodRow = rows.find((row) => {
-            return row.periodName == facility.periodName
-          })
-          if (!periodRow) {
-            winston.warn('No data for ' + facility.facilityName + ' Skip processing Cold Chain data until this facility submit previous month data');
-            return nxtFacility();
-          }
-          mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
-            if (facData.length > 0) {
-              async.parallel({
-                  coldChainSync: callback => {
-                    vims.saveColdChain(facData, facility, orchestrations, () => {
-                      winston.info('Done synchronizing Cold Chain data' + ' for ' + facility.facilityName);
-                      return callback(false);
-                    });
-                  },
-                  sessionSync: callback => {
-                    vims.saveSessionsData(facData, facility, orchestrations, () => {
-                      winston.info('Done synchronizing Session data' + ' for ' + facility.facilityName);
-                      return callback(false);
-                    });
-                  },
-                },
-                () => {
-                  return nxtFacility();
-                }
-              );
-            } else {
-              winston.info('No data for ' + facility.facilityName + ' Skip processing Cold Chain/Session data');
-              return nxtFacility();
-            }
-          });
-        } else {
-          winston.warn('No DRAFT Report for ' + facility.facilityName + ' Skip processing Cold Chain/Session data');
-          return nxtFacility();
-        }
-      }, () => {
-        winston.info('Done synchronizing Cold Chain/Session data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
-      });
-    });
-  })
   app.get('/initializeReport', (req, res) => {
     const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, config.fhir);

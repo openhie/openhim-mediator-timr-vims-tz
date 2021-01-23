@@ -11,7 +11,7 @@ module.exports = {
   }, callback) => {
     const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
-    winston.info('Getting facilities from openinfoman');
+    winston.info('Getting facilities from FHIR Server');
     fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info('Getting latest period')
       vims.getFacilityWithLatestPeriod(facilities, periods => {
@@ -36,7 +36,7 @@ module.exports = {
   }, callback) => {
     const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
-    winston.info('Getting facilities from openinfoman');
+    winston.info('Getting facilities from FHIR Server');
     fhir.getVimsFacilities(orchestrations, (err, facilities) => {
       winston.info('Getting latest period')
       vims.getFacilityWithLatestPeriod(facilities, periods => {
