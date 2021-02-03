@@ -178,7 +178,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        facility.periodName = "January 2021"
         winston.info('Sync Immunization Coverage data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -256,11 +255,6 @@ function setupApp() {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getSupplementsData(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
-              if(facility.vimsFacilityId != '14625'){
-                return nxtFacility()
-              } else {
-                facility.periodName = "January 2021"
-              }
               winston.info('Sync Supplements data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -329,11 +323,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
           winston.info('Sync AEFI data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -400,11 +389,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync Disease data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -471,11 +455,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
           winston.info('Sync CTC Referal data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -544,11 +523,6 @@ function setupApp() {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getBreastFeedingData(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
-              if(facility.vimsFacilityId != '14625'){
-                return nxtFacility()
-              } else {
-                facility.periodName = "January 2021"
-              }
               winston.info('Sync breast feeding data for ' + facility.facilityName);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -618,11 +592,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync PMTCT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -687,11 +656,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync MosquitoNet data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -756,11 +720,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync TT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -828,11 +787,6 @@ function setupApp() {
           mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
             middleware.getChildVisitData(timrAgeGroup, periods, rows => {
               async.eachSeries(facilities, (facility, nxtFacility) => {
-                if(facility.vimsFacilityId != '14625'){
-                  return nxtFacility()
-                } else {
-                  facility.periodName = "January 2021"
-                }
                   winston.info('Sync Child Visit data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                   if (facility.periodId) {
                     let periodRow = rows.find((row) => {
@@ -908,11 +862,6 @@ function setupApp() {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getWeightAgeRatio(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
-              if(facility.vimsFacilityId != '14625'){
-                return nxtFacility()
-              } else {
-                facility.periodName = "January 2021"
-              }
                 winston.info('Sync Weight Age Ratio data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                 if (facility.periodId) {
                   let periodRow = rows.find((row) => {
@@ -984,11 +933,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
             return row.periodName == facility.periodName
@@ -1082,11 +1026,6 @@ function setupApp() {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getImmunizationCoverageByAge(timrAgeGroup, periods, rows => {
             async.eachSeries(facilities, (facility, nxtFacility) => {
-              if(facility.vimsFacilityId != '14625'){
-                return nxtFacility()
-              } else {
-                facility.periodName = "January 2021"
-              }
               winston.info('Sync Immunization Coverage By Age data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -1155,11 +1094,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync Stock ON_HAND data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -1223,11 +1157,6 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodName = "January 2021"
-        }
         winston.info('Sync Stock Adjustments data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
