@@ -1,31 +1,61 @@
 const FHIR = require('./fhir');
 const VIMS = require('./vims');
 const middleware = require('./middleware');
+const facilitiesData = require('./facilitiesData.json')
 const winston = require('winston')
 const async = require('async')
+const moment = require('moment');
+const fs = require('fs')
 module.exports = {
+  cacheFacilitiesData: (config, orchestrations, callback) => {
+    const fhir = FHIR(config.fhir)
+    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
+    let cache = {
+      lastCached: moment().format()
+    }
+    winston.info('Getting facilities from FHIR Server');
+    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
+      winston.info('Getting latest period')
+      vims.getFacilityWithLatestPeriod(facilities, periods => {
+        cache.periods = periods
+        winston.info('Populating facilities with reports')
+        async.each(facilities, (facility, nxt) => {
+          if(!facility.periodId) {
+            return nxt()
+          }
+          vims.getReport(facility.periodId, orchestrations, (err, report) => {
+            winston.info(facility.facilityName)
+            if(!report.report) {
+              return nxt()
+            }
+            facility.report = report
+            return nxt()
+          })
+        }, () => {
+          cache.facilities = facilities
+          fs.writeFileSync('facilitiesData.json', JSON.stringify(cache))
+          winston.info('Done')
+          return callback()
+        })
+      })
+    })
+  },
   prepareDataSync: ({
     config,
     orchestrations,
     middlewareCallFunction
   }, callback) => {
-    const fhir = FHIR(config.fhir)
-    const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
-    winston.info('Getting facilities from FHIR Server');
-    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
-      winston.info('Getting latest period')
-      vims.getFacilityWithLatestPeriod(facilities, periods => {
-        winston.info('Getting data from timr for periods ' + JSON.stringify(periods))
-        middleware[middlewareCallFunction](periods, rows => {
-          async.each(rows, (row, nxtRow) => {
-            if (row.data.length === 0) {
-              winston.warn("Middleware call for " + middlewareCallFunction + " returned no data for period " + row.periodName)
-            }
-            return nxtRow()
-          }, () => {
-            return callback(facilities, rows)
-          })
-        })
+    winston.info('Getting latest period')
+    let periods = facilitiesData.periods
+    winston.info('Getting data from timr for periods ' + JSON.stringify(periods))
+    middleware[middlewareCallFunction](periods, rows => {
+      async.each(rows, (row, nxtRow) => {
+        if (row.data.length === 0) {
+          winston.warn("Middleware call for " + middlewareCallFunction + " returned no data for period " + row.periodName)
+        }
+        return nxtRow()
+      }, () => {
+        return callback(facilitiesData.facilities, rows)
       })
     })
   },
@@ -34,28 +64,22 @@ module.exports = {
     orchestrations,
     lineItem,
   }, callback) => {
-    const fhir = FHIR(config.fhir)
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
-    winston.info('Getting facilities from FHIR Server');
-    fhir.getVimsFacilities(orchestrations, (err, facilities) => {
-      winston.info('Getting latest period')
-      vims.getFacilityWithLatestPeriod(facilities, periods => {
-        if (periods.length === 0) {
-          winston.warn('No facility with DRAFT report, stoping data sync');
+    let periods = facilitiesData.periods
+    if (periods.length === 0) {
+      winston.warn('No facility with DRAFT report, stoping data sync');
+      return callback([], [])
+    }
+    winston.info('Getting vims report for period ID ' + periods[0].periodId)
+    vims.getReport(periods[0].periodId, orchestrations, (err, report) => {
+      winston.info('Extracting age groups')
+      vims.extractAgeGroups(report.report[lineItem]).then(ageGroups => {
+        if (ageGroups.length == 0) {
+          winston.warn('No age group found, stop data sync');
           return callback([], [])
         }
-        winston.info('Getting vims report for period ID ' + periods[0].periodId)
-        vims.getReport(periods[0].periodId, orchestrations, (err, report) => {
-          winston.info('Extracting age groups')
-          vims.extractAgeGroups(report.report[lineItem]).then(ageGroups => {
-            if (ageGroups.length == 0) {
-              winston.warn('No age group found, stop data sync');
-              return callback([], [])
-            }
-            winston.info('returning age groups and periods')
-            return callback(facilities, ageGroups, periods)
-          })
-        })
+        winston.info('returning age groups and periods')
+        return callback(facilitiesData.facilities, ageGroups, periods)
       })
     })
   },

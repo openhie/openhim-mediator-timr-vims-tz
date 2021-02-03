@@ -155,6 +155,15 @@ function setupApp() {
     });
   }
 
+  app.get('/cacheFacilitiesData', (req, res) => {
+    let orchestrations = [];
+    res.end()
+    updateTransaction(req, 'Still Processing', 'Processing', '200', '');
+    mixin.cacheFacilitiesData(config, orchestrations, () => {
+      updateTransaction(req, '', 'Successful', '200', orchestrations);
+    })
+  })
+
   app.get('/syncImmunizationCoverage', (req, res) => {
     const vims = VIMS(config.vims, '', config.timr, config.timrOauth2);
     res.end();
@@ -169,12 +178,7 @@ function setupApp() {
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
       async.eachSeries(facilities, (facility, nxtFacility) => {
-        if(facility.vimsFacilityId != '14625'){
-          return nxtFacility()
-        } else {
-          facility.periodId = "238898"
-          facility.periodName = "January 2021"
-        }
+        facility.periodName = "January 2021"
         winston.info('Sync Immunization Coverage data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -187,7 +191,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateImmLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "Immunization Coverage", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage data');
@@ -244,7 +259,6 @@ function setupApp() {
               if(facility.vimsFacilityId != '14625'){
                 return nxtFacility()
               } else {
-                facility.periodId = "238898"
                 facility.periodName = "January 2021"
               }
               winston.info('Sync Supplements data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
@@ -318,7 +332,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
           winston.info('Sync AEFI data for ' + facility.facilityName);
@@ -390,7 +403,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync Disease data for ' + facility.facilityName);
@@ -462,7 +474,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
           winston.info('Sync CTC Referal data for ' + facility.facilityName);
@@ -536,7 +547,6 @@ function setupApp() {
               if(facility.vimsFacilityId != '14625'){
                 return nxtFacility()
               } else {
-                facility.periodId = "238898"
                 facility.periodName = "January 2021"
               }
               winston.info('Sync breast feeding data for ' + facility.facilityName);
@@ -611,7 +621,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync PMTCT data for ' + facility.facilityName);
@@ -681,7 +690,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync MosquitoNet data for ' + facility.facilityName);
@@ -751,7 +759,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync TT data for ' + facility.facilityName);
@@ -824,7 +831,6 @@ function setupApp() {
                 if(facility.vimsFacilityId != '14625'){
                   return nxtFacility()
                 } else {
-                  facility.periodId = "238898"
                   facility.periodName = "January 2021"
                 }
                   winston.info('Sync Child Visit data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
@@ -905,7 +911,6 @@ function setupApp() {
               if(facility.vimsFacilityId != '14625'){
                 return nxtFacility()
               } else {
-                facility.periodId = "238898"
                 facility.periodName = "January 2021"
               }
                 winston.info('Sync Weight Age Ratio data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
@@ -982,7 +987,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         if (facility.periodId) {
@@ -995,38 +999,37 @@ function setupApp() {
           }
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
-              vims.getReport(facility.periodId, orchestrations, (err, lineItemsReport) => {
-                if (err || !lineItemsReport) {
+              let lineItemsReport = facility.report
+              if (!lineItemsReport) {
+                return nxtFacility();
+              }
+              let report = {
+                "id": lineItemsReport.report.id,
+                "facilityId": lineItemsReport.report.facilityId,
+                "periodId": lineItemsReport.report.periodId,
+                "coldChainLineItems": lineItemsReport.report.coldChainLineItems,
+                "adverseEffectLineItems": lineItemsReport.report.adverseEffectLineItems
+              }
+              vims.createPartialReport(report, lineItemsReport)
+              async.parallel({
+                sessionSync: callback => {
+                  vims.populateSessionsDataLineItem(facData, report, () => {
+                    winston.info('Done Populating Session data' + ' for ' + facility.facilityName);
+                    return callback(null);
+                  });
+                },
+                coldChainSync: callback => {
+                  vims.populateColdChainLineItem(facData, report, () => {
+                    winston.info('Done Populating Cold Chain data' + ' for ' + facility.facilityName);
+                    return callback(null);
+                  });
+                }
+                },
+                () => {
+                  updatedLineItems.push(report)
                   return nxtFacility();
                 }
-                let report = {
-                  "id": lineItemsReport.report.id,
-                  "facilityId": lineItemsReport.report.facilityId,
-                  "periodId": lineItemsReport.report.periodId,
-                  "coldChainLineItems": lineItemsReport.report.coldChainLineItems,
-                  "adverseEffectLineItems": lineItemsReport.report.adverseEffectLineItems
-                }
-                vims.createPartialReport(report, lineItemsReport)
-                async.parallel({
-                  sessionSync: callback => {
-                    vims.populateSessionsDataLineItem(facData, report, () => {
-                      winston.info('Done Populating Session data' + ' for ' + facility.facilityName);
-                      return callback(null);
-                    });
-                  },
-                  coldChainSync: callback => {
-                    vims.populateColdChainLineItem(facData, report, () => {
-                      winston.info('Done Populating Cold Chain data' + ' for ' + facility.facilityName);
-                      return callback(null);
-                    });
-                  }
-                  },
-                  () => {
-                    updatedLineItems.push(report)
-                    return nxtFacility();
-                  }
-                );
-              })
+              );
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing Cold Chain/Session data');
               return nxtFacility();
@@ -1082,7 +1085,6 @@ function setupApp() {
               if(facility.vimsFacilityId != '14625'){
                 return nxtFacility()
               } else {
-                facility.periodId = "238898"
                 facility.periodName = "January 2021"
               }
               winston.info('Sync Immunization Coverage By Age data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
@@ -1156,7 +1158,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync Stock ON_HAND data for ' + facility.facilityName);
@@ -1225,7 +1226,6 @@ function setupApp() {
         if(facility.vimsFacilityId != '14625'){
           return nxtFacility()
         } else {
-          facility.periodId = "238898"
           facility.periodName = "January 2021"
         }
         winston.info('Sync Stock Adjustments data for ' + facility.facilityName);
@@ -1372,50 +1372,46 @@ function setupApp() {
         );
         return;
       }
-      async.eachSeries(
-        facilities,
-        function (facility, processNextFacility) {
-          var vimsFacilityId = facility.vimsFacilityId;
-          var facilityName = facility.facilityName;
-          //var vimsFacilityId = 19630
-          winston.info('Trying To Initilize Report For ' + facilityName);
-          vims.getAllPeriods(vimsFacilityId, orchestrations, (err, body) => {
-            if (err) {
+      async.eachSeries(facilities, function (facility, processNextFacility) {
+        var vimsFacilityId = facility.vimsFacilityId;
+        var facilityName = facility.facilityName;
+        //var vimsFacilityId = 19630
+        winston.info('Trying To Initilize Report For ' + facilityName);
+        vims.getAllPeriods(vimsFacilityId, orchestrations, (err, body) => {
+          if (err) {
+            return processNextFacility();
+          }
+          var periods = [];
+          if (body.indexOf('error') == -1) {
+            body = JSON.parse(body);
+            if (body.hasOwnProperty('periods') && body.periods.length < 1)
               return processNextFacility();
-            }
-            var periods = [];
-            if (body.indexOf('error') == -1) {
-              body = JSON.parse(body);
-              if (body.hasOwnProperty('periods') && body.periods.length < 1)
-                return processNextFacility();
-              else if (!body.hasOwnProperty('periods'))
-                return processNextFacility();
-              body.periods.forEach((period, index) => {
-                if (period.id == null && period.status == null) {
-                  //lets initialize only one report on index 0
-                  if (index == 0)
-                    vims.initializeReport(vimsFacilityId, period.periodId, orchestrations, (err, body) => {
-                      if (err) {
-                        winston.error(err);
-                      }
-                      winston.info('Report for ' + period.periodName + ' Facility ' + facilityName + ' Initialized');
-                    });
-                }
-                if (index == body.periods.length - 1) {
-                  return processNextFacility();
-                }
-              });
-            } else {
+            else if (!body.hasOwnProperty('periods'))
               return processNextFacility();
-            }
-          });
-        },
-        function () {
-          winston.info('Done Initilizing Reports To Facilities!!!');
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
-          orchestrations = [];
-        }
-      );
+            body.periods.forEach((period, index) => {
+              if (period.id == null && period.status == null) {
+                //lets initialize only one report on index 0
+                if (index == 0)
+                  vims.initializeReport(vimsFacilityId, period.periodId, orchestrations, (err, body) => {
+                    if (err) {
+                      winston.error(err);
+                    }
+                    winston.info('Report for ' + period.periodName + ' Facility ' + facilityName + ' Initialized');
+                  });
+              }
+              if (index == body.periods.length - 1) {
+                return processNextFacility();
+              }
+            });
+          } else {
+            return processNextFacility();
+          }
+        });
+      }, function () {
+        winston.info('Done Initilizing Reports To Facilities!!!');
+        updateTransaction(req, '', 'Successful', '200', orchestrations);
+        orchestrations = [];
+      });
     });
   })
   app.post('/despatchAdviceVims', (req, res) => {
@@ -1481,15 +1477,7 @@ function setupApp() {
         if (err) {
           return callback('', err);
         }
-        var startDate = moment()
-          .startOf('month')
-          .format('YYYY-MM-DD');
-        var endDate = moment()
-          .endOf('month')
-          .format('YYYY-MM-DD');
-        var url = URI(config.vims.url).segment(
-          'vaccine/orderRequisition/sendNotification/' + distributionId
-        );
+        var url = URI(config.vims.url).segment('vaccine/orderRequisition/sendNotification/' + distributionId);
         var options = {
           url: url.toString(),
           headers: {
@@ -1533,12 +1521,6 @@ function setupApp() {
         if (err) {
           return callback('', err);
         }
-        var startDate = moment()
-          .startOf('month')
-          .format('YYYY-MM-DD');
-        var endDate = moment()
-          .endOf('month')
-          .format('YYYY-MM-DD');
         var url = URI(config.vims.url).segment(
           'vaccine/inventory/distribution/distribution-supervisorid/' +
           vimsToFacilityId
