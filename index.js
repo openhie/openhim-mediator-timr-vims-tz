@@ -267,8 +267,18 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateSuppLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                      winston.info('Done synchronizing Supplements data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
-                      return nxtFacility();
+                      if(updatedLineItems.length > 500) {
+                        winston.info('Saving data')
+                        vims.saveVIMSReport(updatedLineItems, "Supplements", orchestrations, (err, res, body) => {
+                          if (err) {
+                            winston.error(err)
+                          }
+                          updatedLineItems = []
+                          return nxtFacility();
+                        })
+                      } else {
+                        return nxtFacility();
+                      }
                     });
                   } else {
                     winston.info('No data for ' + facility.facilityName + ' Skip processing Supplements data age group ' + vimsAgeGroup);
@@ -335,8 +345,18 @@ function setupApp() {
             mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
               if (facData.length > 0) {
                 vims.populateAdverseEffectLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                  winston.info('Done synchronizing AEFI data' + ' for ' + facility.facilityName);
-                  return nxtFacility();
+                  if(updatedLineItems.length > 500) {
+                    winston.info('Saving data')
+                    vims.saveVIMSReport(updatedLineItems, "Adverse Effect", orchestrations, (err, res, body) => {
+                      if (err) {
+                        winston.error(err)
+                      }
+                      updatedLineItems = []
+                      return nxtFacility();
+                    })
+                  } else {
+                    return nxtFacility();
+                  }
                 });
               } else {
                 winston.info('No data for ' + facility.facilityName + ' Skip processing AEFI data');
@@ -405,8 +425,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateDiseaseLineItems(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing Disease data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "diseaseLineItems", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing Disease data');
@@ -467,8 +497,18 @@ function setupApp() {
             mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
               if (facData.length > 0) {
                 vims.populateCTCReferalLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                  winston.info('Done synchronizing CTC Referal data' + ' for ' + facility.facilityName);
-                  return nxtFacility();
+                  if(updatedLineItems.length > 500) {
+                    winston.info('Saving data')
+                    vims.saveVIMSReport(updatedLineItems, "ctcLineItems", orchestrations, (err, res, body) => {
+                      if (err) {
+                        winston.error(err)
+                      }
+                      updatedLineItems = []
+                      return nxtFacility();
+                    })
+                  } else {
+                    return nxtFacility();
+                  }
                 });
               } else {
                 winston.info('No data for ' + facility.facilityName + ' Skip processing CTC Referal data');
@@ -535,8 +575,18 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateBreastFeedingLineItems(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                      winston.info('Done synchronizing breast feeding data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
-                      return nxtFacility();
+                      if(updatedLineItems.length > 500) {
+                        winston.info('Saving data')
+                        vims.saveVIMSReport(updatedLineItems, "breastFeedingLineItems", orchestrations, (err, res, body) => {
+                          if (err) {
+                            winston.error(err)
+                          }
+                          updatedLineItems = []
+                          return nxtFacility();
+                        })
+                      } else {
+                        return nxtFacility();
+                      }
                     });
                   } else {
                     winston.info('No data for ' + facility.facilityName + ' Skip processing breast feeding data age group ' + vimsAgeGroup);
@@ -604,8 +654,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populatePMTCTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing PMTCT data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "pmtctLineItems", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing PMTCT data');
@@ -668,8 +728,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateMosquitoNetLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing MosquitoNet data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "llInLineItemLists", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing MosquitoNet data');
@@ -732,8 +802,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateTTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing TT data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "ttStatusLineItems", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing TT data');
@@ -799,8 +879,18 @@ function setupApp() {
                     mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                       if (facData.length > 0) {
                         vims.populateChildVisitLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                          winston.info('Done synchronizing Child Visit data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
-                          return nxtFacility();
+                          if(updatedLineItems.length > 500) {
+                            winston.info('Saving data')
+                            vims.saveVIMSReport(updatedLineItems, "childVisitLineItems", orchestrations, (err, res, body) => {
+                              if (err) {
+                                winston.error(err)
+                              }
+                              updatedLineItems = []
+                              return nxtFacility();
+                            })
+                          } else {
+                            return nxtFacility();
+                          }
                         });
                       } else {
                         winston.info('No data for ' + facility.facilityName + ' Skip processing Child Visit data age group ' + vimsAgeGroup);
@@ -874,8 +964,18 @@ function setupApp() {
                   mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                     if (facData.length > 0) {
                       vims.populateWeightAgeRatioLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                        winston.info('Done synchronizing Weight Age Ratio data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
-                        return nxtFacility();
+                        if(updatedLineItems.length > 500) {
+                          winston.info('Saving data')
+                          vims.saveVIMSReport(updatedLineItems, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
+                            if (err) {
+                              winston.error(err)
+                            }
+                            updatedLineItems = []
+                            return nxtFacility();
+                          })
+                        } else {
+                          return nxtFacility();
+                        }
                       });
                     } else {
                       winston.info('No data for ' + facility.facilityName + ' Skip processing Weight Age Ratio data age group ' + vimsAgeGroup);
@@ -971,7 +1071,18 @@ function setupApp() {
                 },
                 () => {
                   updatedLineItems.push(report)
-                  return nxtFacility();
+                  if(updatedLineItems.length > 500) {
+                    winston.info('Saving data')
+                    vims.saveVIMSReport(updatedLineItems, "Cold Chain", orchestrations, (err, res, body) => {
+                      if (err) {
+                        winston.error(err)
+                      }
+                      updatedLineItems = []
+                      return nxtFacility();
+                    })
+                  } else {
+                    return nxtFacility();
+                  }
                 }
               );
             } else {
@@ -1038,8 +1149,18 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateImmCoverAgeGrpLineItem(facData, facility, vimsAgeGroup, orchestrations, () => {
-                      winston.info('Done populating Immunization Coverage By Age data age group ' + vimsAgeGroup + ' for ' + facility.facilityName);
-                      return nxtFacility();
+                      if(updatedLineItems.length > 500) {
+                        winston.info('Saving data')
+                        vims.saveVIMSReport(updatedLineItems, "Immunization Coverage By Age Group", orchestrations, (err, res, body) => {
+                          if (err) {
+                            winston.error(err)
+                          }
+                          updatedLineItems = []
+                          return nxtFacility();
+                        })
+                      } else {
+                        return nxtFacility();
+                      }
                     });
                   } else {
                     winston.info('No data for ' + facility.facilityName + ' Skip processing Immunization Coverage By Age data age group ' + vimsAgeGroup);
@@ -1106,8 +1227,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateStockONHANDLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing Stock ON_HAND data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "Stock ON_HAND", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName + ' Skip processing Stock ON_HAND data');
@@ -1169,8 +1300,18 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateStockAdjustmentsLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                winston.info('Done synchronizing Stock Adjustments data' + ' for ' + facility.facilityName);
-                return nxtFacility();
+                if(updatedLineItems.length > 500) {
+                  winston.info('Saving data')
+                  vims.saveVIMSReport(updatedLineItems, "Stock Adjustments", orchestrations, (err, res, body) => {
+                    if (err) {
+                      winston.error(err)
+                    }
+                    updatedLineItems = []
+                    return nxtFacility();
+                  })
+                } else {
+                  return nxtFacility();
+                }
               });
             } else {
               winston.info('No data for ' + facility.facilityName +' Skip processing Stock Adjustments data');
