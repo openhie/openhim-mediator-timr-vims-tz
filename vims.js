@@ -1207,7 +1207,7 @@ module.exports = function (vimscnf, fhircnf) {
 
     populateColdChainLineItem: function (facData, report, callback) {
       if (facData.length > 1) {
-        winston.error("Multiple cold chain data returned for " + facility.facilityName + " stoping data sync")
+        winston.error("Multiple cold chain data returned for stoping data sync")
         return callback()
       }
       for(let lineItemIndex in report.coldChainLineItems) {
@@ -1263,7 +1263,7 @@ module.exports = function (vimscnf, fhircnf) {
 
     populateSessionsDataLineItem: function (facData, report, callback) {
       if (facData.length > 1) {
-        winston.error("Multiple Session data returned for " + facility.facilityName + " stoping data sync")
+        winston.error("Multiple Session data returned for stoping data sync")
         return callback()
       }
       let outreachPlan = facData[0].outreachplanned
@@ -1362,7 +1362,7 @@ module.exports = function (vimscnf, fhircnf) {
           let found = false
           let discardedUnopened = 0
           if (!Number.isNaN(Number.parseInt(data['REASON-Expired']))) {
-            report.report.logisticsLineItems.quantityExpired = parseInt(data['REASON-Expired'])
+            report.report.logisticsLineItems[logisticsLineItemIndex].quantityExpired = parseInt(data['REASON-Expired'])
             discardedUnopened += parseInt(data['REASON-Expired'])
             found = true
           }
@@ -1371,30 +1371,30 @@ module.exports = function (vimscnf, fhircnf) {
             found = true
           }
           if (!Number.isNaN(Number.parseInt(data['REASON-Wasted']))) {
-            report.report.logisticsLineItems.quantityWastedOther = parseInt(data['REASON-Wasted'])
+            report.report.logisticsLineItems[logisticsLineItemIndex].quantityWastedOther = parseInt(data['REASON-Wasted'])
             discardedUnopened += parseInt(data['REASON-Wasted'])
             found = true
           }
           if (!Number.isNaN(Number.parseInt(data['REASON-VVM']))) {
-            report.report.logisticsLineItems.quantityVvmAlerted = parseInt(data['REASON-VVM'])
+            report.report.logisticsLineItems[logisticsLineItemIndex].quantityVvmAlerted = parseInt(data['REASON-VVM'])
             discardedUnopened += parseInt(data['REASON-VVM'])
             found = true
           }
           if (!Number.isNaN(Number.parseInt(data['REASON-FROZEN']))) {
-            report.report.logisticsLineItems.quantityFreezed = parseInt(data['REASON-FROZEN'])
+            report.report.logisticsLineItems[logisticsLineItemIndex].quantityFreezed = parseInt(data['REASON-FROZEN'])
             discardedUnopened += parseInt(data['REASON-FROZEN'])
             found = true
           }
 
-          report.report.logisticsLineItems.quantityDiscardedUnopened = discardedUnopened
+          report.report.logisticsLineItems[logisticsLineItemIndex].quantityDiscardedUnopened = discardedUnopened
           if (!Number.isNaN(Number.parseInt(data['REASON-OPENWASTE']))) {
-            report.report.logisticsLineItems.quantityDiscardedOpened = data['REASON-OPENWASTE']
+            report.report.logisticsLineItems[logisticsLineItemIndex].quantityDiscardedOpened = data['REASON-OPENWASTE']
             found = true
           }
           winston.info("Updating Stock Adjustments " + JSON.stringify({
             product: data.type_mnemonic,
-            'Discarded Opened': report.report.logisticsLineItems.quantityDiscardedOpened,
-            'Discarded UnOpened': report.report.logisticsLineItems.quantityDiscardedUnopened
+            'Discarded Opened': report.report.logisticsLineItems[logisticsLineItemIndex].quantityDiscardedOpened,
+            'Discarded UnOpened': report.report.logisticsLineItems[logisticsLineItemIndex].quantityDiscardedUnopened
           }))
           return nxtData()
         } else {
