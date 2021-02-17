@@ -145,7 +145,7 @@ function setupApp() {
               apiRes.statusCode +
               ' with body ' +
               body
-            ).stack
+            ).stackupdateTransaction
           );
         }
         winston.info(
@@ -1781,7 +1781,130 @@ function setupApp() {
     });
   })
   app.post('/orderRequest', (req, res) => {
-    res.end();
+    winston.info('Received request to submit order to VIMS')
+    const fhir = FHIR(config.fhir)
+    const vims = VIMS(config.vims, config.fhir);
+    let conceptMaps = [
+      require('./terminologies/timr-vims-dwh-immunization-conceptmap'),
+      require('./terminologies/timr-vims-items-conceptmap'),
+      require('./terminologies/timr-vims-vitamin-conceptmap')
+    ]
+    let orderRequest = {
+      emergency: false,
+      programCode: 'Vaccine'
+    }
+    let orchestrations = []
+    let order = req.rawBody
+    let ast = XmlReader.parseSync(order);
+    let shipTo = xmlQuery(ast).find('order').children('orderLogisticalInformation').find('shipTo').children()
+    let orderId = xmlQuery(ast).find('order').children('orderIdentification').find('entityIdentification').text()
+    if(!orderId) {
+      res.status(400).send()
+      return updateTransaction(req, 'Order Id is missing', 'Completed', '400', orchestrations);
+    }
+    orderRequest.orderId = orderId
+    let timrFacilityId
+    let vimsFacilityId
+    for (let counter = 0; counter < shipTo.size(); counter++) {
+      if (shipTo.eq(counter).attr('additionalPartyIdentificationTypeCode') == 'HIE_FRID')
+      timrFacilityId = shipTo.eq(counter).find('additionalPartyIdentification').text();
+    }
+    if(!timrFacilityId) {
+      res.status(400).send()
+      return updateTransaction(req, 'Facility id not found', 'Completed', '400', orchestrations);
+    }
+    timrFacilityId = timrFacilityId.replace("urn:uuid:", "")
+    let requestedDeliveryDate = xmlQuery(ast).find('order').children('orderLogisticalInformation').find('orderLogisticalDateInformation').children().find('requestedDeliveryDateTime').children().find('date').text()
+    orderRequest.requestedDeliveryDateTime = requestedDeliveryDate
+
+    fhir.getVimsFacilityId(timrFacilityId, orchestrations, (err, id) => {
+      if(err || !id) {
+        res.status(500).send()
+        return updateTransaction(req, 'Cant resolve timr facility id', 'Completed', '500', orchestrations);
+      }
+      vimsFacilityId = id
+      orderRequest.facilityId = vimsFacilityId
+      vims.getAllPeriods(vimsFacilityId, orchestrations, (err, periods) => {
+        if(err) {
+          res.status(500).send()
+          return updateTransaction(req, 'Cant get periods from VIMS', 'Completed', '500', orchestrations);
+        }
+        try {
+          periods = JSON.parse(periods)
+        } catch (error) {
+          winston.error(error)
+          res.status(500).send()
+          return updateTransaction(req, 'Cant get periods from VIMS', 'Completed', '500', orchestrations);
+        }
+        let periodId = 0
+        for(let period of periods.periods) {
+          if(period.periodId > periodId) {
+            periodId = period.periodId
+          }
+        }
+        if(!periodId) {
+          res.status(500).send()
+          return updateTransaction(req, 'Cant get latest period', 'Completed', '500', orchestrations);
+        }
+        orderRequest.periodId = periodId
+
+        orderRequest.requisitionList = []
+        let orderLineItems = xmlQuery(ast).find('order').children().find('orderLineItem')
+        for(let counter = 0; counter < orderLineItems.size(); counter++) {
+          let timrProdId = orderLineItems.eq(counter).children('transactionalTradeItem').find('itemTypeCode').text()
+          let vimsProdId
+          for(let conceptMap of conceptMaps) {
+            vims.getVimsCode(timrProdId, conceptMap, (code) => {
+              if(code) {
+                vimsProdId = code
+              }
+            })
+            if(vimsProdId) {
+              break
+            }
+          }
+          let quantity = orderLineItems.eq(counter).children().find('requestedQuantity').text()
+          if(!vimsProdId) {
+            res.status(400).send()
+            return updateTransaction(req, 'Cant resolve timr product id', 'Completed', '400', orchestrations);
+          }
+          if(!quantity) {
+            res.status(400).send()
+            return updateTransaction(req, 'No quantity specified in one of the products', 'Completed', '400', orchestrations);
+          }
+          orderRequest.requisitionList.push({
+            productId: vimsProdId,
+            quantityRequested: quantity,
+            dosageUnit: orderLineItems.eq(counter).children().find('requestedQuantity').attr('measurementUnitCode')
+          })
+        }
+
+        var url = URI(config.vims.url).segment('rest-api/ivd/saveRequisition')
+        var username = config.vims.username
+        var password = config.vims.password
+        var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
+        var options = {
+          url: url.toString(),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: auth
+          },
+          json: orderRequest
+        }
+        let before = new Date()
+        request.put(options, function (err, resp, body) {
+          winston.info(body)
+          orchestrations.push(utils.buildOrchestration('Submitting Order ', before, 'PUT', url.toString(), orderRequest, resp, JSON.stringify(body)))
+          if (err) {
+            winston.error(err)
+            res.status(500).send()
+            return updateTransaction(req, 'Error occured while submitting order to VIMS', 'Completed', '500', orchestrations);
+          }
+          res.status(200).send()
+          return updateTransaction(req, '', 'Successful', '200', orchestrations);
+        })
+      })
+    })
   })
 
   app.get('/processMsgQue', (req, res) => {

@@ -17,36 +17,6 @@ module.exports = function (vimscnf, fhircnf) {
   const vimsconfig = vimscnf
   const fhir = FHIR(fhircnf)
 
-  function getTimrCode(vimsCode, conceptMapName, callback) {
-    async.each(conceptMapName.group, (groups, nxtGrp) => {
-      async.each(groups.element, (element, nxtElmnt) => {
-        if (element.code == vimsCode) {
-          return callback(element.target[0].code)
-        } else
-          nxtElmnt()
-      }, function () {
-        nxtGrp()
-      })
-    }, function () {
-      return callback("")
-    })
-  }
-
-  function getVimsCode(timrCode, conceptMapName, callback) {
-    async.each(conceptMapName.group, (groups, nxtGrp) => {
-      let element = groups.element.find(element => {
-        return element.target[0].code == timrCode
-      })
-      if (element) {
-        return callback(element.code)
-      } else {
-        return nxtGrp()
-      }
-    }, function () {
-      return callback("")
-    })
-  }
-
   function translateAgeGroup(ageGroup, callback) {
     var ageGroups = []
     var ageOper = []
@@ -214,6 +184,36 @@ module.exports = function (vimscnf, fhircnf) {
   }
 
   return {
+    getTimrCode(vimsCode, conceptMapName, callback) {
+      async.each(conceptMapName.group, (groups, nxtGrp) => {
+        async.each(groups.element, (element, nxtElmnt) => {
+          if (element.code == vimsCode) {
+            return callback(element.target[0].code)
+          } else
+            nxtElmnt()
+        }, function () {
+          nxtGrp()
+        })
+      }, function () {
+        return callback("")
+      })
+    },
+
+    getVimsCode(timrCode, conceptMapName, callback) {
+      async.each(conceptMapName.group, (groups, nxtGrp) => {
+        let element = groups.element.find(element => {
+          return element.target[0].code == timrCode
+        })
+        if (element) {
+          return callback(element.code)
+        } else {
+          return nxtGrp()
+        }
+      }, function () {
+        return callback("")
+      })
+    },
+
     createPartialReport(partialReport, report) {
       for(let col in report.report) {
         if(report.report[col] === null || typeof report.report[col] != 'object') {
@@ -501,7 +501,7 @@ module.exports = function (vimscnf, fhircnf) {
         let covLineItem = report.report.coverageLineItems[covLineItemIndex]
         let vimsProductId = covLineItem.productId
         let timrProductId
-        getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
+        this.getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
           timrProductId = code
         })
 
@@ -641,7 +641,7 @@ module.exports = function (vimscnf, fhircnf) {
         if (lineItem.ageGroup === vimsAgeGroup) {
           let vimsProductId = lineItem.productId
           let timrProductId
-          getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
+          this.getTimrCode(vimsProductId, timrVimsDwhImmConceptMap, code => {
             timrProductId = code
           })
 
@@ -776,7 +776,7 @@ module.exports = function (vimscnf, fhircnf) {
       async.eachSeries(facData, (data, nxtData) => {
         data.start_date = moment(data.start_date).format("YYYY-MM-DD")
         let vimsVaccCode
-        getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+        this.getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
           vimsVaccCode = code
         })
         let AEFILineItemIndex = report.report.adverseEffectLineItems.findIndex((AEFILineItem) => {
@@ -1306,7 +1306,7 @@ module.exports = function (vimscnf, fhircnf) {
       }
       async.each(facData, (data, nxtData) => {
         let vimsVaccCode
-        getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+        this.getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
           vimsVaccCode = code
         })
         let logisticsLineItemIndex = report.report.logisticsLineItems.findIndex((lineItem) => {
@@ -1347,7 +1347,7 @@ module.exports = function (vimscnf, fhircnf) {
       }
       async.each(facData, (data, nxtData) => {
         let vimsVaccCode
-        getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
+        this.getVimsCode(data.type_mnemonic, timrVimsDwhImmConceptMap, code => {
           vimsVaccCode = code
         })
         let logisticsLineItemIndex = report.report.logisticsLineItems.findIndex((lineItem) => {
