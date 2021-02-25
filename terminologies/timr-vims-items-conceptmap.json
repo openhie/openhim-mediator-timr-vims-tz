@@ -163,6 +163,15 @@
               "equivalence":"wider"
             }
           ]
+        },
+        {
+          "code": "2441",
+          "target": [
+            {
+              "code": "28",
+              "equivalence":"wider"
+            }
+          ]
         }
       ]
     }
