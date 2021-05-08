@@ -1,7 +1,7 @@
 const FHIR = require('./fhir');
 const VIMS = require('./vims');
 const middleware = require('./middleware');
-const facilitiesData = require('./facilitiesData.json')
+let facilitiesData = require('./facilitiesData.json')
 const winston = require('winston')
 const async = require('async')
 const moment = require('moment');
@@ -33,6 +33,7 @@ module.exports = {
           })
         }, () => {
           cache.facilities = facilities
+          facilitiesData = cache
           fs.writeFileSync('facilitiesData.json', JSON.stringify(cache))
           winston.info('Done')
           return callback()
