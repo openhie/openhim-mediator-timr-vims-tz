@@ -530,7 +530,7 @@ module.exports = function (timrcnf, oauthcnf, vimscnf, oimcnf, eventEmitter) {
         if (err) {
           return callback(err)
         } else
-          callback(body)
+          callback(err, res, body)
       })
     },
 

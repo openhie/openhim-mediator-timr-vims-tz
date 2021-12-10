@@ -246,11 +246,11 @@ module.exports = function (vimscnf, fhircnf) {
       var url = URI(vimsconfig.url).segment('rest-api/ivd/initialize/' + vimsFacId + '/82/' + periodId)
       var username = vimsconfig.username
       var password = vimsconfig.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
-        headers: {
-          Authorization: auth
+        auth: {
+          username,
+          password
         }
       }
       let before = new Date()
@@ -267,20 +267,20 @@ module.exports = function (vimscnf, fhircnf) {
       var url = URI(vimsconfig.url).segment('rest-api/ivd/periods/' + vimsFacId + '/82')
       var username = vimsconfig.username
       var password = vimsconfig.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
-        headers: {
-          Authorization: auth
+        auth: {
+          username,
+          password
         }
       }
       let before = new Date()
       request.get(options, (err, res, body) => {
         orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-        if (err) {
-          return callback(err)
-        } else
-          return callback(false, body)
+        if (res.statusCode != 200) {
+          return callback(true)
+        }
+        return callback(false, body)
       })
     },
 
@@ -339,7 +339,7 @@ module.exports = function (vimscnf, fhircnf) {
           }
           return nxtPer()
         }, () => {
-          return callback(body.periods.length, totalDraft, periodId, periodName)
+          return callback(false, body.periods.length, totalDraft, periodId, periodName)
         })
       })
     },
@@ -348,8 +348,8 @@ module.exports = function (vimscnf, fhircnf) {
       // return callback([{"periodId":238898,"periodName":"January 2021","total":3}])
       let periods = []
       async.each(facilities, (facility, nxtFac) => {
-        this.countPeriods(facility.vimsFacilityId, [], (total, totalDraft, periodId, periodName) => {
-          if(!periodId || !periodName) {
+        this.countPeriods(facility.vimsFacilityId, [], (err, total, totalDraft, periodId, periodName) => {
+          if(err || !periodId || !periodName) {
             return nxtFac()
           }
           facility.periodId = periodId
@@ -424,27 +424,36 @@ module.exports = function (vimscnf, fhircnf) {
       })
     },
 
-    getTimrItemCode: function (vimsItemCode, callback) {
-      timrVimsItems.group.forEach((groups) => {
-        groups.element.forEach((element) => {
-          if (element.code == vimsItemCode) {
-            element.target.forEach((target) => {
-              callback(target.code)
-            })
+    getTimrItemCode: function (vimsItemCode) {
+      let timrItemCode = 0
+      for(let groups of timrVimsItems.group) {
+        if(timrItemCode) {
+          break
+        }
+        for(let element of groups.element) {
+          if(timrItemCode) {
+            break
           }
-        })
-      })
+          if (element.code == vimsItemCode) {
+            for(let target of element.target) {
+              timrItemCode = target.code
+              break
+            }
+          }
+        }
+      }
+      return timrItemCode
     },
 
     getReport: function (id, orchestrations, callback) {
       var url = URI(vimsconfig.url).segment('rest-api/ivd/get/' + id + '.json')
       var username = vimsconfig.username
       var password = vimsconfig.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
-        headers: {
-          Authorization: auth
+        auth: {
+          username,
+          password
         }
       }
 
@@ -472,12 +481,14 @@ module.exports = function (vimscnf, fhircnf) {
       var url = URI(vimsconfig.url).segment('rest-api/ivd/saveArray')
       var username = vimsconfig.username
       var password = vimsconfig.password
-      var auth = "Basic " + new Buffer(username + ":" + password).toString("base64");
       var options = {
         url: url.toString(),
+        auth: {
+          username,
+          password
+        },
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: auth
+          'Content-Type': 'application/json'
         },
         json: updatedReport
       }
@@ -1317,7 +1328,7 @@ module.exports = function (vimscnf, fhircnf) {
           logisticsLineItem = report.report.logisticsLineItems[logisticsLineItemIndex]
         }
         if (logisticsLineItem) {
-          report.report.logisticsLineItems[logisticsLineItemIndex].closingBalance = data.balance_eom
+          report.report.logisticsLineItems[logisticsLineItemIndex].closingBalance = parseInt(data.balance_eom)
           winston.info("Updating Stock ON_HAND " + JSON.stringify({
             product: data.type_mnemonic,
             ON_HAND: logisticsLineItem.closingBalance
@@ -1533,20 +1544,20 @@ module.exports = function (vimscnf, fhircnf) {
                 if (lineItems.product.id !== 2426 && lineItems.lots.length === 0) {
                   return nextlineItems()
                 }
+                let vims_item_id = lineItems.product.id
+                let timr_item_id = me.getTimrItemCode(vims_item_id)
+                if(!timr_item_id) {
+                  return nextlineItems()
+                }
                 if (lineItems.lots.length > 0) {
                   async.eachSeries(lineItems.lots, function (lot, nextLot) {
                     fs.readFile('./despatchAdviceLineItem.xml', 'utf8', function (err, data) {
                       var lotQuantity = lot.quantity
                       var lotId = lot.lotId
                       var gtin = lineItems.product.gtin
-                      var vims_item_id = lineItems.product.id
                       var item_name = lineItems.product.fullName
                       if (item_name == null)
                         var item_name = lineItems.product.primaryName
-                      var timr_item_id = 0
-                      me.getTimrItemCode(vims_item_id, id => {
-                        timr_item_id = id
-                      })
                       var lotCode = lot.lot.lotCode
                       var expirationDate = lot.lot.expirationDate
                       var dosesPerDispensingUnit = lineItems.product.dosesPerDispensingUnit
@@ -1570,17 +1581,12 @@ module.exports = function (vimscnf, fhircnf) {
                       var gtin = lineItems.product.gtin
                     else
                       var gtin = "UNKNOWN"
-                    var vims_item_id = lineItems.product.id
                     if (lineItems.product.hasOwnProperty("fullName"))
                       var item_name = lineItems.product.fullName
                     else if (lineItems.product.hasOwnProperty("primaryName"))
                       var item_name = lineItems.product.primaryName
                     else
                       var item_name = ""
-                    var timr_item_id = 0
-                    me.getTimrItemCode(vims_item_id, (id) => {
-                      timr_item_id = id
-                    })
                     var lotCode = "UNKNOWN"
                     //create a fake expire date
                     var expirationDate = moment().month(4).format("YYYY-MM-DD")

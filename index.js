@@ -190,7 +190,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateImmLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "Immunization Coverage", orchestrations, (err, res, body) => {
                     if (err) {
@@ -267,7 +267,7 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateSuppLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                      if(updatedLineItems.length > 500) {
+                      if(updatedLineItems.length > 100) {
                         winston.info('Saving data')
                         vims.saveVIMSReport(updatedLineItems, "Supplements", orchestrations, (err, res, body) => {
                           if (err) {
@@ -345,7 +345,7 @@ function setupApp() {
             mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
               if (facData.length > 0) {
                 vims.populateAdverseEffectLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                  if(updatedLineItems.length > 500) {
+                  if(updatedLineItems.length > 100) {
                     winston.info('Saving data')
                     vims.saveVIMSReport(updatedLineItems, "Adverse Effect", orchestrations, (err, res, body) => {
                       if (err) {
@@ -425,7 +425,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateDiseaseLineItems(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "diseaseLineItems", orchestrations, (err, res, body) => {
                     if (err) {
@@ -497,7 +497,7 @@ function setupApp() {
             mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
               if (facData.length > 0) {
                 vims.populateCTCReferalLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                  if(updatedLineItems.length > 500) {
+                  if(updatedLineItems.length > 100) {
                     winston.info('Saving data')
                     vims.saveVIMSReport(updatedLineItems, "ctcLineItems", orchestrations, (err, res, body) => {
                       if (err) {
@@ -575,7 +575,7 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateBreastFeedingLineItems(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                      if(updatedLineItems.length > 500) {
+                      if(updatedLineItems.length > 100) {
                         winston.info('Saving data')
                         vims.saveVIMSReport(updatedLineItems, "breastFeedingLineItems", orchestrations, (err, res, body) => {
                           if (err) {
@@ -654,7 +654,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populatePMTCTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "pmtctLineItems", orchestrations, (err, res, body) => {
                     if (err) {
@@ -728,7 +728,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateMosquitoNetLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "llInLineItemLists", orchestrations, (err, res, body) => {
                     if (err) {
@@ -802,7 +802,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateTTLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "ttStatusLineItems", orchestrations, (err, res, body) => {
                     if (err) {
@@ -879,7 +879,7 @@ function setupApp() {
                     mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                       if (facData.length > 0) {
                         vims.populateChildVisitLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                          if(updatedLineItems.length > 500) {
+                          if(updatedLineItems.length > 100) {
                             winston.info('Saving data')
                             vims.saveVIMSReport(updatedLineItems, "childVisitLineItems", orchestrations, (err, res, body) => {
                               if (err) {
@@ -964,7 +964,7 @@ function setupApp() {
                   mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                     if (facData.length > 0) {
                       vims.populateWeightAgeRatioLineItem(facData, facility, vimsAgeGroup, updatedLineItems, orchestrations, () => {
-                        if(updatedLineItems.length > 500) {
+                        if(updatedLineItems.length > 100) {
                           winston.info('Saving data')
                           vims.saveVIMSReport(updatedLineItems, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
                             if (err) {
@@ -1071,7 +1071,7 @@ function setupApp() {
                 },
                 () => {
                   updatedLineItems.push(report)
-                  if(updatedLineItems.length > 500) {
+                  if(updatedLineItems.length > 100) {
                     winston.info('Saving data')
                     vims.saveVIMSReport(updatedLineItems, "Cold Chain", orchestrations, (err, res, body) => {
                       if (err) {
@@ -1149,7 +1149,7 @@ function setupApp() {
                 mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
                   if (facData.length > 0) {
                     vims.populateImmCoverAgeGrpLineItem(facData, facility, vimsAgeGroup, orchestrations, () => {
-                      if(updatedLineItems.length > 500) {
+                      if(updatedLineItems.length > 100) {
                         winston.info('Saving data')
                         vims.saveVIMSReport(updatedLineItems, "Immunization Coverage By Age Group", orchestrations, (err, res, body) => {
                           if (err) {
@@ -1227,7 +1227,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateStockONHANDLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "Stock ON_HAND", orchestrations, (err, res, body) => {
                     if (err) {
@@ -1300,7 +1300,7 @@ function setupApp() {
           mixin.extractFacilityData(facility.timrFacilityId, periodRow.data, facData => {
             if (facData.length > 0) {
               vims.populateStockAdjustmentsLineItem(facData, facility, updatedLineItems, orchestrations, () => {
-                if(updatedLineItems.length > 500) {
+                if(updatedLineItems.length > 100) {
                   winston.info('Saving data')
                   vims.saveVIMSReport(updatedLineItems, "Stock Adjustments", orchestrations, (err, res, body) => {
                     if (err) {
@@ -1399,12 +1399,12 @@ function setupApp() {
               }
               var access_token = JSON.parse(body).access_token;
               winston.info('Saving Despatch Advice To TImR');
-              timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, res => {
-                if (res) {
+              timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, (err, res, body) => {
+                if (body) {
                   winston.error('An error occured while saving despatch advice to TImR');
                   winston.error(distribution);
                   winston.error(despatchAdviceBaseMessage);
-                  winston.error(res);
+                  winston.error(body);
                   let msg = 'Distribution to facility ' + facilityName + '<br><br>' + distribution + '<br><p>' + despatchAdviceBaseMessage;
                   send_email.send('Stock Rejected By TImR', msg, () => {
                     return processNextFacility();
@@ -1513,19 +1513,21 @@ function setupApp() {
         if (err) {
           winston.error(despatchAdviceBaseMessage)
           winston.error('An error occured while getting access token from TImR');
-          updateTransaction(req, '', 'Completed', '200', orchestrations);
+          updateTransaction(req, '', 'Failed', '500', orchestrations);
           return;
         }
         winston.info('Received GS1 Access Token From TImR');
         var access_token = JSON.parse(body).access_token;
         winston.info('Saving Despatch Advice To TImR');
-        timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, res => {
+        timr.saveDistribution(despatchAdviceBaseMessage, access_token, orchestrations, (err, res, body) => {
           winston.info('Saved Despatch Advice To TImR');
-          if (res) {
+          if (res.statusCode && res.statusCode != 200) {
             winston.error(despatchAdviceBaseMessage)
-            winston.info(res);
+            winston.info(body);
+            updateTransaction(req, '', 'Failed', res.statusCode, orchestrations);
+          } else {
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
           }
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
           orchestrations = [];
         });
       });

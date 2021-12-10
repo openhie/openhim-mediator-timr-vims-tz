@@ -25,7 +25,7 @@ module.exports = {
           }
           vims.getReport(facility.periodId, orchestrations, (err, report) => {
             winston.info(facility.facilityName)
-            if(!report.report) {
+            if(!report || !report.report) {
               return nxt()
             }
             facility.report = report
@@ -33,8 +33,10 @@ module.exports = {
           })
         }, () => {
           cache.facilities = facilities
-          facilitiesData = cache
-          fs.writeFileSync('facilitiesData.json', JSON.stringify(cache))
+          if(cache.facilities && cache.periods) {
+            facilitiesData = cache
+            fs.writeFileSync('facilitiesData.json', JSON.stringify(cache))
+          }
           winston.info('Done')
           return callback()
         })
