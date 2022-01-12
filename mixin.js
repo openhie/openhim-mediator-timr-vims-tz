@@ -1,11 +1,12 @@
-const FHIR = require('./fhir');
-const VIMS = require('./vims');
-const middleware = require('./middleware');
-let facilitiesData = require('./facilitiesData.json')
+const JsonStreamStringify = require('json-stream-stringify')
 const winston = require('winston')
 const async = require('async')
 const moment = require('moment');
 const fs = require('fs')
+const FHIR = require('./fhir');
+const VIMS = require('./vims');
+const middleware = require('./middleware');
+let facilitiesData = require('./vimsCache/facilitiesData.json')
 module.exports = {
   cacheFacilitiesData: (config, orchestrations, callback) => {
     const fhir = FHIR(config.fhir)
@@ -18,6 +19,7 @@ module.exports = {
       winston.info('Getting latest period')
       vims.getFacilityWithLatestPeriod(facilities, periods => {
         cache.periods = periods
+        cache.facilities = []
         winston.info('Populating facilities with reports')
         async.each(facilities, (facility, nxt) => {
           if(!facility.periodId) {
@@ -29,16 +31,34 @@ module.exports = {
               return nxt()
             }
             facility.report = report
-            return nxt()
+            const writeStream = fs.createWriteStream('vimsCache/'+facility.timrFacilityId + '.json', { flags: 'w' })
+            const jsonStream = new JsonStreamStringify(Promise.resolve(Promise.resolve(facility)))
+            jsonStream.pipe(writeStream)
+            jsonStream.on('end', () => {
+              cache.facilities.push(facility.timrFacilityId + '.json')
+              return nxt()
+            })
+            jsonStream.on('error', () => {
+              winston.error('Error at path', jsonStream.stack.join('.'))
+              return nxt()
+            })
           })
         }, () => {
-          cache.facilities = facilities
-          if(cache.facilities && cache.periods) {
-            facilitiesData = cache
-            fs.writeFileSync('facilitiesData.json', JSON.stringify(cache))
+          if(!cache || !cache.facilities || cache.facilities.length === 0) {
+            return callback(true)
           }
-          winston.info('Done')
-          return callback()
+          facilitiesData = cache
+          const writeStream = fs.createWriteStream('vimsCache/facilitiesData.json', { flags: 'w' })
+          const jsonStream = new JsonStreamStringify(Promise.resolve(Promise.resolve(cache)))
+          jsonStream.pipe(writeStream)
+          jsonStream.on('end', () => {
+            winston.info('Done')
+            return callback(false)
+          })
+          jsonStream.on('error', () => {
+            winston.error('Error at path', jsonStream.stack.join('.'))
+            return callback(true)
+          })
         })
       })
     })

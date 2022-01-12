@@ -19,6 +19,7 @@
     "humanize-age": "^1.0.0",
     "is-json": "^2.0.1",
     "js2xmlparser": "^3.0.0",
+    "json-stream-stringify": "^2.0.4",
     "lodash": "^4.17.20",
     "moment": "^2.29.0",
     "mongodb": "^2.2.36",

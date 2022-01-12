@@ -159,8 +159,12 @@ function setupApp() {
     let orchestrations = [];
     res.end()
     updateTransaction(req, 'Still Processing', 'Processing', '200', '');
-    mixin.cacheFacilitiesData(config, orchestrations, () => {
-      updateTransaction(req, '', 'Successful', '200', orchestrations);
+    mixin.cacheFacilitiesData(config, orchestrations, (err) => {
+      if(err) {
+        updateTransaction(req, '', 'Failed', '500', []);
+      } else {
+        updateTransaction(req, '', 'Successful', '200', []);
+      }
     })
   })
 
@@ -175,9 +179,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getImmunizationCoverage'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync Immunization Coverage data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -195,6 +207,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "Immunization Coverage", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -218,6 +234,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Immunization Coverage", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -227,10 +247,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Immunization Coverage');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
         rows = []
@@ -254,7 +281,14 @@ function setupApp() {
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getSupplementsData(timrAgeGroup, periods, rows => {
-            async.eachSeries(facilities, (facility, nxtFacility) => {
+            async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+              let facility = {}
+              try {
+                facility = require('./vimsCache/'+facilityFile)
+              } catch (error) {
+                winston.error(error)
+                return nxtFacility()
+              }
               winston.info('Sync Supplements data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -272,6 +306,10 @@ function setupApp() {
                         vims.saveVIMSReport(updatedLineItems, "Supplements", orchestrations, (err, res, body) => {
                           if (err) {
                             winston.error(err)
+                            errorOccured = true
+                          }
+                          if(res.statusCode != 200) {
+                            errorOccured = true
                           }
                           updatedLineItems = []
                           return nxtFacility();
@@ -300,6 +338,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Supplements", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -309,10 +351,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Supplements data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -330,9 +379,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getAEFIData'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+          let facility = {}
+          try {
+            facility = require('./vimsCache/'+facilityFile)
+          } catch (error) {
+            winston.error(error)
+            return nxtFacility()
+          }
           winston.info('Sync AEFI data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -350,6 +407,10 @@ function setupApp() {
                     vims.saveVIMSReport(updatedLineItems, "Adverse Effect", orchestrations, (err, res, body) => {
                       if (err) {
                         winston.error(err)
+                        errorOccured = true
+                      }
+                      if(res.statusCode != 200) {
+                        errorOccured = true
                       }
                       updatedLineItems = []
                       return nxtFacility();
@@ -374,6 +435,10 @@ function setupApp() {
               vims.saveVIMSReport(updatedLineItems, "Adverse Effect", orchestrations, (err, res, body) => {
                 if (err) {
                   winston.error(err)
+                  errorOccured = true
+                }
+                if(res.statusCode != 200) {
+                  errorOccured = true
                 }
                 return resolve()
               })
@@ -383,10 +448,17 @@ function setupApp() {
           })
           checkUpdatedLines.then(() => {
             winston.info('Done synchronizing AEFI data');
-            //first update transaction without orchestrations
-            updateTransaction(req, '', 'Successful', '200', '');
-            //update transaction with orchestration data
-            updateTransaction(req, '', 'Successful', '200', orchestrations);
+            if(errorOccured) {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '500', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '500', orchestrations);
+            } else {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '200', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '200', orchestrations);
+            }
             orchestrations = [];
           })
         }
@@ -406,9 +478,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getDiseaseData'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync Disease data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -430,6 +510,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "diseaseLineItems", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -453,6 +537,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "diseaseLineItems", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -462,10 +550,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Disease data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -482,9 +577,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getCTCReferal'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+          let facility = {}
+          try {
+            facility = require('./vimsCache/'+facilityFile)
+          } catch (error) {
+            winston.error(error)
+            return nxtFacility()
+          }
           winston.info('Sync CTC Referal data for ' + facility.facilityName);
           if (facility.periodId) {
             let periodRow = rows.find((row) => {
@@ -502,6 +605,10 @@ function setupApp() {
                     vims.saveVIMSReport(updatedLineItems, "ctcLineItems", orchestrations, (err, res, body) => {
                       if (err) {
                         winston.error(err)
+                        errorOccured = true
+                      }
+                      if(res.statusCode != 200) {
+                        errorOccured = true
                       }
                       updatedLineItems = []
                       return nxtFacility();
@@ -526,6 +633,10 @@ function setupApp() {
               vims.saveVIMSReport(updatedLineItems, "ctcLineItems", orchestrations, (err, res, body) => {
                 if (err) {
                   winston.error(err)
+                  errorOccured = true
+                }
+                if(res.statusCode != 200) {
+                  errorOccured = true
                 }
                 return resolve()
               })
@@ -535,11 +646,18 @@ function setupApp() {
           })
           checkUpdatedLines.then(() => {
             winston.info('Done synchronizing CTC Referal data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
-          orchestrations = [];
+            if(errorOccured) {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '500', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '500', orchestrations);
+            } else {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '200', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '200', orchestrations);
+            }
+            orchestrations = [];
           })
         }
       );
@@ -562,7 +680,14 @@ function setupApp() {
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getBreastFeedingData(timrAgeGroup, periods, rows => {
-            async.eachSeries(facilities, (facility, nxtFacility) => {
+            async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+              let facility = {}
+              try {
+                facility = require('./vimsCache/'+facilityFile)
+              } catch (error) {
+                winston.error(error)
+                return nxtFacility()
+              }
               winston.info('Sync breast feeding data for ' + facility.facilityName);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -580,6 +705,10 @@ function setupApp() {
                         vims.saveVIMSReport(updatedLineItems, "breastFeedingLineItems", orchestrations, (err, res, body) => {
                           if (err) {
                             winston.error(err)
+                            errorOccured = true
+                          }
+                          if(res.statusCode != 200) {
+                            errorOccured = true
                           }
                           updatedLineItems = []
                           return nxtFacility();
@@ -608,6 +737,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "breastFeedingLineItems", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -617,11 +750,18 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing breast feeding data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
+          orchestrations = [];
         })
       });
     });
@@ -639,9 +779,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getPMTCTData'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync PMTCT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -659,6 +807,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "pmtctLineItems", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -682,6 +834,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "pmtctLineItems", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -691,10 +847,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing PMTCT data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -713,9 +876,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getDispLLINMosqNet'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync MosquitoNet data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -733,6 +904,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "llInLineItemLists", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -756,6 +931,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "llInLineItemLists", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -765,10 +944,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing MosquitoNet data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -787,9 +973,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getTTData'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync TT data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -807,6 +1001,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "ttStatusLineItems", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -830,6 +1028,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "ttStatusLineItems", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -839,10 +1041,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing TT data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -866,7 +1075,14 @@ function setupApp() {
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
           mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
             middleware.getChildVisitData(timrAgeGroup, periods, rows => {
-              async.eachSeries(facilities, (facility, nxtFacility) => {
+              async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+                  let facility = {}
+                  try {
+                    facility = require('./vimsCache/'+facilityFile)
+                  } catch (error) {
+                    winston.error(error)
+                    return nxtFacility()
+                  }
                   winston.info('Sync Child Visit data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                   if (facility.periodId) {
                     let periodRow = rows.find((row) => {
@@ -884,6 +1100,10 @@ function setupApp() {
                             vims.saveVIMSReport(updatedLineItems, "childVisitLineItems", orchestrations, (err, res, body) => {
                               if (err) {
                                 winston.error(err)
+                                errorOccured = true
+                              }
+                              if(res.statusCode != 200) {
+                                errorOccured = true
                               }
                               updatedLineItems = []
                               return nxtFacility();
@@ -915,6 +1135,10 @@ function setupApp() {
               vims.saveVIMSReport(updatedLineItems, "childVisitLineItems", orchestrations, (err, res, body) => {
                 if (err) {
                   winston.error(err)
+                  errorOccured = true
+                }
+                if(res.statusCode != 200) {
+                  errorOccured = true
                 }
                 return resolve()
               })
@@ -924,10 +1148,17 @@ function setupApp() {
           })
           checkUpdatedLines.then(() => {
             winston.info('Done synchronizing Child Visit data');
-            //first update transaction without orchestrations
-            updateTransaction(req, '', 'Successful', '200', '');
-            //update transaction with orchestration data
-            updateTransaction(req, '', 'Successful', '200', orchestrations);
+            if(errorOccured) {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '500', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '500', orchestrations);
+            } else {
+              //first update transaction without orchestrations
+              updateTransaction(req, '', 'Successful', '200', '');
+              //update transaction with orchestration data
+              updateTransaction(req, '', 'Successful', '200', orchestrations);
+            }
             orchestrations = [];
           })
         }
@@ -951,7 +1182,14 @@ function setupApp() {
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getWeightAgeRatio(timrAgeGroup, periods, rows => {
-            async.eachSeries(facilities, (facility, nxtFacility) => {
+            async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+                let facility = {}
+                try {
+                  facility = require('./vimsCache/'+facilityFile)
+                } catch (error) {
+                  winston.error(error)
+                  return nxtFacility()
+                }
                 winston.info('Sync Weight Age Ratio data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
                 if (facility.periodId) {
                   let periodRow = rows.find((row) => {
@@ -969,6 +1207,10 @@ function setupApp() {
                           vims.saveVIMSReport(updatedLineItems, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
                             if (err) {
                               winston.error(err)
+                              errorOccured = true
+                            }
+                            if(res.statusCode != 200) {
+                              errorOccured = true
                             }
                             updatedLineItems = []
                             return nxtFacility();
@@ -999,6 +1241,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "weightAgeRatioLineItems", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -1008,10 +1254,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Weight Age Ratio data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -1030,9 +1283,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getColdChainData'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
             return row.periodName == facility.periodName
@@ -1076,6 +1337,10 @@ function setupApp() {
                     vims.saveVIMSReport(updatedLineItems, "Cold Chain", orchestrations, (err, res, body) => {
                       if (err) {
                         winston.error(err)
+                        errorOccured = true
+                      }
+                      if(res.statusCode != 200) {
+                        errorOccured = true
                       }
                       updatedLineItems = []
                       return nxtFacility();
@@ -1100,6 +1365,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Cold Chain", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -1109,10 +1378,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Cold Chain/Session data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -1136,7 +1412,14 @@ function setupApp() {
       async.each(ageGroups, (vimsAgeGroup, nxtAgegrp) => {
         mixin.translateAgeGroup(vimsAgeGroup, timrAgeGroup => {
           middleware.getImmunizationCoverageByAge(timrAgeGroup, periods, rows => {
-            async.eachSeries(facilities, (facility, nxtFacility) => {
+            async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+              let facility = {}
+              try {
+                facility = require('./vimsCache/'+facilityFile)
+              } catch (error) {
+                winston.error(error)
+                return nxtFacility()
+              }
               winston.info('Sync Immunization Coverage By Age data for ' + facility.facilityName + ' Age group ' + vimsAgeGroup);
               if (facility.periodId) {
                 let periodRow = rows.find((row) => {
@@ -1154,6 +1437,10 @@ function setupApp() {
                         vims.saveVIMSReport(updatedLineItems, "Immunization Coverage By Age Group", orchestrations, (err, res, body) => {
                           if (err) {
                             winston.error(err)
+                            errorOccured = true
+                          }
+                          if(res.statusCode != 200) {
+                            errorOccured = true
                           }
                           updatedLineItems = []
                           return nxtFacility();
@@ -1182,6 +1469,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Immunization Coverage By Age Group", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -1191,11 +1482,18 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Immunization Coverage By Age data');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
-        orchestrations = [];
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
+          orchestrations = [];
         })
       });
     });
@@ -1212,9 +1510,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getStockONHAND'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync Stock ON_HAND data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -1232,6 +1538,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "Stock ON_HAND", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -1255,6 +1565,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Stock ON_HAND", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -1264,10 +1578,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Stock ON_HAND data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -1285,9 +1606,17 @@ function setupApp() {
       orchestrations,
       middlewareCallFunction: 'getStockAdjustments'
     }
+    let errorOccured = false
     mixin.prepareDataSync(parameters, (facilities, rows) => {
       let updatedLineItems = []
-      async.eachSeries(facilities, (facility, nxtFacility) => {
+      async.eachSeries(facilities, (facilityFile, nxtFacility) => {
+        let facility = {}
+        try {
+          facility = require('./vimsCache/'+facilityFile)
+        } catch (error) {
+          winston.error(error)
+          return nxtFacility()
+        }
         winston.info('Sync Stock Adjustments data for ' + facility.facilityName);
         if (facility.periodId) {
           let periodRow = rows.find((row) => {
@@ -1305,6 +1634,10 @@ function setupApp() {
                   vims.saveVIMSReport(updatedLineItems, "Stock Adjustments", orchestrations, (err, res, body) => {
                     if (err) {
                       winston.error(err)
+                      errorOccured = true
+                    }
+                    if(res.statusCode != 200) {
+                      errorOccured = true
                     }
                     updatedLineItems = []
                     return nxtFacility();
@@ -1328,6 +1661,10 @@ function setupApp() {
             vims.saveVIMSReport(updatedLineItems, "Stock Adjustments", orchestrations, (err, res, body) => {
               if (err) {
                 winston.error(err)
+                errorOccured = true
+              }
+              if(res.statusCode != 200) {
+                errorOccured = true
               }
               return resolve()
             })
@@ -1337,10 +1674,17 @@ function setupApp() {
         })
         checkUpdatedLines.then(() => {
           winston.info('Done synchronizing Stock Adjustments data');
-          //first update transaction without orchestrations
-          updateTransaction(req, '', 'Successful', '200', '');
-          //update transaction with orchestration data
-          updateTransaction(req, '', 'Successful', '200', orchestrations);
+          if(errorOccured) {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '500', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '500', orchestrations);
+          } else {
+            //first update transaction without orchestrations
+            updateTransaction(req, '', 'Successful', '200', '');
+            //update transaction with orchestration data
+            updateTransaction(req, '', 'Successful', '200', orchestrations);
+          }
           orchestrations = [];
         })
       });
@@ -1419,10 +1763,17 @@ function setupApp() {
         });
       }, function () {
         winston.info('Done Getting Despatch Advice!!!');
-        //first update transaction without orchestrations
-        updateTransaction(req, '', 'Successful', '200', '');
-        //update transaction with orchestration data
-        updateTransaction(req, '', 'Successful', '200', orchestrations);
+        if(errorOccured) {
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '500', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '500', orchestrations);
+        } else {
+          //first update transaction without orchestrations
+          updateTransaction(req, '', 'Successful', '200', '');
+          //update transaction with orchestration data
+          updateTransaction(req, '', 'Successful', '200', orchestrations);
+        }
         orchestrations = [];
       });
     });
@@ -1765,10 +2116,13 @@ function setupApp() {
                 function () {
                   //submit Receiving Advice To VIMS
                   winston.info('Sending Receiving Advice To VIMS');
-                  vims.sendReceivingAdvice(distribution, orchestrations, res => {
-                    winston.info(res);
-                    winston.info('Receiving Advice Submitted To VIMS!!!');
-                    updateTransaction(req, '', 'Successful', '200', orchestrations);
+                  vims.sendReceivingAdvice(distribution, orchestrations, (err, res) => {
+                    winston.info('Receiving Advice Processed!!!');
+                    if(err) {
+                      updateTransaction(req, '', 'Failed', '500', orchestrations);
+                    } else {
+                      updateTransaction(req, '', 'Successful', '200', orchestrations);
+                    }
                     orchestrations = [];
                   });
                 }

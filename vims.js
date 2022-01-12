@@ -237,8 +237,14 @@ module.exports = function (vimscnf, fhircnf) {
       }
       let before = new Date()
       request.post(options, (err, res, body) => {
-        orchestrations.push(utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, postData, res, JSON.stringify(res.headers)))
-        callback(err, res.headers)
+        let headers = {}
+        if(res && res.headers) {
+          headers = res.headers
+        } else {
+          header = err
+        }
+        orchestrations.push(utils.buildOrchestration('Spring Authentication', before, 'POST', options.url, postData, res, header))
+        callback(err, headers)
       })
     },
 
@@ -277,7 +283,7 @@ module.exports = function (vimscnf, fhircnf) {
       let before = new Date()
       request.get(options, (err, res, body) => {
         orchestrations.push(utils.buildOrchestration('Get VIMS Facility Period', before, 'GET', url.toString(), JSON.stringify(options.headers), res, body))
-        if (res.statusCode != 200) {
+        if (res && res.statusCode != 200) {
           return callback(true)
         }
         return callback(false, body)
@@ -494,12 +500,11 @@ module.exports = function (vimscnf, fhircnf) {
       }
       let before = new Date()
       request.put(options, function (err, res, body) {
-        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport, res, JSON.stringify(body)))
+        orchestrations.push(utils.buildOrchestration('Updating VIMS ' + name, before, 'PUT', url.toString(), updatedReport.splice(0,10), res, JSON.stringify(body)))
         if (err) {
           winston.error(err)
-          return callback(err, res, body)
-        } else
-          return callback(err, res, body)
+        }
+        return callback(err, res, body)
       })
     },
 
@@ -1539,6 +1544,7 @@ module.exports = function (vimscnf, fhircnf) {
               fromFacilityName = facName1
               timrFromFacilityId = facId1
               var despatchAdviceBaseMessage = util.format(data, timrToFacilityId, timrFromFacilityId, fromFacilityName, distributionDate, distributionId, timrToFacilityId, timrFromFacilityId, timrToFacilityId, distributionDate, creationDate)
+              let hasDistribution = false
               async.eachSeries(distribution.lineItems, function (lineItems, nextlineItems) {
                 // if this is not safety box and lot is empty then ignore
                 if (lineItems.product.id !== 2426 && lineItems.lots.length === 0) {
@@ -1549,6 +1555,7 @@ module.exports = function (vimscnf, fhircnf) {
                 if(!timr_item_id) {
                   return nextlineItems()
                 }
+                hasDistribution = true
                 if (lineItems.lots.length > 0) {
                   async.eachSeries(lineItems.lots, function (lot, nextLot) {
                     fs.readFile('./despatchAdviceLineItem.xml', 'utf8', function (err, data) {
@@ -1603,8 +1610,14 @@ module.exports = function (vimscnf, fhircnf) {
                 }
               }, function () {
                 despatchAdviceBaseMessage = despatchAdviceBaseMessage.replace("%s", "")
-                if (timrToFacilityId)
-                  callback(err, despatchAdviceBaseMessage)
+                if (timrToFacilityId) {
+                  if(hasDistribution) {
+                    callback(err, despatchAdviceBaseMessage)
+                  } else {
+                    winston.warn("Distribution is empty")
+                    callback(err, "")
+                  }
+                }
                 else {
                   err = true
                   winston.warn("TImR Facility ID is Missing,skip sending Despatch Advise")
@@ -1650,6 +1663,10 @@ module.exports = function (vimscnf, fhircnf) {
 
     sendReceivingAdvice: function (distribution, orchestrations, callback) {
       this.j_spring_security_check(orchestrations, (err, header) => {
+        if(err) {
+          winston.error(err)
+          return callback(err)
+        }
         var url = URI(vimsconfig.url).segment('vaccine/inventory/distribution/save.json')
         var options = {
           url: url.toString(),
@@ -1664,9 +1681,9 @@ module.exports = function (vimscnf, fhircnf) {
         request.post(options, function (err, res, body) {
           orchestrations.push(utils.buildOrchestration('Send Receiving Advice To VIMS', before, 'POST', url.toString(), JSON.stringify(distribution), res, JSON.stringify(body)))
           if (err) {
-            return callback(err)
-          } else
-            callback(body)
+            winston.error(err)
+          }
+            callback(err, body)
         })
       })
     }
