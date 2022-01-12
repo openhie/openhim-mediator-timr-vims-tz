@@ -31,7 +31,7 @@
     "standard": "^6.0.8",
     "strtotime": "^1.0.0",
     "underscore": "^1.8.3",
-    "urijs": "^1.18.2",
+    "urijs": "^1.19.6",
     "winston": "^2.2.0",
     "xml-query": "^1.4.0",
     "xml-reader": "^2.4.3",
