@@ -1,4 +1,4 @@
-Welcome to TImR and DHIS2 Data Sync's documentation!
+Welcome to TImR and VIMS Data Sync's documentation!
 ====================================================
 
 .. toctree::
