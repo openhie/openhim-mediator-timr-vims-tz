@@ -4,7 +4,7 @@
   "description": "Data Synchronization between Tanzania Immunization Registry and Vaccine Information Management System",
   "main": "start.js",
   "dependencies": {
-    "async": "^2.4.1",
+    "async": "^3.2.2",
     "body-parser": "^1.17.2",
     "circular-json": "^0.3.1",
     "cli-spinner": "^0.2.8",
